@@ -1,6 +1,9 @@
 # Prerequisites
 *.d
 
+# logs
+*.log
+
 # Object files
 *.o
 *.ko
@@ -28,6 +31,13 @@
 *.so.*
 *.dylib
 
+#gitignores
+BibliotecaCompartida/.gitignore
+Kernel/.gitignore
+FileSystem/.gitignore
+PoolMemorias/.gitignore
+
+
 # Executables
 *.exe
 *.out
@@ -36,13 +46,16 @@
 *.x86_64
 *.hex
 
+#Xml
+*.xml
+
 # Debug files
 *.dSYM/
 *.su
 *.idb
 *.pdb
 
-# Kernel Module Compile Results
+
 *.mod*
 *.cmd
 .tmp_versions/
@@ -50,3 +63,4 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+/.metadata/
