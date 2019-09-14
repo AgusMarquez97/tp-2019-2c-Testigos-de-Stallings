@@ -32,10 +32,10 @@
 *.dylib
 
 #gitignores
-BibliotecaCompartida/.gitignore
-Kernel/.gitignore
-FileSystem/.gitignore
-PoolMemorias/.gitignore
+Shared_Library/.gitignore
+SUSE/.gitignore
+MUSE/.gitignore
+FUSE/.gitignore
 
 
 # Executables

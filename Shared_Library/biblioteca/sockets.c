@@ -262,11 +262,6 @@ int recibir(int socketConexion, void* buffer,int32_t tamanioARecibir) {
 	return bytesTotales; //los mando por si alguien lo necesita
 }
 
-void levantarSocketListening(char * servidorIP, char* servidorPuerto)
-{
-
-}
-
 //------------------ SERVIDOR-------------
 
 void asociarPuerto(int *socketServidor,estructuraConexion* estructuraServidor)

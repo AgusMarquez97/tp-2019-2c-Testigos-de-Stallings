@@ -20,7 +20,7 @@ void enviarChar(int socketReceptor, char caracter){
 	void* buffer = malloc(sizeof(char));
 
 	serializarChar(buffer, caracter, &desplazamiento);
-	//enviar(socketReceptor, buffer, sizeof(char));
+	enviar(socketReceptor, buffer, sizeof(char));
 
 	free(buffer);
 

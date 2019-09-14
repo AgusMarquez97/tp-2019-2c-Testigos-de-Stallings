@@ -8,8 +8,16 @@ void iniciarLogConPath(char* path,char* nombre) {
 }
 void iniciarLog(char* nombre) {
 
-	logger = log_create("Lissandra.log", nombre, 0, LOG_LEVEL_INFO);
+	logger = log_create("Linuse.log", nombre, 0, LOG_LEVEL_INFO);
 
+}
+
+void destruirLog(){
+	log_destroy(logger);
+}
+
+void destruirUnLog(t_log * unLog){
+	log_destroy(unLog);
 }
 
 void loggearInfo(char* mensaje) {

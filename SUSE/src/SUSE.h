@@ -10,6 +10,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 #include <biblioteca/sockets.h>
 #include <biblioteca/serializacion.h>
@@ -17,6 +18,7 @@
 #include <biblioteca/enumsAndStructs.h>
 #include <biblioteca/logs.h>
 #include <biblioteca/levantarConfig.h>
+#include <biblioteca/utils.h>
 
 #include <commons/string.h>
 #include <commons/collections/list.h>
@@ -25,5 +27,23 @@
 #include <commons/collections/dictionary.h>
 #include <commons/bitarray.h>
 
+#define pathConfig "/home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/SUSE/config/configuracion.txt"
+
+char ip[46];
+char puerto[10];
+
+int metricsTimer;
+int maxMultiprog;
+float alphaSJF;
+
+char ** semIds;
+char ** semInit;
+char ** semMax;
+
+void liberarVariablesGlobales();
+void levantarConfig();
+
+void levantarServidorFUSE();
+void rutinaServidor(int socketRespuesta);
 
 #endif /* SUSE_H_ */

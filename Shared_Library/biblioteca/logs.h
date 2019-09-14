@@ -43,6 +43,9 @@ void loggearWarning(char* mensaje);
 void loggearError(char* mensaje);
 void loggearInfoConComentario(char* comentario, char* mensaje);
 
+void destruirLog();
+void destruirUnLog(t_log * unLog);
+
 /*
  * Para gestion de logs no Globales
  */
