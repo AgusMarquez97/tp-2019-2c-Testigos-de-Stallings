@@ -1,14 +1,47 @@
 /*
- ============================================================================
- Name        : FUSE.c
- Author      : 
- Version     :
- Copyright   : Your copyright notice
- Description : Hello World in C, Ansi-style
- ============================================================================
+ * SAC-cli.c
+ *
+ *  Created on: 25 sep. 2019
+ *      Author: utnso
  */
 
+#define FUSE_USE_VERSION 30
+
+#include <stddef.h>
+#include <stdlib.h>
+#include <fuse.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <time.h>
 #include "FUSE.h"
+
+//va a ser llamada cuando el sistema pida los atributos de un archivo
+
+static int hola_getattr( const char *path, struct stat *st )
+{
+	st->st_uid = getuid();			//el duenio del archivo
+	st->st_gid = getgid();			//el mismo?
+	st->st_atime = time( NULL );	// last access time
+	st->st_mtime = time( NULL );	// last modification time
+
+	if ( strcmp( path, "/" ) == 0 )	//path punto de montaje
+	{
+		st->st_mode = S_IFDIR | 0755; //0755 son los bits de permiso
+		st->st_nlink = 2;
+	}
+	else
+	{
+		st->st_mode = S_IFREG | 0644;
+		st->st_nlink = 1;
+		st->st_size = 1024;
+	}
+	return 0;
+}
+
 
 void levantarServidorFUSE()
 {
@@ -39,10 +72,9 @@ void rutinaServidor(int socketRespuesta)
 {
 	loggearInfo(":)");
 	sleep(5);
-	/*
-	 * Aca viene la magia...
-	 * enviar y recibir mierda
-	 */
+
+	 // Aca viene la magia...enviar y recibir mierda
+
 }
 
 void levantarConfig()
