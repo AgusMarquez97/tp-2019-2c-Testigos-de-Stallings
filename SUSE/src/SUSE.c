@@ -10,6 +10,57 @@
 
 #include "SUSE.h"
 
+/*
+
+t_queue* newsEsperando; //hilos que no pueden entrar a ready
+t_queue* colaReady; //hilos en ready
+
+
+
+//$Descripcion: Inicializa recursos de suse
+void suseInit(){
+	newsEsperando= queue_create();
+	colaReady= queue_create(); //conviene una cola?
+}
+
+
+//$Descripcion: Recibe un nuevo hilo, y evalua si encolarlo en ready o mantenerlo en espera (Planif. Largo Plazo)
+void suseNew(int hiloId){
+	
+	///trabajando...
+	if(queue_size(colaReady)<= config_get_int_value(unConfig, gradomultip)){
+		queue_push(colaReady, hiloId);
+	}
+	else{
+		queue_push(newsEsperando, hiloId);
+		//notificarProceso(); (transparencia, ver enunciado)
+	}
+
+}
+
+//$Descripcion: Calcula el SJF, saca al proceso de ready y lo pone a ejecutar (Planif. Corto Plazo)
+void suseReadyAExec(){
+	/*
+	 * 1.Calculo sjf cual es el proximo hilo a ejecutar en ready
+	 * 2.Una vez lo tengo Veo si el programa del hilo ganador no esta ejecutando otro hilo (mas informacion ver enunciado)
+	 * 3.Si no lo esta, muevo el hilo de ready a exec (el programa tendra su propio exec, hilolay ejecuta los hilos, no SUSE)
+	 * 4.Libero un espacio de la cola ready
+	 * 5-llamo a la colaDeNewsEsperando para ver si agrego uno a ready
+
+}
+
+//$Descripcion: Realiza el calculo de estimacion entre los hilos que estan en ready
+void suseSJF(){
+	//Necesitamos conocer la estructura de los hilos que nos va a brindar hilolay
+}
+*/
+
+
+
+
+
+
+
 void levantarServidorSUSE()
 {
 	int socketRespuesta;
