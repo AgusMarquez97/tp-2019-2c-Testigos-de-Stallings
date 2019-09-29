@@ -22,6 +22,7 @@ int levantarCliente(char* servidorIP,char* servidorPuerto)
 
 		if(retorno == -1)
 		{
+			close(socketCliente);
 			return retorno;
 		}
 

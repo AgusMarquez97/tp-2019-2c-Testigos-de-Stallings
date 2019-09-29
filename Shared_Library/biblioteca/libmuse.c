@@ -2,7 +2,7 @@
 
 /**
  * Inicializa la biblioteca de MUSE.
- * @param id El Process (o Thread) ID para identificar el caller en MUSE. -> entiendo que solo recibimos el id proceso y tenemos que obtener el id del hilo
+ * @param id El Process (o Thread) ID para identificar el caller en MUSE.
  * @param ip IP en dot-notation de MUSE.
  * @param puerto Puerto de conexión a MUSE.
  * @return Si pasa un error, retorna -1. Si se inicializó correctamente, retorna 0.
@@ -12,6 +12,10 @@
  */
 int muse_init(int id, char* ip, int puerto)
 {
+
+	iniciarLog("Linuse");
+	loggearInfo("Se inicia la biblioteca Muse");
+
 	char * id_muse = obtener_id(id,gettid());
 	int resultado = -1;
 
@@ -24,11 +28,12 @@ int muse_init(int id, char* ip, int puerto)
 		{
 			enviarString(socket_cliente,id_muse); // Envia el ID a muse
 			resultado = 0;
+			close(socket_cliente);
 		}
 
-	close(socket_cliente);
-
 	free(id_muse);
+
+	destruirLog();
 
 	return resultado;
 }

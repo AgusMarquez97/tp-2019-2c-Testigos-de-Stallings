@@ -11,6 +11,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+
 #include <unistd.h>
 #include <sys/syscall.h>
 
@@ -18,6 +19,7 @@
 #include "utils.h"
 #include "sockets.h"
 #include "mensajes.h"
+#include "libmuse.h"
 
 #define gettid() syscall(SYS_gettid)
 
@@ -31,7 +33,7 @@ char ip_muse[LONG_MAX_IP];
 
 /**
  * Inicializa la biblioteca de MUSE.
- * @param id El Process (o Thread) ID para identificar el caller en MUSE.
+ * @param id El Process (o Thread) ID para identificar el caller en MUSE. -> entiendo que solo recibimos el id proceso y tenemos que obtener el id del hilo
  * @param ip IP en dot-notation de MUSE.
  * @param puerto Puerto de conexión a MUSE.
  * @return Si pasa un error, retorna -1. Si se inicializó correctamente, retorna 0.
