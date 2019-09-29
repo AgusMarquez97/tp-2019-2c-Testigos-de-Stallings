@@ -22,7 +22,6 @@ int levantarCliente(char* servidorIP,char* servidorPuerto)
 
 		if(retorno == -1)
 		{
-			close(socketCliente);
 			return retorno;
 		}
 
@@ -95,7 +94,7 @@ int conectarConServidor(int* socketCliente,estructuraConexion* estructuraServido
     if(conexionAServidor==-1)
         {
             //perror("No se pudo realizar la conexion");
-            loggearError("No se pudo realizar la conexion");
+            loggearError("No se pudo realizar la conexion con el servidor");
             //close(socketCliente);
             return -1;
         }

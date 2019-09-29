@@ -28,4 +28,8 @@ int recibirString(int socketEmisor, char** cadena);
 
 
 
+
+
+
+
 #endif /* MENSAJES_H_ */
