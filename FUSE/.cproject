@@ -30,7 +30,7 @@
 								<option id="gnu.c.compiler.option.include.paths.659922424" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Shared_Library}&quot;"/>
 								</option>
-								<option id="gnu.c.compiler.option.misc.other.1670849977" superClass="gnu.c.compiler.option.misc.other" useByScannerDiscovery="false" value="-c -fmessage-length=0 -D_FILE_OFFSET_BITS=64" valueType="string"/>
+								<option id="gnu.c.compiler.option.misc.other.1670849977" name="Other flags" superClass="gnu.c.compiler.option.misc.other" useByScannerDiscovery="false" value="-c -fmessage-length=0 -D_FILE_OFFSET_BITS=64 `pkg-config fuse --cflags --libs`" valueType="string"/>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1462040777" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.c.linker.exe.debug.329011314" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.exe.debug">
