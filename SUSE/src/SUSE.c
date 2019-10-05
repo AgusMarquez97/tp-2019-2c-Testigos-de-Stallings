@@ -12,53 +12,76 @@
 
 /*
 
-t_queue* newsEsperando; //hilos que no pueden entrar a ready
-t_queue* colaReady; //hilos en ready
+t_queue* news; //hilos que no pudieron entrar al ready
+t_dictionary *readys; //diccionario con colas ready. C/cola representa un proceso
+
+//hilo provisional hasta la salida de hilolay
+typedef struct {
+			char* procesoAsociado;
+			int id;
+			char* context;
+			int execution_time;
+
+} hilo_test;
 
 
-
-//$Descripcion: Inicializa recursos de suse
-void suseInit(){
-	newsEsperando= queue_create();
-	colaReady= queue_create(); //conviene una cola?
+void suse_init(){
+	//...
+	news= queue_create();
+	readys = dictionary_create();
 }
 
 
-//$Descripcion: Recibe un nuevo hilo, y evalua si encolarlo en ready o mantenerlo en espera (Planif. Largo Plazo)
-void suseNew(int hiloId){
-	
-	///trabajando...
-	if(queue_size(colaReady)<= config_get_int_value(unConfig, gradomultip)){
-		queue_push(colaReady, hiloId);
+int _suse_create(hilo_test hilo){
+
+	//el hardcodeo del path es temporal
+	int gradoMulti= config_get_int_value("/tp-2019-2c-Testigos-de-Stallings/SUSE/config/configuracion.txt", "MAX_MULTIPROG");
+
+	//Existe ya algun hilo en alguna cola del proceso que me mando el nuevo hilo?
+		if(dictionary_has_key(readys,hilo->procesoAsociado))
+		{
+				t_queue* colaReady= dictionary_get(readys, hilo->procesoAsociado);
+
+	//Me permite el grado de multiprogramacion meterme a esa cola?
+				if(dictionary_size(colaReady)<=gradoMulti){
+
+				t_queue* colaReady= dictionary_get(readys, hilo->procesoAsociado);
+				queue_push(colaReady, hilo);
+				dictionary_put(readys, hilo->procesoAsociado , colaReady);
+				}
+				else{queue_push(news, hilo);}
+			return 1;
+		}
+		else{
+			t_queue* nuevaColaReady= queue_create();
+			queue_push(nuevaColaReady, hilo);
+			dictionary_put(readys, hilo->procesoAsociado , nuevaColaReady);
+			return 0;
+			}
+}
+
+hilo_test _suse_schedule_next(int idProcesoSolicitante){
+
+	t_queue* colaReady= dictionary_get(readys, idProcesoSolicitante);
+
+	//esto va a dejar de ser FIFO en el futuro para ser SJF
+	hilo_test proximoAEjecutar= queue_pop(colaReady);
+	dictionary_put(readys, idProcesoSolicitante ,colaReady); //volve a poner la colaReady ahora sin el proximo
+	revisarNews(); //intenta agregar los news que no pudieron entrar por grado de multip
+
+	return proximoAEjecutar;
+}
+
+//mejorar
+void revisarNews(){
+	if(!queue_is_empty(news)){ //si tengo news esperando
+		for(int i=0;i< queue_size(news);i++){
+			hilo_test newEsperando= queue_pop(news);
+			_suse_create(newEsperando); //?
+		}
 	}
-	else{
-		queue_push(newsEsperando, hiloId);
-		//notificarProceso(); (transparencia, ver enunciado)
-	}
-
-}
-
-//$Descripcion: Calcula el SJF, saca al proceso de ready y lo pone a ejecutar (Planif. Corto Plazo)
-void suseReadyAExec(){
-	/*
-	 * 1.Calculo sjf cual es el proximo hilo a ejecutar en ready
-	 * 2.Una vez lo tengo Veo si el programa del hilo ganador no esta ejecutando otro hilo (mas informacion ver enunciado)
-	 * 3.Si no lo esta, muevo el hilo de ready a exec (el programa tendra su propio exec, hilolay ejecuta los hilos, no SUSE)
-	 * 4.Libero un espacio de la cola ready
-	 * 5-llamo a la colaDeNewsEsperando para ver si agrego uno a ready
-
-}
-
-//$Descripcion: Realiza el calculo de estimacion entre los hilos que estan en ready
-void suseSJF(){
-	//Necesitamos conocer la estructura de los hilos que nos va a brindar hilolay
 }
 */
-
-
-
-
-
 
 
 void levantarServidorSUSE()
