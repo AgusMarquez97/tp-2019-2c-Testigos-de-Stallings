@@ -65,6 +65,7 @@ void muse_free(uint32_t dir);
  */
 int muse_get(void* dst, uint32_t src, size_t n);
 
+
 /**
  * Copia una cantidad `n` de bytes desde una posición de memoria local a una `dst` en MUSE.
  * @param dst Posición de memoria de MUSE con tamaño suficiente para almacenar `n` bytes.
