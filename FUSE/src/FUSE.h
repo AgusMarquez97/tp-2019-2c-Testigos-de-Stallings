@@ -29,8 +29,41 @@
 
 #define pathConfig "/home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/FUSE/config/configuracion.txt"
 
+#define IDENTIFICADOR 3
+#define BLOCK_SIZE 4096
+#define MAX_FILE_NUMBER 1024
+#define MAX_FILENAME_LENGTH 71
+#define BITMAP_START_BLOCK 1
+#define BITMAP_SIZE_IN BLOCKS 1
+
+typedef uint32_t ptrGBloque;
+
+
 char ip[46];
 char puerto[10];
+
+typedef struct bloque
+{
+	unsigned char bytes[BLOCK_SIZE];
+}GBlock;
+
+typedef struct header
+{
+	unsigned char sac[IDENTIFICADOR];
+	uint32_t version;
+	uint32_t bitmap_start;
+	uint32_t bitmap_size;
+	unsigned char padding[4081];
+}GHeader;
+
+typedef struct archivo
+{
+	uint8_t estado; //0:borrado, 1:archivo, 2:directorio
+	unsigned char nombre[MAX_FILENAME_LENGTH];
+	uint32_t file_size;
+	uint32_t bloques[1000];
+}GFile;
+
 
 /*
  * Levanta los datos de la estructura config y los guarda en las variables globales que corresponda

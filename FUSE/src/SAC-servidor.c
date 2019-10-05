@@ -19,40 +19,79 @@
 #include <time.h>
 #include "FUSE.h"
 
-/*NOTA: Por el momento solo puede crear archivos y directorios en el punto de montaje por simplicidad
- * Mas adelante va a tener que ser modificado*/
 
-//arrays que almacenan los directorios, archivos y sus contenidos. A ser cambiado por algo mas lindo mas adelante
-char listaDirectorios[256][256];
-int indiceDirActual = -1;
+GFile tablaNodos[5];//hacer hasta MAX_FILE_NUMBER, ahora para probar lo dejo en un num chico
 
-char listaArchivos[256][256];
-int indiceArchActual = -1;
 
-char listaContenido[256][256];
-int indiceContActual = -1;
-
-//agrega el nombre de un directorio a la lista. No el directorio completo
-void agregarDirectorio(const char *nombreDir)
+//recibe un path y devuelve el nombre del archivo o directorio
+char *nombreObjeto(const char *path)
 {
-	indiceDirActual++;
-	strcpy(listaDirectorios[indiceDirActual],nombreDir);
+    char *nombre;
+	char *reverso =	string_reverse(path);
+    int cont=0;
+    while(reverso[cont]!='/')
+    {
+        cont++;
+    }
+    reverso[cont]='\0';
+    nombre=string_reverse(reverso);
+    return nombre;
 }
 
-//devuelve 1 si el directorio existe, 0 si no existe
-int existeDirectorio(const char *path)
+//devuelve 1 si el directorio o archivo existe, 0 si no existe
+int existeObjeto(const char *path)
 {
-	path++; // Elimina el "/"
-
-	for (int indActual = 0; indActual <= indiceDirActual; indActual++)
-		if (strcmp(path,listaDirectorios[indActual]) == 0)
+	char *nombre = nombreObjeto(path);
+	for (int indActual = 0; indActual <= 5; indActual++)//cambiar a MAX_FILE_NUMBER despues de probar
+		if (strcmp(nombre,tablaNodos[indActual].nombre) == 0)
 			return 1;
 
 	return 0;
 }
 
+//devuelve 1 si es un directorio, 0 si no
+int esDirectorio(const char *path)
+{
+	for (int indActual=0; indActual <=5; indActual++)
+		if (tablaNodos[indActual].estado == 2)
+					return 1;
+	return 0;
+}
+
+//devuelve 1 si es un archivo, 0 si no
+int esArchivo(const char *path)
+{
+	for (int indActual=0; indActual <=5; indActual++)
+		if (tablaNodos[indActual].estado == 1)
+					return 1;
+	return 0;
+}
+
+//retorna el indice del archivo. -1 si no existe
+int indiceArchivo(const char *path)
+{
+
+char *nombre=nombreObjeto(path);
+	for (int indActual = 0; indActual <= 5; indActual++)
+		if (strcmp(nombre,tablaNodos[indActual].nombre) == 0)
+			return indActual;
+
+	return -1;
+}
+
+/*
+//agrega el nombre de un directorio a la lista. No el directorio completo
+void agregarDirectorio(char *nombreDir)
+{
+	indiceDirActual++;
+	strcpy(listaDirectorios[indiceDirActual],nombreDir);
+}
+
+
+
+
 //agrega un archivo a la lista y setea su contenido. Ambos indices se tienen que mover juntos
-void agregarArchivo(const char *nombre)
+void agregarArchivo(char *nombre)
 {
 	indiceArchActual++;
 	strcpy(listaArchivos[indiceArchActual], nombre);
@@ -61,29 +100,6 @@ void agregarArchivo(const char *nombre)
 	strcpy(listaContenido[indiceContActual], "");
 }
 
-//devuelve 1 si el archivo existe, 0 si no existe
-int existeArchivo(const char *path)
-{
-	path++; // Elimina el "/"
-
-	for (int indActual = 0; indActual <= indiceArchActual; indActual++)
-		if (strcmp(path, listaArchivos[indActual]) == 0)
-			return 1;
-
-	return 0;
-}
-
-//retorna el indice del archivo. -1 si no existe
-int indiceArchivo(const char *path)
-{
-	path++; // Elimina el "/"
-
-	for (int indActual = 0; indActual <= indiceArchActual; indActual++)
-		if (strcmp(path,listaArchivos[indActual]) == 0)
-			return indActual;
-
-	return -1;
-}
 
 //busca el indice del archivo y copia el nuevo contenido. Si no existe el archivo, no hace nada
 void escribirEnArchivo(const char *path, const char *contenido)
@@ -95,6 +111,9 @@ void escribirEnArchivo(const char *path, const char *contenido)
 
 	strcpy(listaContenido[indArch], contenido);
 }
+
+*/
+
 //va a ser llamada cuando el sistema pida los atributos de un archivo
 
 static int hacer_getattr(const char *path, struct stat *st)
@@ -104,12 +123,12 @@ static int hacer_getattr(const char *path, struct stat *st)
 	st->st_atime = time(NULL);	//last "A"ccess time
 	st->st_mtime = time(NULL);	//last "M"odification time
 
-	if (strcmp(path, "/") == 0 || existeDirectorio(path) == 1)//si path es el punto de montaje o existe el directorio
+	if (strcmp(path, "/") == 0 || esDirectorio(path) == 1)//si path es el punto de montaje o es un directorio
 	{
 		st->st_mode = S_IFDIR | 0755; //bits de permiso
 		st->st_nlink = 2;		//num de hardlinks
 	}
-	else if (existeArchivo(path) == 1)//si es un archivo
+	else if (esArchivo(path) == 1)//si es un archivo
 	{
 		st->st_mode = S_IFREG | 0644;
 		st->st_nlink = 1;
@@ -131,13 +150,15 @@ static int hacer_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
 	filler(buffer, ".", NULL, 0); // llenamos la lista de directorios con el directorio actual
 	filler(buffer, "..", NULL, 0); // parent
 
-	if (strcmp(path, "/" ) == 0)
+	filler(buffer, "archivoPrueba1", NULL, 0);
+
+	if (strcmp(path, "/" ) == 0)//ls del punto de montaje
 	{
-		for (int indActual = 0; indActual <= indiceDirActual; indActual++)
-			filler( buffer, listaDirectorios[indActual], NULL, 0);
-		for (int indActual = 0; indActual <= indiceArchActual; indActual++)
-			filler( buffer, listaArchivos[indActual], NULL, 0);
+		for (int indActual = 0; indActual <= 5; indActual++)//cambiar a MAX_FILE_NUMBER despues de probar
+			filler( buffer,tablaNodos[indActual].nombre, NULL, 0);
 	}
+
+	filler(buffer, "archivoPrueba2", NULL, 0);
 
 	return 0;
 }
@@ -146,19 +167,36 @@ static int hacer_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
 static int hacer_read(const char *path, char *buffer, size_t size, off_t offset, struct fuse_file_info *fi)
 {
 	printf("... Leyendo %s, %u, %u\n", path, offset, size);
+/*
 	int indArch = indiceArchivo(path);
-	if (indArch == -1)
+	if (indArch == -1 || tablaNodos[indArch]->estado == 2) //si no existe o es un directorio
 		return -1;
-	char *contenido = listaContenido[indArch];
+	char *contenido = tablaNodos[indArch]->;
 	memcpy(buffer, contenido + offset, size);
 	return strlen(contenido) - offset;
+*/
+
 }
 
 //va a ser llamada para crear un nuevo directorio. "modo" son los bits de permiso, ver documentacion de mkdir
 static int hacer_mkdir(const char *path, mode_t modo)
 {
-	path++;
-	agregarDirectorio(path);
+	char *nombreDir = nombreObjeto(path);
+	int nodoActual=0;
+
+	while(tablaNodos[nodoActual].estado != 0 && nodoActual < 5)//cambiar a MAX_FILE_NUMBER despues de probar
+	{
+		nodoActual++;
+	}
+	if(nodoActual >= 5)//cambiar a MAX_FILE_NUMBER
+		return EDQUOT;
+
+	GFile *nodoNuevo = tablaNodos + nodoActual;
+
+	char *nombre = nombreObjeto(path);
+	strcpy((char*) nodoNuevo->nombre, nombre);
+	nodoNuevo->file_size=0;
+	nodoNuevo->estado=2;
 	return 0;
 }
 
@@ -166,25 +204,42 @@ static int hacer_mkdir(const char *path, mode_t modo)
 //es un dispositivo, ver documentacion de mknod
 static int hacer_mknod(const char *path, mode_t modo, dev_t dispositivo)
 {
-	path++;
-	agregarArchivo(path);
+	int nodoActual=0;
+	while(tablaNodos[nodoActual].estado != 0 && nodoActual < 5)//cambiar a MAX_FILE_NUMBER despues de probar
+	{
+		nodoActual++;
+	}
+	if(nodoActual >= 5)//cambiar a MAX_FILE_NUMBER
+		return EDQUOT;
+
+	GFile *nodoNuevo = tablaNodos + nodoActual;
+
+	char *nombre = nombreObjeto(path);
+	strcpy((char*) nodoNuevo->nombre, nombre);
+	nodoNuevo->file_size=0;
+	nodoNuevo->estado=1;
+
 	return 0;
 }
-
+/*
 //va a ser llamada para escribir contenido en un archivo
 static int hacer_write(const char *path, const char *buffer, size_t size, off_t offset, struct fuse_file_info *info)
 {
 	escribirEnArchivo(path, buffer);
 	return size;
 }
-
+*/
 static struct fuse_operations operaciones = {
     .getattr	= hacer_getattr,
     .readdir	= hacer_readdir,
-    .read		= hacer_read,
-	.mkdir		= hacer_mkdir,
 	.mknod		= hacer_mknod,
-	.write		= hacer_write,
+	.mkdir		= hacer_mkdir,
+	/*
+
+    .read		= hacer_read,
+
+
+	.write		= hacer_write,*/
 };
 
 void levantarServidorFUSE()
@@ -243,7 +298,13 @@ int main( int argc, char *argv[] )
 	//levantarServidorFUSE();
 	liberarVariablesGlobales();
 	return EXIT_SUCCESS;
-	*/
+*/
+	for(int i=0; i<5; i++)
+	{
+		tablaNodos[i].estado=0;
+		printf("Nodo Inicializado\n");
+	}
+	printf("Tabla Inicializada\n");
 	return fuse_main(argc, argv, &operaciones, NULL);
 	//al correrlo pasarle como parametro la direccion donde lo quieras montar
 }
