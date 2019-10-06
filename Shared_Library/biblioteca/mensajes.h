@@ -11,20 +11,7 @@
 #include "sockets.h"
 #include "logs.h"
 
-/*
- * MENSAJES MUSE
- */
 
-
-void enviarMalloc(int socketReceptor,int32_t id_proceso, int32_t tam);
-void enviarFree(int socketReceptor,int32_t id_proceso, uint32_t posicion);
-void enviarUnmap(int socketReceptor,int32_t id_proceso, uint32_t posicion);
-void enviarGet(int socketReceptor,int32_t id_proceso, uint32_t posicionMuse, int32_t cantidadBytes);
-void enviarSync(int socketReceptor,int32_t id_proceso, uint32_t posicionMuse, int32_t cantidadBytes);
-void enviarCpy(int socketReceptor,int32_t id_proceso, void * origen, int32_t cantidadBytes);
-void enviarMap(int socketReceptor,int32_t id_proceso, char * contenidoArchivo, int32_t flag);
-
-mensajeMuse * recibirRequestMuse(int socketEmisor);
 
 // -----------------
 
@@ -35,11 +22,13 @@ void enviarInt(int socketReceptor, int32_t entero);
 void enviarChar(int socketReceptor, char caracter);
 void enviarString(int socketReceptor, char* cadena);
 void enviarUint(int socketReceptor, uint32_t entero);
+void enviarVoid(int socketReceptor, void * buffer_origen, int32_t cantidadBytes);
 
 int recibirInt(int socketEmisor, int32_t* entero);
 int recibirChar(int socketEmisor, char* caracter);
 int recibirString(int socketEmisor, char** cadena);
 int recibirUint(int socketEmisor, uint32_t* entero);
+int recibirVoid(int socketEmisor, void ** buffer);
 
 
 

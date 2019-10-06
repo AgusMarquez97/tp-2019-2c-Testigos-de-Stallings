@@ -46,19 +46,9 @@ pthread_t crearHilo(void* funcion, void* param)
 	return nuevoHilo;
 
 }
-
-char * obtener_id(int pid, int tid)
+char * leer_archivo(char * path, int length)
 {
-	char * spid = string_itoa(pid);
-	char * stid = string_itoa(tid);
-	char * id = malloc(strlen(spid) + strlen(stid) + strlen("-") + 1);
-
-	strcpy(id,spid);
-	strcat(id,"-");
-	strcat(id,stid);
-
-	free(spid);
-	free(stid);
-
-	return id;
+	char * contenido = malloc(length);
+	strcpy(contenido,"ver de leer el archivo");
+	return contenido;
 }

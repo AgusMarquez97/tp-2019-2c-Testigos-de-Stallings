@@ -1,185 +1,5 @@
 #include "mensajes.h"
 
-/*
- * ENVIAR DATOS MUSE
- */
-
-void enviarMalloc(int socketReceptor,int32_t id_proceso, int32_t tam)
-{
-	int desplazamiento = 0;
-	void* buffer = malloc(sizeof(int32_t)*3);
-
-
-	serializarInt(buffer, MALLOC , &desplazamiento);
-	serializarInt(buffer, id_proceso , &desplazamiento);
-	serializarInt(buffer, tam , &desplazamiento);
-
-	enviar(socketReceptor, buffer, sizeof(int32_t)*3);
-
-	free(buffer);
-}
-
-void enviarFree(int socketReceptor,int32_t id_proceso, uint32_t posicion)
-{
-	int desplazamiento = 0;
-	void* buffer = malloc(sizeof(int32_t)*2 + sizeof(uint32_t));
-
-
-	serializarInt(buffer, FREE , &desplazamiento);
-	serializarInt(buffer, id_proceso , &desplazamiento);
-	serializarUint(buffer, posicion , &desplazamiento);
-
-	enviar(socketReceptor, buffer, sizeof(int32_t)*2 + sizeof(uint32_t));
-
-	free(buffer);
-}
-
-void enviarUnmap(int socketReceptor,int32_t id_proceso, uint32_t posicion)
-{
-	int desplazamiento = 0;
-	void* buffer = malloc(sizeof(int32_t)*2 + sizeof(uint32_t));
-
-
-	serializarInt(buffer, UNMAP , &desplazamiento);
-	serializarInt(buffer, id_proceso , &desplazamiento);
-	serializarUint(buffer, posicion , &desplazamiento);
-
-	enviar(socketReceptor, buffer, sizeof(int32_t)*2 + sizeof(uint32_t));
-
-	free(buffer);
-}
-
-
-void enviarGet(int socketReceptor,int32_t id_proceso, uint32_t posicionMuse, int32_t cantidadBytes)
-{
-	int desplazamiento = 0;
-	void* buffer = malloc(sizeof(int32_t)*3 + sizeof(uint32_t));
-
-
-	serializarInt(buffer, GET , &desplazamiento);
-	serializarInt(buffer, id_proceso , &desplazamiento);
-	serializarUint(buffer, posicionMuse , &desplazamiento);
-	serializarInt(buffer, cantidadBytes , &desplazamiento);
-
-	enviar(socketReceptor, buffer, sizeof(int32_t)*3 + sizeof(uint32_t));
-
-	free(buffer);
-}
-
-void enviarSync(int socketReceptor,int32_t id_proceso, uint32_t posicionMuse, int32_t cantidadBytes)
-{
-	int desplazamiento = 0;
-	void* buffer = malloc(sizeof(int32_t)*3 + sizeof(uint32_t));
-
-
-	serializarInt(buffer, SYNC , &desplazamiento);
-	serializarInt(buffer, id_proceso , &desplazamiento);
-	serializarUint(buffer, posicionMuse , &desplazamiento);
-	serializarInt(buffer, cantidadBytes , &desplazamiento);
-
-	enviar(socketReceptor, buffer, sizeof(int32_t)*3 + sizeof(uint32_t));
-
-	free(buffer);
-}
-
-
-
-void enviarCpy(int socketReceptor,int32_t id_proceso, void * origen, int32_t cantidadBytes)
-{
-	int desplazamiento = 0;
-	void* buffer = malloc(sizeof(int32_t)*3 + cantidadBytes);
-
-	serializarInt(buffer, CPY , &desplazamiento);
-	serializarInt(buffer, id_proceso , &desplazamiento);
-	serializarVoid(buffer,origen,cantidadBytes,&desplazamiento);
-
-	enviar(socketReceptor, buffer, sizeof(int32_t)*3 + cantidadBytes);
-
-	free(buffer);
-}
-
-void enviarMap(int socketReceptor,int32_t id_proceso, char * contenidoArchivo, int32_t flag)
-{
-	int desplazamiento = 0;
-	void* buffer = malloc(sizeof(int32_t)*4 + strlen(contenidoArchivo) + 1);
-
-	serializarInt(buffer, MAP , &desplazamiento);
-	serializarInt(buffer, id_proceso , &desplazamiento);
-	serializarString(buffer, contenidoArchivo, &desplazamiento);
-	serializarInt(buffer, flag , &desplazamiento);
-
-	enviar(socketReceptor, buffer, sizeof(int32_t)*4 + strlen(contenidoArchivo) + 1);
-
-	free(buffer);
-}
-
-
-
-
-mensajeMuse * recibirRequestMuse(int socketEmisor)
-{
-		mensajeMuse * mensajeRetorno;
-
-		int cantidadRecibida;
-		int desplazamiento = 0;
-
-		int32_t tipoOperacion;
-		int32_t idProceso;
-
-		void * buffer = NULL;
-
-		cantidadRecibida = recibirInt(socketEmisor, &tipoOperacion);
-		cantidadRecibida += recibirInt(socketEmisor, &idProceso);
-
-		if(cantidadRecibida != sizeof(int32_t)*2)
-			return NULL;
-
-		mensajeRetorno = malloc(sizeof(mensajeRetorno));
-
-		mensajeRetorno->tipoOperacion =  tipoOperacion;
-		mensajeRetorno->idProceso =  idProceso;
-
-		switch(tipoOperacion)
-		{
-		case MALLOC:
-			recibirInt(socketEmisor,&mensajeRetorno->tamanio);
-			break;
-		case FREE:
-			recibirUint(socketEmisor,&mensajeRetorno->posicionMemoria);
-			break;
-		case GET:
-			recibirUint(socketEmisor,&mensajeRetorno->posicionMemoria);
-			recibirInt(socketEmisor,&mensajeRetorno->tamanio);
-			break;
-		case CPY:
-			recibirInt(socketEmisor,&mensajeRetorno->tamanio);
-			buffer = malloc(mensajeRetorno->tamanio);
-			recibir(socketEmisor,buffer,mensajeRetorno->tamanio);
-			deserializarVoid(buffer, &mensajeRetorno->contenido,mensajeRetorno->tamanio,&desplazamiento);
-			break;
-		case MAP:
-			recibirInt(socketEmisor,&mensajeRetorno->tamanio);
-			buffer = malloc(mensajeRetorno->tamanio);
-			recibir(socketEmisor,buffer,mensajeRetorno->tamanio);
-			deserializarVoid(buffer, &mensajeRetorno->contenido,mensajeRetorno->tamanio,&desplazamiento);
-			recibirInt(socketEmisor,&mensajeRetorno->flag);
-			break;
-		case SYNC:
-			recibirUint(socketEmisor,&mensajeRetorno->posicionMemoria);
-			recibirInt(socketEmisor,&mensajeRetorno->tamanio);
-			break;
-		case UNMAP:
-			recibirUint(socketEmisor,&mensajeRetorno->posicionMemoria);
-			break;
-		case CLOSE:
-			break;
-		default:
-			return NULL;
-		}
-
-	return mensajeRetorno;
-}
-
 
 
 
@@ -244,6 +64,26 @@ void enviarString(int socketReceptor, char* cadena){
 	free(buffer);
 	free(cadena);
 }
+
+
+
+
+void enviarVoid(int socketReceptor, void * buffer_origen, int32_t cantidadBytes)
+{
+		int desplazamiento = 0;
+
+		int32_t tamanioBuffer = sizeof(int32_t) + cantidadBytes;
+
+		void* buffer_enviar = malloc(tamanioBuffer);
+
+		serializarVoid(buffer_enviar, buffer_origen, cantidadBytes, &desplazamiento);
+
+		enviar(socketReceptor, buffer_enviar, tamanioBuffer);
+
+		free(buffer_enviar);
+}
+
+
 
 
 
@@ -320,7 +160,32 @@ int recibirString(int socketEmisor, char** cadena)
 }
 
 
+int recibirVoid(int socketEmisor, void ** buffer_destino)
+{
+	int desplazamiento = 0;
 
+	int32_t tamanioBuffer;
+
+	int cantidadRecibida = sizeof(int32_t);
+
+	recibirInt(socketEmisor,&tamanioBuffer);
+
+	void* buffer_rec = malloc(tamanioBuffer);
+
+	cantidadRecibida += recibir(socketEmisor,buffer_rec,tamanioBuffer);
+
+	if(cantidadRecibida == sizeof(int32_t))
+	{
+		free(buffer_rec);
+		return -1;
+	}
+
+	deserializarVoid(buffer_rec, buffer_destino, tamanioBuffer, &desplazamiento);
+
+	free(buffer_rec);
+
+	return cantidadRecibida;
+}
 
 
 

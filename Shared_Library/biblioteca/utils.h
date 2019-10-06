@@ -21,7 +21,8 @@ int cantidadSubStrings(char ** string);
 pthread_t makeDetachableThread(void* funcion, void* param);
 pthread_t crearHilo(void* funcion, void* param);
 
-char * obtener_id(int pid, int tid);
+
+char * leer_archivo(char * path, int length);
 
 
 #endif /* BIBLIOTECA_UTILS_H_ */

@@ -14,11 +14,11 @@
 
 #include <unistd.h>
 #include <sys/syscall.h>
-
+#include <signal.h>
 
 #include "utils.h"
 #include "sockets.h"
-#include "mensajes.h"
+#include "mensajesMuse.h"
 #include "libmuse.h"
 
 #define gettid() syscall(SYS_gettid)
@@ -29,6 +29,7 @@
 
 char puerto_muse[LONG_MAX_PUERTO];
 char ip_muse[LONG_MAX_IP];
+int id_muse;
 
 
 /**
