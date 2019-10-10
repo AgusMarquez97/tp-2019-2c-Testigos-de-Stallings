@@ -1,81 +1,83 @@
 #include "libmuse.h"
 
-// Revisar los if de socket cliente
+int muse_init(int id, char* ip, int puerto) {
 
-/**
-	Se realiza un HANDSHAKE con MUSE.
- */
-
-int muse_init(int id, char* ip, int puerto)
-{
-	int resultado = -1;
 	iniciarLog("Linuse");
-	loggearInfo("Se inicia la biblioteca Muse");
+	loggearInfo("Iniciando la Biblioteca MUSE...");
 
 	id_muse = id;
-	strcpy(ip_muse,ip);
-	sprintf(puerto_muse,"%d",puerto);
+	strcpy(ip_muse, ip);
+	sprintf(puerto_muse, "%d", puerto);
 
-	int socket_cliente = levantarCliente(ip_muse,puerto_muse);
+	int respuesta = 0;
+	int socketCliente = levantarCliente(ip_muse, puerto_muse);
 
-		if(socket_cliente!=-1)
-		{
-			enviarHandshake(socket_cliente,id_muse); // Envia el ID a muse
-			recibirInt(socket_cliente, &resultado);
-			close(socket_cliente);
-		}
-	loggearInfo("Handshake exitoso");
-	return resultado;
+	if(socketCliente != -1) {
+		enviarHandshake(socketCliente, id_muse);
+		recibirInt(socketCliente, &respuesta);
+	}
+	close(socketCliente);
+
+	if(respuesta != 1) {
+		loggearError("No se ha podido iniciar la Biblioteca MUSE");
+		return -1;
+	}
+
+	loggearInfo("Biblioteca MUSE iniciada con éxito");
+	return 0;
+
 }
 
-/**
- * Cierra la biblioteca de MUSE.
- */
-void muse_close()
-{
-		int socket_cliente = levantarCliente(ip_muse,puerto_muse);
+void muse_close() {
 
-			if(socket_cliente!=-1)
-			{
-				enviarClose(socket_cliente,id_muse); // Envia el ID a muse
-				close(socket_cliente);
-			}
-		loggearInfo("Close exitoso");
+	loggearInfo("Cerrando la Biblioteca MUSE...");
+
+	int respuesta = 0;
+	int socketCliente = levantarCliente(ip_muse, puerto_muse);
+
+	if(socketCliente != -1) {
+		enviarHandshake(socketCliente, id_muse);
+		recibirInt(socketCliente, &respuesta);
+	}
+	close(socketCliente);
+
+	if(respuesta != 1) {
+		loggearError("No se ha podido cerrar la Biblioteca MUSE");
+	} else {
+		loggearInfo("Biblioteca MUSE cerrada con éxito");
 		destruirLog();
+	}
+
 }
-/**
-		Envio tamanio a reservar a Muse y recibo -1 en caso de error o la primera posicion de memoria reservada
- */
-uint32_t muse_alloc(uint32_t tam)
-{
-	uint32_t direccion;
-	char * tamanio = malloc(40 + strlen("Tamanio reservado:   exitosamente"));
 
-	int socket_cliente = levantarCliente(ip_muse,puerto_muse);
+uint32_t muse_alloc(uint32_t tam) {
 
-		if(socket_cliente!=-1)
-		{
-			enviarMalloc(socket_cliente,id_muse,(int32_t)tam); // Envia el ID a muse
-			recibirUint(socket_cliente, &direccion);
-			close(socket_cliente);
-		}
+	loggearInfo("Reservando Memoria...");
 
-		if(direccion == -1)
-		{
-			loggearError("No se pudo realizar el malloc");
-			return -1;
-		}
+	uint32_t direccion = -1;
+	int socketCliente = levantarCliente(ip_muse, puerto_muse);
 
-	sprintf(tamanio,"Tamanio reservado: %d exitosamente",tam);
-	loggearInfo(tamanio);
-	free(tamanio);
+	if(socketCliente != -1) {
+		enviarMalloc(socketCliente, id_muse, (int32_t)tam);
+		recibirUint(socketCliente, &direccion);
+	}
+	close(socketCliente);
 
+	if(direccion == -1) {
+		loggearError("No se ha podido reservar la memoria con éxito");
+		return 0;
+	}
+
+	loggearInfo("Memoria reservado con éxito");
 	return direccion;
+
 }
+
+
 
 /**
  * Libera una porción de memoria reservada. Loggear error en caso de fallo
- */
+
 void muse_free(uint32_t dir)
 {
 		int resultado;
@@ -97,7 +99,7 @@ void muse_free(uint32_t dir)
 /**
  * Copia una cantidad `n` de bytes desde una posición de memoria de MUSE a una `dst` local.
  * Retorna 0 en caso de exitoso o -1 en caso de error => y tira la excepcion de seg fault
- */
+
 int muse_get(void* dst, uint32_t src, size_t n)
 {
 		int resultado;
@@ -131,7 +133,7 @@ int muse_get(void* dst, uint32_t src, size_t n)
  * @param src Posición de memoria local de donde leer los `n` bytes.
  * @param n Cantidad de bytes a copiar.
  * @return Si pasa un error, retorna -1. Si la operación se realizó correctamente, retorna 0.
- */
+
 int muse_cpy(uint32_t dst, void* src, int n)
 {
 		int resultado;
@@ -169,7 +171,7 @@ int muse_cpy(uint32_t dst, void* src, int n)
  * @return Retorna la posición de memoria de MUSE mappeada.
  * @note: Si `length` sobrepasa el tamaño del archivo, toda extensión deberá estar llena de "\0".
  * @note: muse_free no libera la memoria mappeada. @see muse_unmap
- */
+
 uint32_t muse_map(char *path, size_t length, int flags)
 {
 		uint32_t resultado;
@@ -200,7 +202,7 @@ uint32_t muse_map(char *path, size_t length, int flags)
  * @param len Cantidad de bytes a escribir.
  * @return Si pasa un error, retorna -1. Si la operación se realizó correctamente, retorna 0.
  * @note Si `len` es menor que el tamaño de la página en la que se encuentre, se deberá escribir la página completa.
- */
+
 int muse_sync(uint32_t addr, size_t len)
 {
 			int32_t resultado;
@@ -231,7 +233,7 @@ int muse_sync(uint32_t addr, size_t len)
  * @note Esto implicará que todas las futuras utilizaciones de direcciones basadas en `dir` serán accesos inválidos.
  * @note Solo se deberá cerrar el archivo mappeado una vez que todos los hilos hayan liberado la misma cantidad de muse_unmap que muse_map.
  * @return Si pasa un error, retorna -1. Si la operación se realizó correctamente, retorna 0.
- */
+
 int muse_unmap(uint32_t dir)
 {
 			int32_t resultado;
@@ -253,3 +255,4 @@ int muse_unmap(uint32_t dir)
 			loggearError("Segmentation Fault");
 			return raise(SIGSEGV); // Levanta el Seg Fault
 }
+*/
