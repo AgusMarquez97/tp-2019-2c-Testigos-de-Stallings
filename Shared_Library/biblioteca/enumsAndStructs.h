@@ -34,4 +34,26 @@ typedef struct {
 	int32_t flag;
 } t_mensajeMuse;
 
+
+
+/*
+ * 	SUSE
+ */
+
+typedef enum {
+	HANDSHAKE_SUSE,
+	CREATE,
+	NEXT,
+	JOIN,
+	RETURN,
+
+} t_operacionSuse;
+
+typedef struct {
+	int32_t idProceso;
+	int32_t tipoOperacion;
+	int32_t idHilo;
+	int32_t rafaga;
+} t_mensajeSuse;
+
 #endif /* ENUMSANDSTRUCTS_H_ */
