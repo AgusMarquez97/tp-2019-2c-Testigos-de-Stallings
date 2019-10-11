@@ -59,9 +59,9 @@ typedef struct header
 typedef struct archivo
 {
 	uint8_t estado; //0:borrado, 1:archivo, 2:directorio
-	unsigned char nombre[MAX_FILENAME_LENGTH];
+	char* nombre;//[MAX_FILENAME_LENGTH];
 	uint32_t file_size;
-	uint32_t bloques[1000];
+	char* contenido;//aca va el array raro, pero en un principio que quede asi
 }GFile;
 
 
