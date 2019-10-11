@@ -16,6 +16,7 @@
 #include <biblioteca/serializacion.h>
 #include <biblioteca/mensajes.h>
 #include <biblioteca/enumsAndStructs.h>
+#include <enumsAndStructs.h>
 #include <biblioteca/logs.h>
 #include <biblioteca/levantarConfig.h>
 #include <biblioteca/utils.h>
@@ -26,6 +27,8 @@
 #include <commons/collections/queue.h>
 #include <commons/collections/dictionary.h>
 #include <commons/bitarray.h>
+
+#include "mensajesSuse.h"
 
 #define pathConfig "/home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/SUSE/config/configuracion.txt"
 
@@ -39,6 +42,9 @@ float alphaSJF;
 char ** semIds;
 char ** semInit;
 char ** semMax;
+
+t_queue* colaNews; //hilos que no pudieron entrar al ready
+t_dictionary *readys; //diccionario con colas ready. KEY= processId VALUE= colaReady
 
 void liberarVariablesGlobales();
 void levantarConfig();

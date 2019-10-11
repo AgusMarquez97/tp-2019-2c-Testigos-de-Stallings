@@ -56,4 +56,10 @@ typedef struct {
 	int32_t rafaga;
 } t_mensajeSuse;
 
+typedef struct {
+	int32_t idProceso;
+	int32_t idHilo;
+	int32_t rafaga;
+} t_hiloPlanificado;
+
 #endif /* ENUMSANDSTRUCTS_H_ */
