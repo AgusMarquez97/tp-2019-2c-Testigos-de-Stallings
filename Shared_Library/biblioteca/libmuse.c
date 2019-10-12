@@ -16,8 +16,8 @@ int muse_init(int id, char* ip, int puerto) {
 	if(socketCliente != -1) {
 		enviarHandshake(socketCliente, id_muse);
 		recibirInt(socketCliente, &retorno); //@return: error [-1] / ok [0]
+		close(socketCliente);
 	}
-	close(socketCliente);
 
 	if(retorno != -1) {
 		loggearInfo("Biblioteca MUSE inicializada con éxito");
@@ -38,8 +38,8 @@ void muse_close() {
 	if(socketCliente != -1) {
 		enviarHandshake(socketCliente, id_muse);
 		recibirInt(socketCliente, &retorno); //@return: error [-1] / ok [0]
+		close(socketCliente);
 	}
-	close(socketCliente);
 
 	if(retorno != -1) {
 		loggearInfo("Biblioteca MUSE cerrada con éxito");
@@ -60,8 +60,8 @@ uint32_t muse_alloc(uint32_t tam) {
 	if(socketCliente != -1) {
 		enviarMalloc(socketCliente, id_muse, (int32_t)tam);
 		recibirUint(socketCliente, &direccionMemoria); //@return: error [0] / ok [dirección de memoria]
+		close(socketCliente);
 	}
-	close(socketCliente);
 
 	if(direccionMemoria != 0) {
 		loggearInfo("Porción de memoria reservada con éxito");
@@ -82,8 +82,8 @@ void muse_free(uint32_t dir) {
 	if(socketCliente != -1) {
 		enviarFree(socketCliente, id_muse, dir);
 		recibirUint(socketCliente, &direccionMemoria); //@return: error [0] / ok [dirección de memoria]
+		close(socketCliente);
 	}
-	close(socketCliente);
 
 	if(direccionMemoria != 0) {
 		loggearInfo("Porción de memoria liberada con éxito");
@@ -104,8 +104,8 @@ int muse_get(void* dst, uint32_t src, size_t n) {
 	if(socketCliente != -1) {
 		enviarGet(socketCliente, id_muse, src, (int32_t)n);
 		retorno = recibirVoid(socketCliente, &buffer); //@return: error [-1] / ok [0]
+		close(socketCliente);
 	}
-	close(socketCliente);
 
 	if(retorno != -1) {
 		memcpy(dst, buffer, n);
@@ -128,8 +128,8 @@ int muse_cpy(uint32_t dst, void* src, int n) {
 	if(socketCliente != -1) {
 		enviarCpy(socketCliente, id_muse, dst, src, (int32_t)n);
 		recibirInt(socketCliente, &retorno); //@return: error [-1] / ok [0]
+		close(socketCliente);
 	}
-	close(socketCliente);
 
 	if(retorno != -1) {
 		loggearInfo("Información copiada desde memoria con éxito");
@@ -150,8 +150,8 @@ uint32_t muse_map(char* path, size_t length, int flags) {
 	if(socketCliente != -1) {
 		enviarMap(socketCliente, id_muse, contenido, flags);
 		recibirUint(socketCliente, &direccionMemoria); //@return: error [0] / ok [dirección de memoria]
+		close(socketCliente);
 	}
-	close(socketCliente);
 
 	if(direccionMemoria != 0) {
 		loggearInfo("Información mappeada con éxito");
@@ -170,8 +170,8 @@ int muse_sync(uint32_t addr, size_t len) {
 	if(socketCliente != -1) {
 		enviarSync(socketCliente, id_muse, addr, len);
 		recibirInt(socketCliente, &retorno); //@return: error [-1] / ok [0]
+		close(socketCliente);
 	}
-	close(socketCliente);
 
 	if(retorno != -1) {
 		loggearInfo("Información sincronizada con éxito");
@@ -190,8 +190,8 @@ int muse_unmap(uint32_t dir) {
 	if(socketCliente != -1) {
 		enviarUnmap(socketCliente, id_muse, dir);
 		recibirInt(socketCliente, &retorno); //@return: error [-1] / ok [0]
+		close(socketCliente);
 	}
-	close(socketCliente);
 
 	if(retorno != -1) {
 		loggearInfo("Archivo de mappeo eliminado con éxito");
