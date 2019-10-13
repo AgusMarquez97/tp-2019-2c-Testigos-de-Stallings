@@ -67,7 +67,7 @@ void enviarVoid(int socketReceptor, void * bufferOrigen, int32_t cantidadBytes) 
 	serializarVoid(bufferDestino, bufferOrigen, cantidadBytes, &desplazamiento);
 	enviar(socketReceptor, bufferDestino, tamanioBuffer);
 
-	free(buffer_enviar);
+	free(bufferDestino);
 
 }
 

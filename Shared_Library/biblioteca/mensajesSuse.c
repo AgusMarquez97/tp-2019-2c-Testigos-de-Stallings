@@ -8,7 +8,7 @@
 
 #include "mensajesSuse.h"
 
-
+/*
 void enviarHandshake(int socketReceptor, int32_t proceso) {
 	enviarOperacion(socketReceptor, proceso, HANDSHAKE, -1,0);
 }
@@ -65,7 +65,7 @@ void enviarOperacion(int socket, int32_t proceso, int32_t operacion, int32_t tid
 			break;
 
 		default: // la funcion no es void???
-			return NULL;
+			; //return NULL;  //Comento esto para que compile
 	}
 
 	enviar(socket, buffer, tamanioBuffer);
@@ -116,3 +116,4 @@ t_mensajeSuse* recibirOperacion(int socketEmisor) {
 	return mensajeRecibido;
 
 }
+*/

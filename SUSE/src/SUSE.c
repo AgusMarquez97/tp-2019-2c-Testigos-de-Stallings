@@ -10,78 +10,151 @@
 
 #include "SUSE.h"
 
-/*
-
-t_queue* news; //hilos que no pudieron entrar al ready
-t_dictionary *readys; //diccionario con colas ready. C/cola representa un proceso
-
-//hilo provisional hasta la salida de hilolay
-typedef struct {
-			char* procesoAsociado;
-			int id;
-			char* context;
-			int execution_time;
-
-} hilo_test;
 
 
-void suse_init(){
-	//...
-	news= queue_create();
-	readys = dictionary_create();
+//Falta como recibir los sockets
+//>RECIBIR()-
+//conectarse con sus clientes y atender a uno
+//t_mensajeSuse* mensajeRecibido= recibirOperacion(socketEmisor);
+//int32_t resultado=ejecutarMensajeSocket(mensajeRecibido);
+//procesarResultadoSocket(mensajeRecibido->Operacion,resultado);
+//enviar a hilolay los resultados obtenidos
+
+
+
+//---------------------------------------------------< Planificacion >----------------------------------------------------------------|
+
+/*Administra las tareas que tiene que hacer SUSE en base a la operacion que le llego*/
+int32_t ejecutarMensajeSocket (t_mensajeSuse mensajeRecibido){
+
+	int32_t operacion= mensajeRecibido->tipoOperacion;
+
+switch(operacion) {
+		case HANDSHAKE:
+			//?
+			break;
+		case CREATE:
+			return suse_create_servidor(mensajeRecibido);
+			break;
+		case NEXT:
+			return suse_schedule_next_servidor(mensajeRecibido->idProceso);
+			break;
+		case JOIN:
+			return suse_join_servidor(mensajeRecibido->idHilo);
+			break;
+		case RETURN:
+			return suse_return_servidor(mensajeRecibido->idProceso,mensajeRecibido->idHilo);
+			break;
+		default:
+			return -1;
+	}
+
+}
+
+//---------------------------------------------------< PLP >----------------------------------------------------------------|
+
+/*Crea un molde de hilo y lo agrega a la cola de news (unica para todos los procesos) y al finalizar intenta mandarlo a la de readys*/
+int32_t suse_create_server(t_mensajeSuse mensaje){
+
+	t_hiloPlanificado hiloEntrante;//creo un modelo que me servira para planificar (elemento que contendran las colas de suse)
+	hiloEntrante->idProceso= mensaje->idProceso;
+	hiloEntrante->idHilo= mensaje->idHilo;
+	hiloEntrante->rafaga= mensaje->rafaga;
+
+	queue_push(colaNews, hiloEntrante);
+	return planificar_largoPlazo(); //revisar si esta bien metido aca
+
 }
 
 
-int _suse_create(hilo_test hilo){
 
-	//el hardcodeo del path es temporal
-	int gradoMulti= config_get_int_value("/tp-2019-2c-Testigos-de-Stallings/SUSE/config/configuracion.txt", "MAX_MULTIPROG");
+/*Transiciona los hilos de new a Ready*/
+int32_t planificar_largoPlazo(){
 
-	//Existe ya algun hilo en alguna cola del proceso que me mando el nuevo hilo?
-		if(dictionary_has_key(readys,hilo->procesoAsociado))
+	int gradoMulti= config_get_int_value(pathConfig, "MAX_MULTIPROG");
+
+if(!queue_is_empty(colaNews)){
+
+	t_hiloPlanificado hiloEnNews= queue_pop(colaNews); //tomo un hilo en estado new
+
+		if(dictionary_has_key(readys,hiloEnNews->idProceso)) //si ya hay una colaReady para el proceso de ese hilo...
 		{
-				t_queue* colaReady= dictionary_get(readys, hilo->procesoAsociado);
+				t_queue* colaReady= dictionary_get(readys, hiloEnNews->idProceso); //la pido
 
-	//Me permite el grado de multiprogramacion meterme a esa cola?
-				if(dictionary_size(colaReady)<=gradoMulti){
+			if(queue_size(colaReady)<=gradoMulti){ //Me permite el grado de multiprogramacion meter + procesos a esa cola?
 
-				t_queue* colaReady= dictionary_get(readys, hilo->procesoAsociado);
-				queue_push(colaReady, hilo);
-				dictionary_put(readys, hilo->procesoAsociado , colaReady);
-				}
-				else{queue_push(news, hilo);}
+				queue_push(colaReady, hiloEnNews);
+				dictionary_put(readys, hiloEnNews->idProceso , colaReady);
+		}
+			else{ queue_push(colaNews, hiloEnNews); } //si no me permite el gradoMulti lo regreso a news
+
 			return 1;
 		}
-		else{
+		else{ //en cambio, si el proceso nunca planifico ningun hilo le crea una cola...
+
 			t_queue* nuevaColaReady= queue_create();
-			queue_push(nuevaColaReady, hilo);
-			dictionary_put(readys, hilo->procesoAsociado , nuevaColaReady);
+
+			queue_push(nuevaColaReady, hiloEnNews);
+
+			dictionary_put(readys, hiloEnNews->idProceso , nuevaColaReady);
 			return 0;
 			}
 }
+return 2;
 
-hilo_test _suse_schedule_next(int idProcesoSolicitante){
+}
 
-	t_queue* colaReady= dictionary_get(readys, idProcesoSolicitante);
+//---------------------------------------------------< PCP >----------------------------------------------------------------|
 
-	//esto va a dejar de ser FIFO en el futuro para ser SJF
-	hilo_test proximoAEjecutar= queue_pop(colaReady);
-	dictionary_put(readys, idProcesoSolicitante ,colaReady); //volve a poner la colaReady ahora sin el proximo
-	revisarNews(); //intenta agregar los news que no pudieron entrar por grado de multip
+int32_t suse_schedule_next_servidor(int idProceso){
+
+	t_queue* colaReady= dictionary_get(readys, idProceso); //busca en el dic. la colaReady del proceso solicitante
+
+	//FIFO
+	int proximoAEjecutar= queue_peek(colaReady);//peek solo consulta el primero en la cola. NEXT es solo una funcion de consulta
+
+
+	/*aca cuando ya tiene todo no habria que intentar ver si puedo meter algun new? Porque el gradoMulti bajó en la cola de este
+	*proceso. O eso solo lo hace suse_create una vez lo pushea a news?.
+	 Algo asi:
+	 revisar_newsEsperando();
+	*/
+
+	/*
+	 *
+	 */
 
 	return proximoAEjecutar;
 }
 
-//mejorar
-void revisarNews(){
-	if(!queue_is_empty(news)){ //si tengo news esperando
-		for(int i=0;i< queue_size(news);i++){
-			hilo_test newEsperando= queue_pop(news);
-			_suse_create(newEsperando); //?
-		}
+//Revisaria todos los hilos. Por ahi no es necesario pero no pierde nada intentando (por ahi cpu al pedo, pero que tanto?)
+void revisar_newsEsperando(){
+
+	for(int i=0;i<=queue_size(colaNews);i++){
+		planificar_largoPlazo();
 	}
 }
-*/
+
+
+int32_t suse_return(int idProceso, int tid){
+
+	t_hiloPlanificado hiloBuscado=-1;
+	t_queue* colaReady= dictionary_get(readys, idProceso); //busca en el dic. la colaReady del proceso solicitante
+
+	//en proceso
+
+	return hiloBuscado;
+}
+
+
+
+
+
+
+
+
+
+
 
 
 void levantarServidorSUSE()
@@ -154,6 +227,7 @@ int main(void) {
 	loggearInfo("Se inicia el proceso SUSE...");
 	levantarConfig();
 	//levantarServidorSUSE();
+	printf("jeje");
 	liberarVariablesGlobales();
 	return EXIT_SUCCESS;
 }

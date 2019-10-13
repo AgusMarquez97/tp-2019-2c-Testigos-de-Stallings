@@ -40,7 +40,7 @@ void enviarOperacion(int socket, int32_t proceso, int32_t operacion, uint32_t po
 		int32_t tamanio, void* origen, char* contenido, int32_t flag) {
 
 	int32_t desplazamiento = 0;
-	tamanioBuffer = sizeof(int32_t) * 2;
+	int tamanioBuffer = sizeof(int32_t) * 2;
 
 	if(posicion != 0)
 		tamanioBuffer += sizeof(uint32_t);
@@ -50,8 +50,8 @@ void enviarOperacion(int socket, int32_t proceso, int32_t operacion, uint32_t po
 		tamanioBuffer += tamanio;
 	if(contenido != NULL)
 		tamanioBuffer += strlen(contenido) + 1;
-	if(destino != 0)
-		tamanioBuffer += sizeof(uint32_t);
+//	if(destino != 0) --> Revisar
+//		tamanioBuffer += sizeof(uint32_t);
 	if(flag != 0)
 		tamanioBuffer += sizeof(int32_t);
 
@@ -93,7 +93,7 @@ void enviarOperacion(int socket, int32_t proceso, int32_t operacion, uint32_t po
 			serializarInt(buffer, flag, &desplazamiento);
 			break;
 		default:
-			return NULL;
+			;
 	}
 
 	enviar(socket, buffer, tamanioBuffer);
@@ -109,10 +109,10 @@ t_mensajeMuse* recibirOperacion(int socketEmisor) {
 	int32_t proceso, operacion;
 	void* buffer = NULL;
 
-	cantidadRecibida = recibirInt(socketEmisor, proceso);
-	cantidadRecibida += recibirInt(socketEmisor, operacion);
+	cantidadRecibida = recibirInt(socketEmisor, &proceso);
+	cantidadRecibida += recibirInt(socketEmisor, &operacion);
 
-	if(cantidadRecibida =! sizeof(int32_t)*2)
+	if(cantidadRecibida != sizeof(int32_t)*2)
 		return NULL;
 
 	mensajeRecibido = malloc(sizeof(mensajeRecibido));
