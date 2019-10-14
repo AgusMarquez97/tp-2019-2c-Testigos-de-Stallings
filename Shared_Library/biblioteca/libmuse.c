@@ -1,7 +1,7 @@
 #include "libmuse.h"
 
 int muse_init(int id, char* ip, int puerto) {
-
+	remove("Linuse.log");
 	iniciarLog("Linuse");
 
 	id_muse = id;
@@ -10,18 +10,16 @@ int muse_init(int id, char* ip, int puerto) {
 
 	loggearInfo("Inicializando la biblioteca MUSE...");
 
-	int retorno;
+	int32_t retorno = -1; // Hay que inicializarlo, si no nunca da error..
 	int socketCliente = levantarCliente(ip_muse, puerto_muse);
 
 	if(socketCliente != -1) {
-		enviarHandshake(socketCliente, id_muse);
-		recibirInt(socketCliente, &retorno); //@return: error [-1] / ok [0]
-		close(socketCliente);
-	}
-
-	if(retorno != -1) {
+		//enviarHandshake(socketCliente, id_muse);
+		//recibirInt(socketCliente, &retorno); //@return: error [-1] / ok [0]
+		retorno = 0;
 		loggearInfo("Biblioteca MUSE inicializada con éxito");
-	} else {
+		close(socketCliente);
+	}	else {
 		loggearError("No se ha podido inicializar la biblioteca MUSE");
 	}
 	return retorno;
@@ -32,11 +30,11 @@ void muse_close() {
 
 	loggearInfo("Cerrando la biblioteca MUSE...");
 
-	int retorno;
+	int32_t retorno = -1;
 	int socketCliente = levantarCliente(ip_muse, puerto_muse);
 
 	if(socketCliente != -1) {
-		enviarHandshake(socketCliente, id_muse);
+		enviarClose(socketCliente, id_muse);
 		recibirInt(socketCliente, &retorno); //@return: error [-1] / ok [0]
 		close(socketCliente);
 	}
@@ -45,7 +43,7 @@ void muse_close() {
 		loggearInfo("Biblioteca MUSE cerrada con éxito");
 		destruirLog();
 	} else {
-		loggearError("No se ha podido cerrar la biblioteca MUSE");
+		loggearError("No se ha podido cerrar la biblioteca, servidor MUSE caido");
 	}
 
 }
@@ -97,7 +95,7 @@ int muse_get(void* dst, uint32_t src, size_t n) {
 
 	loggearInfo("Recuperando información desde memoria...");
 
-	int retorno;
+	int32_t retorno;
 	int socketCliente = levantarCliente(ip_muse, puerto_muse);
 	void* buffer;
 
@@ -120,9 +118,9 @@ int muse_get(void* dst, uint32_t src, size_t n) {
 
 int muse_cpy(uint32_t dst, void* src, int n) {
 
-	loggearInfo("Copiando información desde Memoria...");
+	loggearInfo("Copiando datos en Memoria...");
 
-	int retorno;
+	int32_t retorno;
 	int socketCliente = levantarCliente(ip_muse, puerto_muse);
 
 	if(socketCliente != -1) {
@@ -132,9 +130,9 @@ int muse_cpy(uint32_t dst, void* src, int n) {
 	}
 
 	if(retorno != -1) {
-		loggearInfo("Información copiada desde memoria con éxito");
+		loggearInfo("Datos en memoria copiados con éxito");
 	} else {
-		loggearError("No se ha podido copiar la información desde memoria");
+		loggearError("No se ha podido copiar la información a memoria");
 	}
 	return retorno;
 
@@ -164,7 +162,7 @@ uint32_t muse_map(char* path, size_t length, int flags) {
 
 int muse_sync(uint32_t addr, size_t len) {
 
-	int retorno;
+	int32_t retorno;
 	int socketCliente = levantarCliente(ip_muse, puerto_muse);
 
 	if(socketCliente != -1) {
@@ -184,7 +182,7 @@ int muse_sync(uint32_t addr, size_t len) {
 
 int muse_unmap(uint32_t dir) {
 
-	int retorno;
+	int32_t retorno;
 	int socketCliente = levantarCliente(ip_muse, puerto_muse);
 
 	if(socketCliente != -1) {

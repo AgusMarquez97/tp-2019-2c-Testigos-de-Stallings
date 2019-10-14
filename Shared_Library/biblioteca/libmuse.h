@@ -13,6 +13,7 @@
 #include "libmuse.h"
 
 #define gettid() syscall(SYS_gettid)
+
 #define LONG_MAX_PUERTO 7
 #define LONG_MAX_IP 16
 
@@ -30,11 +31,11 @@ int id_muse;
  * @note Debido a la naturaleza centralizada de MUSE, esta función deberá definir
  *  el ID del proceso/hilo según "IP-ID".
  */
-int muse_init(int id, char* ip, int puerto);
+int muse_init(int id, char* ip, int puerto); // ==> Validada OK!
 /*
  * Cierra la biblioteca de MUSE.
  */
-void muse_close();
+void muse_close(); // ==> Validada OK!
 /*
  * Reserva una porción de memoria contígua de tamaño 'tam'.
  * @param tam La cantidad de bytes a reservar.

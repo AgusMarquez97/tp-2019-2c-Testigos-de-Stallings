@@ -113,16 +113,23 @@ t_mensajeMuse* recibirOperacion(int socketEmisor) {
 	cantidadRecibida += recibirInt(socketEmisor, &operacion);
 
 	if(cantidadRecibida != sizeof(int32_t)*2)
+	{
+		char msj[300]; sprintf(msj,"Se recibieron %d bytes ...", cantidadRecibida);
+		loggearInfo(msj);
 		return NULL;
+	}
 
-	mensajeRecibido = malloc(sizeof(mensajeRecibido));
+	mensajeRecibido = malloc(sizeof(*mensajeRecibido)); // Ojota con los tamanios variables ... (mensajeRecibido != *mensajeRecibido)
 
 	mensajeRecibido->idProceso = proceso;
 	mensajeRecibido->tipoOperacion = operacion;
 
 	switch(operacion) {
 		case HANDSHAKE:
-			recibirInt(socketEmisor, &mensajeRecibido->flag);
+			recibirInt(socketEmisor, &mensajeRecibido->flag); // Podria omitirse
+			break;
+		case CLOSE:
+			recibirInt(socketEmisor, &mensajeRecibido->flag); // Podria omitirse
 			break;
 		case MALLOC:
 			recibirInt(socketEmisor, &mensajeRecibido->tamanio);
@@ -154,9 +161,6 @@ t_mensajeMuse* recibirOperacion(int socketEmisor) {
 			break;
 		case UNMAP:
 			recibirUint(socketEmisor, &mensajeRecibido->posicionMemoria);
-			break;
-		case CLOSE:
-			recibirInt(socketEmisor, &mensajeRecibido->flag);
 			break;
 		default:
 			return NULL;
