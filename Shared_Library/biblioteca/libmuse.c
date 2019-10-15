@@ -52,7 +52,7 @@ uint32_t muse_alloc(uint32_t tam) {
 
 	loggearInfo("Reservando porción de memoria...");
 
-	uint32_t direccionMemoria;
+	uint32_t direccionMemoria = 0;
 	int socketCliente = levantarCliente(ip_muse, puerto_muse);
 
 	if(socketCliente != -1) {
@@ -74,16 +74,17 @@ void muse_free(uint32_t dir) {
 
 	loggearInfo("Liberando porción de memoria...");
 
-	uint32_t direccionMemoria;
+	int32_t retorno = 0;
 	int socketCliente = levantarCliente(ip_muse, puerto_muse);
 
 	if(socketCliente != -1) {
 		enviarFree(socketCliente, id_muse, dir);
-		recibirUint(socketCliente, &direccionMemoria); //@return: error [0] / ok [dirección de memoria]
+		recibirInt(socketCliente, &retorno); //@return: error [0] / ok [dirección de memoria]
 		close(socketCliente);
 	}
 
-	if(direccionMemoria != 0) {
+	//Para mas adelante: Tenemos que definir un codigo de error que nos indique la razon por la que no se pudo realizar el free (y levantar raise si hace falta)
+	if(retorno != 0) {
 		loggearInfo("Porción de memoria liberada con éxito");
 	} else {
 		loggearError("No se ha podido liberar la porción de memoria solicitada");
@@ -95,7 +96,8 @@ int muse_get(void* dst, uint32_t src, size_t n) {
 
 	loggearInfo("Recuperando información desde memoria...");
 
-	int32_t retorno;
+	int32_t retorno = -1;
+
 	int socketCliente = levantarCliente(ip_muse, puerto_muse);
 	void* buffer;
 

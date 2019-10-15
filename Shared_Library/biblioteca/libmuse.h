@@ -41,12 +41,12 @@ void muse_close(); // ==> Validada OK!
  * @param tam La cantidad de bytes a reservar.
  * @return La dirección de la memoria reservada.
  */
-uint32_t muse_alloc(uint32_t tam);
+uint32_t muse_alloc(uint32_t tam); // ==> Validada OK!
 /*
  * Libera una porción de memoria reservada.
  * @param dir La dirección de la memoria a reservar.
  */
-void muse_free(uint32_t dir);
+void muse_free(uint32_t dir); // ==> Validada OK!
 /*
  * Copia una cantidad 'n' de bytes desde una posición de memoria de MUSE a una 'dst' local.
  * @param dst Posición de memoria local con tamaño suficiente para almacenar 'n' bytes.
@@ -54,7 +54,7 @@ void muse_free(uint32_t dir);
  * @param n Cantidad de bytes a copiar.
  * @return Si pasa un error, retorna -1. Si la operación se realizó correctamente, retorna 0.
  */
-int muse_get(void* dst, uint32_t src, size_t n);
+int muse_get(void* dst, uint32_t src, size_t n); // ==> Validada OK! Recordar que la memoria local donde almaceno debe tener el malloc
 /*
  * Copia una cantidad 'n' de bytes desde una posición de memoria local a una 'dst' en MUSE.
  * @param dst Posición de memoria de MUSE con tamaño suficiente para almacenar 'n' bytes.

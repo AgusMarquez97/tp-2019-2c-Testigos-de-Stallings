@@ -39,12 +39,10 @@ void levantarServidorMUSE()
 
 void rutinaServidor(int * p_socket)
 {
-	char msj[122];
-
+	char * msj;
 	int socketRespuesta = *p_socket;
 	free(p_socket);
 	t_mensajeMuse * mensajeRecibido = recibirOperacion(socketRespuesta);
-
 	if(mensajeRecibido == NULL)
 		loggearInfo("Handshake exitoso");
 	else
@@ -52,15 +50,43 @@ void rutinaServidor(int * p_socket)
 		switch(mensajeRecibido->tipoOperacion)
 		{
 		case CLOSE:
+			loggearInfo("Se recibio una operacion CLOSE");
 			//liberarMemoria(mensajeRecivido->idProceso); // funcion que debe liberar la memoria reservada tanto principal como swap y debe eliminar la entrada del diccionario
 			enviarInt(socketRespuesta, 1);
+			break;
+		case MALLOC:
+			msj = malloc(strlen("Se recibio una operacion ALLOC de 9999999999999999999999 bytes") + 1);
+			sprintf(msj,"Se recibio una operacion ALLOC de %d bytes",mensajeRecibido->tamanio);
+			loggearInfo(msj);
+			free(msj);
+			//resolverMalloc(mensajeRecivido->idProceso,mensajeRecivido->tamanio);
+			enviarUint(socketRespuesta,1);
+			break;
+		case FREE:
+			msj = malloc(strlen("Se recibio una operacion FREE sobre la direccion 9999999999999999999999 de memoria") + 1);
+			sprintf(msj,"Se recibio una operacion FREE sobre la direccion %u de memoria",mensajeRecibido->posicionMemoria);
+			loggearInfo(msj);
+			free(msj);
+			//liberarDireccionDeMemoria(mensajeRecivido->idProceso,mensajeRecibido->posicionMemoria);
+			enviarInt(socketRespuesta, 1);
+			break;
+		case GET:
+			msj = malloc(strlen("Se recibio una operacion GET sobre la direccion 9999999999999999999999 de 9999999999999999999999 de bytes") + 1);
+			sprintf(msj,"Se recibio una operacion GET sobre la direccion %u de %d bytes",mensajeRecibido->posicionMemoria,mensajeRecibido->tamanio);
+			loggearInfo(msj);
+			free(msj);
+
+			char aux[] = "Prueba";
+			enviarVoid(socketRespuesta, aux, strlen(aux));
 			break;
 		default: //incluye el handshake
 			break;
 		}
 		free(mensajeRecibido);
+
 	}
 	close(socketRespuesta);
+
 
 }
 
