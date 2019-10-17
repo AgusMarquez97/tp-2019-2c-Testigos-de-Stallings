@@ -62,7 +62,7 @@ int muse_get(void* dst, uint32_t src, size_t n); // ==> Validada OK! Recordar qu
  * @param n Cantidad de bytes a copiar.
  * @return Si pasa un error, retorna -1. Si la operación se realizó correctamente, retorna 0.
  */
-int muse_cpy(uint32_t dst, void* src, int n);
+int muse_cpy(uint32_t dst, void* src, int n); // ==> Validada OK!
 /*
  * Devuelve un puntero a una posición mappeada de páginas por una cantidad 'length' de bytes el archivo del 'path' dado.
  * @param path Path a un archivo en el FileSystem de MUSE a mappear.

@@ -51,7 +51,7 @@ void rutinaServidor(int * p_socket)
 		{
 		case CLOSE:
 			loggearInfo("Se recibio una operacion CLOSE");
-			//liberarMemoria(mensajeRecivido->idProceso); // funcion que debe liberar la memoria reservada tanto principal como swap y debe eliminar la entrada del diccionario
+			//procesarClose(mensajeRecivido->idProceso); // funcion que debe liberar la memoria reservada tanto principal como swap y debe eliminar la entrada del diccionario
 			enviarInt(socketRespuesta, 1);
 			break;
 		case MALLOC:
@@ -59,7 +59,7 @@ void rutinaServidor(int * p_socket)
 			sprintf(msj,"Se recibio una operacion ALLOC de %d bytes",mensajeRecibido->tamanio);
 			loggearInfo(msj);
 			free(msj);
-			//resolverMalloc(mensajeRecivido->idProceso,mensajeRecivido->tamanio);
+			//procesarMalloc(mensajeRecivido->idProceso,mensajeRecivido->tamanio);
 			enviarUint(socketRespuesta,1);
 			break;
 		case FREE:
@@ -67,7 +67,7 @@ void rutinaServidor(int * p_socket)
 			sprintf(msj,"Se recibio una operacion FREE sobre la direccion %u de memoria",mensajeRecibido->posicionMemoria);
 			loggearInfo(msj);
 			free(msj);
-			//liberarDireccionDeMemoria(mensajeRecivido->idProceso,mensajeRecibido->posicionMemoria);
+			//procesarFree(mensajeRecivido->idProceso,mensajeRecibido->posicionMemoria);
 			enviarInt(socketRespuesta, 1);
 			break;
 		case GET:
@@ -75,9 +75,28 @@ void rutinaServidor(int * p_socket)
 			sprintf(msj,"Se recibio una operacion GET sobre la direccion %u de %d bytes",mensajeRecibido->posicionMemoria,mensajeRecibido->tamanio);
 			loggearInfo(msj);
 			free(msj);
-
+			//procesarGet(mensajeRecivido->idProceso,mensajeRecibido->posicionMemoria,mensajeRecibido->tamanio);
 			char aux[] = "Prueba";
 			enviarVoid(socketRespuesta, aux, strlen(aux));
+			break;
+		case CPY:
+			msj = malloc(strlen("Se recibio una operacion CPY sobre la direccion 9999999999999999999999 de 9999999999999999999999 de bytes") + 1 + mensajeRecibido->tamanio);
+			sprintf(msj,"Se recibio una operacion CPY sobre la direccion %u de %d bytes.",mensajeRecibido->posicionMemoria,mensajeRecibido->tamanio);
+			loggearInfo(msj);
+			free(msj);
+
+			char * cadena_ejemplo = malloc(mensajeRecibido->tamanio + 1);
+
+			memcpy(cadena_ejemplo,mensajeRecibido->origen,mensajeRecibido->tamanio);
+			cadena_ejemplo[mensajeRecibido->tamanio] = 0;
+
+			loggearInfo(cadena_ejemplo);
+
+			free(cadena_ejemplo);
+
+			//procesarCpy(mensajeRecivido->idProceso,mensajeRecibido->posicionMemoria,mensajeRecibido->tamanio);
+
+			enviarInt(socketRespuesta,1);
 			break;
 		default: //incluye el handshake
 			break;

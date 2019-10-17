@@ -135,6 +135,7 @@ int muse_cpy(uint32_t dst, void* src, int n) {
 		loggearInfo("Datos en memoria copiados con éxito");
 	} else {
 		loggearError("No se ha podido copiar la información a memoria");
+		//Posible Seg Fault
 	}
 	return retorno;
 

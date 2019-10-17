@@ -146,7 +146,7 @@ t_mensajeMuse* recibirOperacion(int socketEmisor) {
 			recibirInt(socketEmisor, &mensajeRecibido->tamanio); //cantidad de bytes a recibir
 			buffer = malloc(mensajeRecibido->tamanio);
 			recibir(socketEmisor, buffer, mensajeRecibido->tamanio); //bytes a recibir
-			deserializarVoid(buffer, (void**)&mensajeRecibido->contenido, mensajeRecibido->tamanio, &desplazamiento);
+			deserializarVoid(buffer, &mensajeRecibido->origen, mensajeRecibido->tamanio, &desplazamiento); // OJO
 			break;
 		case MAP:
 			recibirInt(socketEmisor, &mensajeRecibido->tamanio);
