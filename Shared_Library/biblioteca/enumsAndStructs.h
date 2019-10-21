@@ -30,7 +30,7 @@ typedef struct {
 	uint32_t posicionMemoria;
 	int32_t tamanio;
 	void* origen;
-	char* contenido;
+	char* contenido; // Cambiar por void *
 	int32_t flag;
 } t_mensajeMuse;
 
