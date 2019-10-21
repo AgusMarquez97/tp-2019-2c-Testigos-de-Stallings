@@ -19,7 +19,6 @@
 #include <biblioteca/logs.h>
 #include <biblioteca/levantarConfig.h>
 #include <biblioteca/utils.h>
-
 #include <commons/string.h>
 #include <commons/collections/list.h>
 #include <commons/collections/node.h>
@@ -62,6 +61,7 @@ typedef struct archivo
 	char* nombre;//[MAX_FILENAME_LENGTH];
 	uint32_t file_size;
 	char* contenido;//aca va el array raro, pero en un principio que quede asi
+	struct archivo* padre;
 }GFile;
 
 

@@ -20,26 +20,18 @@
 #include "FUSE.h"
 
 
-GFile *tablaNodos[5];//hacer hasta MAX_FILE_NUMBER
+GFile* tablaNodos[MAX_FILE_NUMBER];
 int indiceTabla=-1;
 
-void inicializar()
-{
-	for(int i = 0; i <= 5; i++)
-	{
-		tablaNodos[i]=malloc(sizeof(GFile));
-		tablaNodos[i]->contenido=malloc(sizeof(char*));
-		tablaNodos[i]->nombre=malloc(sizeof(char*));
-	}
-}
 
 void liberarTabla()
 {
-	for(int i = 0; i <= 5; i++)
+	for(int i = 0; i <= indiceTabla; i++)
 	{
 
 		free(tablaNodos[i]->nombre);
 		free(tablaNodos[i]->contenido);
+		free(tablaNodos[i]->padre);
 		free(tablaNodos[i]);
 	}
 }
@@ -72,9 +64,9 @@ int existeObjeto(const char *path)
 }
 
 //retorna el indice del archivo. -1 si no existe
-int indiceObjeto(const char *path)
+int indiceObjeto(char *nombre)
 {
-	char *nombre=nombreObjeto(path);
+	//char *nombre=nombreObjeto(path);
 
 	for (int indActual = 0; indActual <= indiceTabla; indActual++)
 		if (strcmp(nombre,tablaNodos[indActual]->nombre) == 0)
@@ -86,7 +78,8 @@ int indiceObjeto(const char *path)
 //devuelve 1 si existe y es un directorio, 0 si no
 int esDirectorio(const char *path)
 {
-	int indiceDir = indiceObjeto(path);
+	char* nombre = nombreObjeto(path);
+	int indiceDir = indiceObjeto(nombre);
 	if(indiceDir>=0 && indiceDir<=MAX_FILE_NUMBER)
 	{
 		if (tablaNodos[indiceDir]->estado == 2)
@@ -100,7 +93,8 @@ int esDirectorio(const char *path)
 int esArchivo(const char *path)
 {
 //if existeobjeto(path)
-	int indiceArch = indiceObjeto(path);
+	char* nombre = nombreObjeto(path);
+	int indiceArch = indiceObjeto(nombre);
 	if(indiceArch>=0 && indiceArch<=MAX_FILE_NUMBER)
 	{
 		if (tablaNodos[indiceArch]->estado == 1)
@@ -111,24 +105,52 @@ int esArchivo(const char *path)
 }
 
 //agrega un directorio a la lista
-void agregarDirectorio(char *nombreDir)
+void agregarDirectorio(char* nombreDir, char* padre)
 {
 	indiceTabla++;
 
+	tablaNodos[indiceTabla] = malloc(sizeof(GFile));
+	tablaNodos[indiceTabla]->contenido = malloc(sizeof(char*));
+	tablaNodos[indiceTabla]->nombre = malloc(sizeof(char*));
+	tablaNodos[indiceTabla]->padre = malloc(sizeof(struct archivo*));
+
+	//inicializo valores del nodo
 	strcpy(tablaNodos[indiceTabla]->nombre,nombreDir);
 	tablaNodos[indiceTabla]->file_size=0;
 	tablaNodos[indiceTabla]->estado=2;//porque es directorio
+
+	//linkeo al padre
+	if(padre!=NULL)
+	{
+		int indicePadre = indiceObjeto(padre);
+		tablaNodos[indiceTabla]->padre = tablaNodos[indicePadre];
+	}
+
+
+
 }
 
 //agrega un archivo a la lista
-void agregarArchivo(char *nombreDir)
+void agregarArchivo(char *nombreArch, char* padre)
 {
 	indiceTabla++;
 
-	strcpy(tablaNodos[indiceTabla]->nombre,nombreDir);
+	tablaNodos[indiceTabla] = malloc(sizeof(GFile));
+	tablaNodos[indiceTabla]->contenido = malloc(sizeof(char*));
+	tablaNodos[indiceTabla]->nombre = malloc(sizeof(char*));
+	tablaNodos[indiceTabla]->padre = malloc(sizeof(struct archivo*));
 
+	//inicializo valores del nodo
+	strcpy(tablaNodos[indiceTabla]->nombre,nombreArch);
 	tablaNodos[indiceTabla]->file_size=0;
 	tablaNodos[indiceTabla]->estado=1;//porque es archivo
+
+	//linkeo al padre
+	if(padre!=NULL)
+	{
+		int indicePadre = indiceObjeto(padre);
+		tablaNodos[indiceTabla]->padre = tablaNodos[indicePadre];
+	}
 
 }
 
@@ -136,7 +158,9 @@ void agregarArchivo(char *nombreDir)
 //busca el indice del archivo y copia el nuevo contenido. Si no existe el archivo, no hace nada
 void escribirEnArchivo(const char *path, const char *contenido)
 {
-	int indArch = indiceObjeto(path);
+	char* nombre = nombreObjeto(path);
+
+	int indArch = indiceObjeto(nombre);
 
 	if (indArch == -1)
 		return;
@@ -182,13 +206,42 @@ static int hacer_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
 	filler(buffer, ".", NULL, 0); // llenamos la lista de directorios con el directorio actual
 	filler(buffer, "..", NULL, 0); // padre
 
-	if (strcmp(path, "/" ) == 0)//ls del punto de montaje
+	int contArray=0;
+	//char* padre = malloc(sizeof(char*));
+	char* directorio = malloc(sizeof(char*));
+	char** cortado = malloc(10*sizeof(char*));
+
+	for(int i=0;i<=10;i++)
+		cortado[i] = malloc(sizeof(char*));
+
+	cortado=string_n_split(path, 10, "/"); // separa el path en strings
+
+	if(cortado[contArray]==NULL) // si es el punto de montaje
 	{
 		for (int indActual = 0; indActual <= indiceTabla; indActual++)
-			filler(buffer,tablaNodos[indActual]->nombre, NULL, 0);
+			filler(buffer,tablaNodos[indActual]->nombre, NULL, 0);//tira todos. hacer que solo tire para padre==null
 	}
-	return 0;
+	else
+	{
+		do
+		{
+			//strcpy(padre,cortado[contArray-1])
+			strcpy(directorio,cortado[contArray]);
+			contArray++;
+		}
+		while(cortado[contArray]!=NULL);
 
+		for (int indActual = 0; indActual <= indiceTabla; indActual++)
+		{
+			if(tablaNodos[indActual]->padre!=NULL)
+			{
+				if(strcmp(tablaNodos[indActual]->padre->nombre, directorio)==0)
+					filler(buffer,tablaNodos[indActual]->nombre, NULL, 0);
+			}
+		}
+	}
+
+	return 0;
 }
 
 //lee el contenido de un archivo. Retorna el número de bytes que fueron leidos correctamente
@@ -196,8 +249,9 @@ static int hacer_read(const char *path, char *buffer, size_t size, off_t offset,
 {
 	printf("... Leyendo %s, %u, %u\n", path, offset, size);
 
+	char* nombre = nombreObjeto(path);
 
-	int indArch = indiceObjeto(path);
+	int indArch = indiceObjeto(nombre);
 
 	if (indArch == -1)// || tablaNodos[indArch]->estado == 2) //si no existe o es un directorio
 		return -1;
@@ -214,9 +268,36 @@ static int hacer_read(const char *path, char *buffer, size_t size, off_t offset,
 //va a ser llamada para crear un nuevo directorio. "modo" son los bits de permiso, ver documentacion de mkdir
 static int hacer_mkdir(const char *path, mode_t modo)
 {
-	char* nombre = nombreObjeto(path);
+	char* nombre = malloc(sizeof(char*));
+	char* padre = malloc(sizeof(char*));
+	int contador = 0;
+	char** pathCortado = malloc(10*sizeof(char*));
 
-	agregarDirectorio(nombre);
+	for(int i=0;i<=10;i++)
+		pathCortado[i] = malloc(sizeof(char*));
+
+	pathCortado = string_n_split(path, 10, "/");
+
+	if(pathCortado[1]==NULL)
+	{
+		nombre = pathCortado[0];
+		padre = pathCortado[1];
+	}
+	else // "/dir/algo" minimo
+	{
+		contador++;
+		while(pathCortado[contador]!=NULL);
+		{
+			padre = pathCortado[contador-1];
+			nombre = pathCortado[contador];
+			contador++;
+		}
+	}
+
+	agregarDirectorio(nombre,padre);
+
+	free(nombre);
+	free(padre);
 
 	return 0;
 
@@ -226,12 +307,39 @@ static int hacer_mkdir(const char *path, mode_t modo)
 //es un dispositivo, ver documentacion de mknod
 static int hacer_mknod(const char *path, mode_t modo, dev_t dispositivo)
 {
-	char* nombre = nombreObjeto(path);
 
-	agregarArchivo(nombre);
+	char* nombre = malloc(sizeof(char*));
+	char* padre = malloc(sizeof(char*));
+	int contador = 0;
+	char** pathCortado = malloc(10*sizeof(char*));
+
+		for(int i=0;i<=10;i++)
+			pathCortado[i] = malloc(sizeof(char*));
+
+	pathCortado = string_n_split(path, 10, "/");
+
+	if(pathCortado[1]==NULL)
+	{
+		nombre = pathCortado[0];
+		padre = pathCortado[1];
+	}
+	else
+	{
+		contador++;
+		while(pathCortado[contador]!=NULL);
+		{
+			padre = pathCortado[contador-1];
+			nombre = pathCortado[contador];
+			contador++;
+		}
+	}
+
+	agregarArchivo(nombre,padre);
+
+	free(nombre);
+	free(padre);
 
 	return 0;
-
 
 }
 
@@ -250,7 +358,7 @@ static struct fuse_operations operaciones = {
 	.mknod		= hacer_mknod,
 	.write		= hacer_write,
 };
-
+/*
 void levantarServidorFUSE()
 {
 	int socketRespuesta;
@@ -296,7 +404,7 @@ void levantarConfig()
 
 	loggearInfoServidor(ip,puerto);
 }
-
+*/
 int main( int argc, char *argv[] )
 {
 	/*
@@ -309,13 +417,13 @@ int main( int argc, char *argv[] )
 	return EXIT_SUCCESS;
 */
 
-	inicializar();
 
 	int ret = fuse_main(argc, argv, &operaciones, NULL);
 
 	liberarTabla();
 
 	return ret;
+
 }
 
 void liberarVariablesGlobales()
