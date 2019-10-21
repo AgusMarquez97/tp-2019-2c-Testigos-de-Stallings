@@ -12,57 +12,20 @@
 
 
 
-//Falta como recibir los sockets
-//>RECIBIR()-
-//conectarse con sus clientes y atender a uno
-//t_mensajeSuse* mensajeRecibido= recibirOperacion(socketEmisor);
-//int32_t resultado=ejecutarMensajeSocket(mensajeRecibido);
-//procesarResultadoSocket(mensajeRecibido->Operacion,resultado);
-//enviar a hilolay los resultados obtenidos
-
-
-
-//---------------------------------------------------< Planificacion >----------------------------------------------------------------|
-
-/*Administra las tareas que tiene que hacer SUSE en base a la operacion que le llego*/
-int32_t ejecutarMensajeSocket (t_mensajeSuse mensajeRecibido){
-
-	int32_t operacion= mensajeRecibido->tipoOperacion;
-
-switch(operacion) {
-		case HANDSHAKE:
-			//?
-			break;
-		case CREATE:
-			return suse_create_servidor(mensajeRecibido);
-			break;
-		case NEXT:
-			return suse_schedule_next_servidor(mensajeRecibido->idProceso);
-			break;
-		case JOIN:
-			return suse_join_servidor(mensajeRecibido->idHilo);
-			break;
-		case RETURN:
-			return suse_return_servidor(mensajeRecibido->idProceso,mensajeRecibido->idHilo);
-			break;
-		default:
-			return -1;
-	}
-
-}
-
 //---------------------------------------------------< PLP >----------------------------------------------------------------|
 
 /*Crea un molde de hilo y lo agrega a la cola de news (unica para todos los procesos) y al finalizar intenta mandarlo a la de readys*/
-int32_t suse_create_server(t_mensajeSuse mensaje){
+int32_t suse_create_servidor(int32_t idProc, int32_t idThread, int32_t rafag){
 
-	t_hiloPlanificado hiloEntrante;//creo un modelo que me servira para planificar (elemento que contendran las colas de suse)
-	hiloEntrante->idProceso= mensaje->idProceso;
-	hiloEntrante->idHilo= mensaje->idHilo;
-	hiloEntrante->rafaga= mensaje->rafaga;
+	t_hiloPlanificado* hiloEntrante;//(elemento planificable)
 
-	queue_push(colaNews, hiloEntrante);
-	return planificar_largoPlazo(); //revisar si esta bien metido aca
+	hiloEntrante->idProceso= idProc;
+	hiloEntrante->idHilo= idThread;
+	hiloEntrante->rafaga= rafag;
+
+
+	queue_push(colaNews,hiloEntrante);
+	return planificar_largoPlazo(); //revisar
 
 }
 
@@ -75,7 +38,7 @@ int32_t planificar_largoPlazo(){
 
 if(!queue_is_empty(colaNews)){
 
-	t_hiloPlanificado hiloEnNews= queue_pop(colaNews); //tomo un hilo en estado new
+	t_hiloPlanificado* hiloEnNews=queue_pop(colaNews); //tomo un hilo en estado new
 
 		if(dictionary_has_key(readys,hiloEnNews->idProceso)) //si ya hay una colaReady para el proceso de ese hilo...
 		{
@@ -114,12 +77,11 @@ int32_t suse_schedule_next_servidor(int idProceso){
 	int proximoAEjecutar= queue_peek(colaReady);//peek solo consulta el primero en la cola. NEXT es solo una funcion de consulta
 
 
-	/*aca cuando ya tiene todo no habria que intentar ver si puedo meter algun new? Porque el gradoMulti bajó en la cola de este
+	/*aca cuando ya tiene completo no habria que intentar ver si puedo meter algun new? Porque el gradoMulti bajó en la cola de este
 	*proceso. O eso solo lo hace suse_create una vez lo pushea a news?.
 	 Algo asi:
-	 revisar_newsEsperando();
 	*/
-
+	 revisar_newsEsperando();
 	/*
 	 *
 	 */
@@ -138,22 +100,8 @@ void revisar_newsEsperando(){
 
 int32_t suse_return(int idProceso, int tid){
 
-	t_hiloPlanificado hiloBuscado=-1;
-	t_queue* colaReady= dictionary_get(readys, idProceso); //busca en el dic. la colaReady del proceso solicitante
-
-	//en proceso
-
-	return hiloBuscado;
+	return 1;
 }
-
-
-
-
-
-
-
-
-
 
 
 
@@ -182,14 +130,44 @@ void levantarServidorSUSE()
 
 }
 
-void rutinaServidor(int socketRespuesta)
+void rutinaServidor(int  p_socket)
 {
-	loggearInfo(":)");
-	sleep(5);
-	/*
-	 * Aca viene la magia...
-	 * enviar y recibir mierda
-	 */
+	char  msj;
+	int result;
+	int socketRespuesta = p_socket;
+	free(p_socket);
+	t_mensajeSuse*  mensajeRecibido = recibirOperacion(socketRespuesta);
+	if(mensajeRecibido == NULL)
+		loggearInfo("Handshake exitoso");
+	else
+	{
+		switch(mensajeRecibido->tipoOperacion)
+		{
+		case CREATE:
+			loggearInfo("Se recibio una operacion CREATE");
+			result= suse_create_servidor(mensajeRecibido->idProceso, mensajeRecibido->idHilo, mensajeRecibido->rafaga);
+			enviarInt(socketRespuesta, result);
+			break;
+		case NEXT:
+			loggearInfo("Se recibio una operacion NEXT");
+			result=suse_schedule_next_servidor(mensajeRecibido->idProceso);
+			enviarInt(socketRespuesta, result);
+			break;
+		case JOIN:
+			loggearInfo("Se recibio una operacion JOIN");
+			enviarInt(socketRespuesta, 1);
+			break;
+		case RETURN:
+			loggearInfo("Se recibio una operacion RETURN");
+			enviarInt(socketRespuesta, 1);
+			break;
+
+		default: //incluye el handshake
+			break;
+		}
+		free(mensajeRecibido);
+	}
+	close(socketRespuesta);
 }
 
 void liberarVariablesGlobales()
