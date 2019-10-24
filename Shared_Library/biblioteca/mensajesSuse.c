@@ -8,6 +8,10 @@
 
 #include "mensajesSuse.h"
 
+void enviarCreate(int socketReceptor, int32_t proceso, int32_t tid){}
+void enviarNext(int socketReceptor, int32_t proceso){}
+
+
 /*
 void enviarHandshake(int socketReceptor, int32_t proceso) {
 	enviarOperacion(socketReceptor, proceso, HANDSHAKE, -1,0);
