@@ -8,7 +8,7 @@ RM = rm -f  # rm command
 
 TARGET_LIB = libShared_Library.so # target lib
 
-SRCS = levantarConfig.c serializacion.c sockets.c mensajes.c logs.c utils.c libmuse.c mensajesMuse.c mensajesFuse.c mensajesSuse.c # source files
+SRCS = levantarConfig.c serializacion.c sockets.c mensajes.c logs.c utils.c libmuse.c mensajesMuse.c mensajesFuse.c mensajesSuse.c libsuse.c # source files
 OBJS = $(SRCS:.c=.o)
 
 .PHONY: all

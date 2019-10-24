@@ -1,33 +1,12 @@
+#include "libsuse.h"
 
-#include <hilolay/alumnos.h> //wtf? Ver Issue en sisoputnfrba sobre esto
-#include <stdio.h>
-#include <time.h>
-#include <stdlib.h>
-#include <mensajesSuse.h>
 
-/* Lib implementation: It'll only schedule the last thread that was created */
-int max_tid = 0;
-
-//-Variables (meter dentro de un .h)-//
-#define gettid() syscall(SYS_gettid)
-#define LONG_MAX_PUERTO 7
-#define LONG_MAX_IP 16
-
-char puerto_suse[LONG_MAX_PUERTO];
-char ip_suse[LONG_MAX_IP];
-int id_suse;
-//---//
-
-/*suse_init (provisional):
- * 1) suse_init no esta declarado (dijeron los ayudantes que se les paso) asi que suponemos que es parecido a muse_init por ahora
- * 2)La parte de arriba de los define y las variables tendria que ir en un libsuse.h como libmuse
- */
 int suse_init(int id, char* ip, int puerto) {
 
 		iniciarLog("Linuse");
 		loggearInfo("Iniciando la Biblioteca libsuse...");
 
-		id_muse = id;
+		id_suse = id;
 		strcpy(ip_suse, ip);
 		sprintf(puerto_suse, "%d", puerto);
 
@@ -116,16 +95,15 @@ int suse_close(int tid){
 	return 0;
 }
 
-
-
-
-
 static struct hilolay_operations hiloops = {
 		.suse_create = &suse_create,
 		.suse_schedule_next = &suse_schedule_next,
 		.suse_join = &suse_join,
 		.suse_close = &suse_close
 };
+
+
+
 
 void hilolay_init(void){
 	init_internal(&hiloops);
