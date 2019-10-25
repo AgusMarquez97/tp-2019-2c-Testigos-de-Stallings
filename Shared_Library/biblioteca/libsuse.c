@@ -35,7 +35,7 @@ int suse_create(int tid){
 int suse_schedule_next(void){
 	loggearInfo("Solicitando proximo hilo...");
 
-		uint32_t proxTid = -1;
+		uint32_t proxTid;
 		int socketCliente = levantarCliente(ip_suse, puerto_suse);
 
 		if(socketCliente != -1) {
@@ -107,7 +107,7 @@ void hilolay_init(int id, char* ip, int puerto) {
 			return -1;
 		}
 */
-		//init_internal(&hiloops);
+		init_internal(&hiloops);
 		loggearInfo("Biblioteca libsuse iniciada con éxito");
 	}
 

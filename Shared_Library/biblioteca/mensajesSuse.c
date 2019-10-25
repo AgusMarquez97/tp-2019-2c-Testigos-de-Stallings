@@ -78,14 +78,12 @@ t_mensajeSuse* recibirOperacionSuse(int socketEmisor) {
 
 	t_mensajeSuse* mensajeRecibido;
 	int cantidadRecibida = 0;
-	int desplazamiento = 0;
 	int32_t  proceso, operacion;
-	void* buffer = NULL;
 
 	cantidadRecibida = recibirInt(socketEmisor, &proceso);
 	cantidadRecibida += recibirInt(socketEmisor, &operacion);
 
-	if(cantidadRecibida =! sizeof(int32_t)*2)
+	if(cantidadRecibida != (sizeof(int32_t)*2) )
 		return NULL;
 
 	mensajeRecibido = malloc(sizeof(mensajeRecibido));

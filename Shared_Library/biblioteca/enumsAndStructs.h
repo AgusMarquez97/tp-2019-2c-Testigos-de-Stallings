@@ -57,7 +57,7 @@ typedef struct {
 } t_mensajeSuse;
 
 typedef struct {
-	int32_t idProceso;
+	char * idProceso; // char * para meterlo en diccionario
 	int32_t idHilo;
 	int32_t rafaga;
 } t_hiloPlanificado;

@@ -19,7 +19,9 @@ int32_t suse_create_servidor(int32_t idProc, int32_t idThread){
 
 	t_hiloPlanificado* hiloEntrante= malloc(sizeof(hiloEntrante));//(elemento planificable)
 
-	hiloEntrante->idProceso= idProc;
+	char * aux = malloc(strlen("9999999999999")+1);
+	sprintf(aux,"%d",idProc);
+	hiloEntrante->idProceso=aux;
 	hiloEntrante->idHilo= idThread;
 
 
@@ -37,40 +39,55 @@ int32_t suse_create_servidor(int32_t idProc, int32_t idThread){
 
 
 /*Transiciona los hilos de new a Ready*/
-int32_t planificar_largoPlazo(){
+void planificar_largoPlazo(){
+	t_hiloPlanificado* hiloEnNews;
+	while(1)
+	{
+		if(!queue_is_empty(colaNews)){
 
-	int gradoMulti= config_get_int_value(pathConfig, "MAX_MULTIPROG");
+				hiloEnNews=queue_peek(colaNews);
 
-if(!queue_is_empty(colaNews)){
+				if(dictionary_has_key(readys,hiloEnNews->idProceso))
+				{
+					t_queue* colaReady= dictionary_get(readys, hiloEnNews->idProceso);
+					int multiprogActual = obtenerMultiprogActual();
+					if(multiprogActual < maxMultiprog)
+					{
+						queue_pop(colaNews);
+						queue_push(colaReady, hiloEnNews);
+						//dictionary_put(readys, hiloEnNews->idProceso , colaReady);
+						loggearInfo("Agregamos 1 hilo de New a Ready");
+					}
+					else loggearWarning("grado de máxima multiprogramación alcanzado");
 
-	t_hiloPlanificado* hiloEnNews=queue_pop(colaNews); //tomo un hilo en estado new
+				}
+				else{
 
-		if(dictionary_has_key(readys,hiloEnNews->idProceso)) //si ya hay una colaReady para el proceso de ese hilo...
+					t_queue* nuevaColaReady= queue_create();
+
+					queue_push(nuevaColaReady, hiloEnNews);
+
+					dictionary_put(readys, hiloEnNews->idProceso , nuevaColaReady);
+
+					loggearInfo("Se crea cola ready para el proceso nuevo y agregamos el hilo a esta");
+
+					}
+		}
+
+	}
+}
+int obtenerMultiprogActual()
+	{
+	int multiprogActual = 0;
+	void calculoMultiprog(char * proceso, t_queue* cola)
 		{
-				t_queue* colaReady= dictionary_get(readys, hiloEnNews->idProceso); //la pido
-
-			if(queue_size(colaReady)<=gradoMulti){ //Me permite el grado de multiprogramacion meter + procesos a esa cola?
-
-				queue_push(colaReady, hiloEnNews);
-				dictionary_put(readys, hiloEnNews->idProceso , colaReady);
+		multiprogActual += queue_size(cola);
 		}
-			else{ queue_push(colaNews, hiloEnNews); } //si no me permite el gradoMulti lo regreso a news
+	dictionary_iterator(readys,(void *)calculoMultiprog);
+	return multiprogActual;
+	}
 
-			return 1;
-		}
-		else{ //en cambio, si el proceso nunca planifico ningun hilo le crea una cola...
 
-			t_queue* nuevaColaReady= queue_create();
-
-			queue_push(nuevaColaReady, hiloEnNews);
-
-			dictionary_put(readys, hiloEnNews->idProceso , nuevaColaReady);
-			return 0;
-			}
-}
-return 2;
-
-}
 
 //---------------------------------------------------< PCP >----------------------------------------------------------------|
 
@@ -142,7 +159,6 @@ void levantarServidorSUSE()
 
 void rutinaServidor(int * p_socket)
 {
-	char  * msj;
 	int result;
 	int socketRespuesta = *p_socket;
 	free(p_socket);
@@ -221,7 +237,10 @@ int main(void) {
 	loggearInfo("Se inicia el proceso SUSE...");
 	levantarConfig();
 	levantarEstructuras();
+	crearHilo(planificar_largoPlazo,NULL);
+
 	levantarServidorSUSE();
+
 	printf("jeje");
 	liberarVariablesGlobales();
 	return EXIT_SUCCESS;

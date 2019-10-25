@@ -48,7 +48,13 @@ t_dictionary *readys; //diccionario con colas ready. KEY= processId VALUE= colaR
 
 //
 int32_t suse_create_servidor(int32_t idProc, int32_t idThread);
-int32_t planificar_largoPlazo();
+
+
+void planificar_largoPlazo();
+int obtenerMultiprogActual();
+
+
+
 int32_t suse_schedule_next_servidor(int idProceso);
 void revisar_newsEsperando();
 int32_t suse_return(int idProceso, int tid);
