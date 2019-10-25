@@ -138,7 +138,7 @@ void rutinaServidor(int  p_socket)
 	int result;
 	int socketRespuesta = p_socket;
 	free(p_socket);
-	t_mensajeSuse*  mensajeRecibido = recibirOperacion(socketRespuesta);
+	t_mensajeSuse*  mensajeRecibido = recibirOperacionSuse(socketRespuesta);
 	if(mensajeRecibido == NULL)
 		loggearInfo("Handshake exitoso");
 	else

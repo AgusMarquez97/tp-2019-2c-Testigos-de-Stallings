@@ -8,7 +8,7 @@ int suse_init(int id, char* ip, int puerto) {
 		iniciarLog("Linuse");
 		loggearInfo("Iniciando la Biblioteca libsuse...");
 
-		id_suse = id;
+		id_proceso = id;//id del proceso
 		strcpy(ip_suse, ip);
 		sprintf(puerto_suse, "%d", puerto);
 
@@ -16,7 +16,7 @@ int suse_init(int id, char* ip, int puerto) {
 		int socketCliente = levantarCliente(ip_suse, puerto_suse);
 
 		if(socketCliente != -1) {
-			enviarHandshakeSuse(socketCliente, id_suse);
+			enviarHandshakeSuse(socketCliente, id_proceso);
 			recibirInt(socketCliente, &respuesta);
 		}
 		close(socketCliente);
@@ -28,7 +28,7 @@ int suse_init(int id, char* ip, int puerto) {
 		}
 
 		loggearInfo("Biblioteca libsuse iniciada con éxito");
-printf("iniciando la Biblioteca libsuse");
+
 		return 0;
 
 	}
@@ -67,7 +67,7 @@ int suse_schedule_next(void){
 		int socketCliente = levantarCliente(ip_suse, puerto_suse);
 
 		if(socketCliente != -1) {
-			enviarNext(socketCliente, id_suse);
+			enviarNext(socketCliente, id_proceso);
 			recibirInt(socketCliente, &proxTid);
 		}
 		close(socketCliente);

@@ -18,7 +18,7 @@ int max_tid = 0;
 
 char puerto_suse[LONG_MAX_PUERTO];
 char ip_suse[LONG_MAX_IP];
-int id_suse;
+int id_proceso;
 //---//
 
 

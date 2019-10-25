@@ -12,23 +12,23 @@
 
 
 void enviarHandshakeSuse(int socketReceptor, int32_t proceso) {
-	enviarOperacion(socketReceptor, proceso, HANDSHAKE_SUSE, -1,0);
+	enviarOperacionSuse(socketReceptor, proceso, HANDSHAKE_SUSE, -1,0);
 }
 
 void enviarCreate(int socketReceptor, int32_t proceso, int32_t tid) {
-	enviarOperacion(socketReceptor, proceso, CREATE, tid, 0);
+	enviarOperacionSuse(socketReceptor, proceso, CREATE, tid, 0);
 }
 
 void enviarJoin(int socketReceptor, int32_t proceso, int32_t tid) {
-	enviarOperacion(socketReceptor, proceso, JOIN, tid, 0);
+	enviarOperacionSuse(socketReceptor, proceso, JOIN, tid, 0);
 }
 
 void enviarNext(int socketReceptor, int32_t proceso) {
-	enviarOperacion(socketReceptor, proceso, NEXT, -1, 0);
+	enviarOperacionSuse(socketReceptor, proceso, NEXT, -1, 0);
 }
 
 void enviarReturn(int socketReceptor, int32_t proceso) {
-	enviarOperacion(socketReceptor, proceso, RETURN, -1,0);
+	enviarOperacionSuse(socketReceptor, proceso, RETURN, -1,0);
 }
 
 void enviarOperacionSuse(int socket, int32_t proceso, int32_t operacion, int32_t tid,
@@ -50,7 +50,7 @@ void enviarOperacionSuse(int socket, int32_t proceso, int32_t operacion, int32_t
 
 	switch(operacion) {
 		case HANDSHAKE_SUSE:
-			//serializarInt(buffer, flag, &desplazamiento);
+			loggearInfo("handshake serializado para enviar");
 			break;
 		case CREATE:
 			serializarInt(buffer, tid, &desplazamiento);
