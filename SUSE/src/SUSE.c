@@ -120,9 +120,11 @@ void levantarServidorSUSE()
 
 			if((hiloAtendedor = makeDetachableThread(rutinaServidor,(void*)(intptr_t)socketRespuesta)) != 0)
 			{
+
 			}
 			else
 			{
+				printf("Error al crear un nuevo hilo");
 				loggearError("Error al crear un nuevo hilo");
 			}
 		}
@@ -204,7 +206,7 @@ int main(void) {
 	iniciarLog("SUSE");
 	loggearInfo("Se inicia el proceso SUSE...");
 	levantarConfig();
-	//levantarServidorSUSE();
+	levantarServidorSUSE();
 	printf("jeje");
 	liberarVariablesGlobales();
 	return EXIT_SUCCESS;

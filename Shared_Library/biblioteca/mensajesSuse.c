@@ -8,13 +8,11 @@
 
 #include "mensajesSuse.h"
 
-void enviarCreate(int socketReceptor, int32_t proceso, int32_t tid){}
-void enviarNext(int socketReceptor, int32_t proceso){}
 
 
-/*
-void enviarHandshake(int socketReceptor, int32_t proceso) {
-	enviarOperacion(socketReceptor, proceso, HANDSHAKE, -1,0);
+
+void enviarHandshakeSuse(int socketReceptor, int32_t proceso) {
+	enviarOperacion(socketReceptor, proceso, HANDSHAKE_SUSE, -1,0);
 }
 
 void enviarCreate(int socketReceptor, int32_t proceso, int32_t tid) {
@@ -33,7 +31,7 @@ void enviarReturn(int socketReceptor, int32_t proceso) {
 	enviarOperacion(socketReceptor, proceso, RETURN, -1,0);
 }
 
-void enviarOperacion(int socket, int32_t proceso, int32_t operacion, int32_t tid,
+void enviarOperacionSuse(int socket, int32_t proceso, int32_t operacion, int32_t tid,
 		int32_t rafaga) {
 
 	int32_t desplazamiento = 0;
@@ -77,7 +75,7 @@ void enviarOperacion(int socket, int32_t proceso, int32_t operacion, int32_t tid
 
 }
 
-t_mensajeSuse* recibirOperacion(int socketEmisor) {
+t_mensajeSuse* recibirOperacionSuse(int socketEmisor) {
 
 	t_mensajeSuse* mensajeRecibido;
 	int cantidadRecibida = 0;
@@ -120,4 +118,4 @@ t_mensajeSuse* recibirOperacion(int socketEmisor) {
 	return mensajeRecibido;
 
 }
-*/
+

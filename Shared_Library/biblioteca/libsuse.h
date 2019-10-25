@@ -2,7 +2,7 @@
 #define BIBLIOTECA_LIBSUSE_H_
 
 
-#include <hilolay/alumnos.h> //wtf? Ver Issue en sisoputnfrba sobre esto
+#include <hilolay/alumnos.h>
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
