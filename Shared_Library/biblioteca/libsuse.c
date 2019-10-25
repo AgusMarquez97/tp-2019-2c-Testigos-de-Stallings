@@ -3,58 +3,30 @@
 /* Lib implementation: It'll only schedule the last thread that was created */
 
 
-int suse_init(int id, char* ip, int puerto) {
 
-		iniciarLog("Linuse");
-		loggearInfo("Iniciando la Biblioteca libsuse...");
-
-		id_proceso = id;//id del proceso
-		strcpy(ip_suse, ip);
-		sprintf(puerto_suse, "%d", puerto);
-
-		int respuesta = 0;
-		int socketCliente = levantarCliente(ip_suse, puerto_suse);
-
-		if(socketCliente != -1) {
-			enviarHandshakeSuse(socketCliente, id_proceso);
-			recibirInt(socketCliente, &respuesta);
-		}
-		close(socketCliente);
-
-		if(respuesta != 1) {
-			printf("No se ha podido iniciar la Biblioteca libsuse");
-			loggearError("No se ha podido iniciar la Biblioteca libsuse");
-			return -1;
-		}
-
-		loggearInfo("Biblioteca libsuse iniciada con éxito");
-
-		return 0;
-
-	}
 int suse_create(int tid){
 	if (tid > max_tid) max_tid = tid;
-/*
+
 	loggearInfo("Creando hilo...");
 
 			uint32_t estado = -1;
 			int socketCliente = levantarCliente(ip_suse, puerto_suse);
 
 			if(socketCliente != -1) {
-				enviarCreate(socketCliente, id_suse, tid);
+				enviarCreate(socketCliente, id_proceso, tid);
 				recibirInt(socketCliente, &estado);
 			}
 			close(socketCliente);
 
 			if(estado == -1) {
-				loggearError("Error: No se ha podido reservar crear el hilo");
+				loggearError("Error: No se ha podido crear el hilo");
 				return 0;
 			}
 
 			loggearInfo("Hilo creado exitosamente");
 			return estado;
 
-*/
+
 
 
 
@@ -110,9 +82,32 @@ static struct hilolay_operations hiloops = {
 		.suse_wait = &suse_wait,
 		.suse_signal = &suse_signal
 };
+void hilolay_init(int id, char* ip, int puerto) {
 
-void hilolay_init(void){
 
-	init_internal(&hiloops);
+		iniciarLog("Linuse");
+		loggearInfo("Iniciando la Biblioteca libsuse...");
 
-}
+		id_proceso = id;//id del proceso
+		strcpy(ip_suse, ip);
+		sprintf(puerto_suse, "%d", puerto);
+/*
+		int respuesta = 0;
+		int socketCliente = levantarCliente(ip_suse, puerto_suse);
+
+		if(socketCliente != -1) {
+			enviarHandshakeSuse(socketCliente, id_proceso);
+			recibirInt(socketCliente, &respuesta);
+		}
+		close(socketCliente);
+
+		if(respuesta != 1) {
+			printf("No se ha podido iniciar la Biblioteca libsuse");
+			loggearError("No se ha podido iniciar la Biblioteca libsuse");
+			return -1;
+		}
+*/
+		//init_internal(&hiloops);
+		loggearInfo("Biblioteca libsuse iniciada con éxito");
+	}
+

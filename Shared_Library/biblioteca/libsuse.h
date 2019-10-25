@@ -25,6 +25,16 @@ int id_proceso;
 
 
 
+int suse_create(int tid);
+int suse_schedule_next(void);
+int suse_join(int tid);
+int suse_close(int tid);
+int suse_wait(int tid, char *sem_name);
+int suse_signal(int tid, char *sem_name);
+void hilolay_init(int id, char* ip, int puerto);
+
+
+
 
 
 

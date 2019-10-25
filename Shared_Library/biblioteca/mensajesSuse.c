@@ -54,7 +54,6 @@ void enviarOperacionSuse(int socket, int32_t proceso, int32_t operacion, int32_t
 			break;
 		case CREATE:
 			serializarInt(buffer, tid, &desplazamiento);
-			serializarInt(buffer, rafaga, &desplazamiento);
 			break;
 		case NEXT:
 			//
@@ -80,11 +79,11 @@ t_mensajeSuse* recibirOperacionSuse(int socketEmisor) {
 	t_mensajeSuse* mensajeRecibido;
 	int cantidadRecibida = 0;
 	int desplazamiento = 0;
-	int32_t proceso, operacion;
+	int32_t  proceso, operacion;
 	void* buffer = NULL;
 
-	cantidadRecibida = recibirInt(socketEmisor, proceso);
-	cantidadRecibida += recibirInt(socketEmisor, operacion);
+	cantidadRecibida = recibirInt(socketEmisor, &proceso);
+	cantidadRecibida += recibirInt(socketEmisor, &operacion);
 
 	if(cantidadRecibida =! sizeof(int32_t)*2)
 		return NULL;
@@ -100,7 +99,6 @@ t_mensajeSuse* recibirOperacionSuse(int socketEmisor) {
 			break;
 		case CREATE:
 			recibirInt(socketEmisor, &mensajeRecibido->idHilo);
-			recibirInt(socketEmisor, &mensajeRecibido->rafaga);
 			break;
 		case NEXT:
 			//

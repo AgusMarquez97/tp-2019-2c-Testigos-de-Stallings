@@ -15,17 +15,22 @@
 //---------------------------------------------------< PLP >----------------------------------------------------------------|
 
 /*Crea un molde de hilo y lo agrega a la cola de news (unica para todos los procesos) y al finalizar intenta mandarlo a la de readys*/
-int32_t suse_create_servidor(int32_t idProc, int32_t idThread, int32_t rafag){
+int32_t suse_create_servidor(int32_t idProc, int32_t idThread){
 
-	t_hiloPlanificado* hiloEntrante;//(elemento planificable)
+	t_hiloPlanificado* hiloEntrante= malloc(sizeof(hiloEntrante));//(elemento planificable)
 
 	hiloEntrante->idProceso= idProc;
 	hiloEntrante->idHilo= idThread;
-	hiloEntrante->rafaga= rafag;
+
 
 
 	queue_push(colaNews,hiloEntrante);
-	return planificar_largoPlazo(); //revisar
+	char * msj = malloc(strlen("se crea el hilo 99999999999 del proceso 9999999999999") + 1);
+	sprintf(msj,"Se creo el hilo %d del proceso %d",idThread,idProc);
+	loggearInfo(msj);
+	free(msj);
+
+	return 0; //revisar
 
 }
 
@@ -117,8 +122,11 @@ void levantarServidorSUSE()
 		if((socketRespuesta = (intptr_t)aceptarConexion(socketServidor)) != -1)
 		{
 			loggearNuevaConexion(socketRespuesta);
+			int * p_socket = malloc(sizeof(int));
+			*p_socket = socketRespuesta;
 
-			if((hiloAtendedor = makeDetachableThread(rutinaServidor,(void*)(intptr_t)socketRespuesta)) != 0)
+
+			if((hiloAtendedor = makeDetachableThread(rutinaServidor,(void*)p_socket)) != 0)
 			{
 
 			}
@@ -132,22 +140,23 @@ void levantarServidorSUSE()
 
 }
 
-void rutinaServidor(int  p_socket)
+void rutinaServidor(int * p_socket)
 {
-	char  msj;
+	char  * msj;
 	int result;
-	int socketRespuesta = p_socket;
+	int socketRespuesta = *p_socket;
 	free(p_socket);
 	t_mensajeSuse*  mensajeRecibido = recibirOperacionSuse(socketRespuesta);
-	if(mensajeRecibido == NULL)
-		loggearInfo("Handshake exitoso");
-	else
-	{
-		switch(mensajeRecibido->tipoOperacion)
+
+	switch(mensajeRecibido->tipoOperacion)
 		{
+		case HANDSHAKE_SUSE:
+			enviarInt(socketRespuesta, 1);
+			loggearInfo("Handshake exitoso");
+			break;
 		case CREATE:
 			loggearInfo("Se recibio una operacion CREATE");
-			result= suse_create_servidor(mensajeRecibido->idProceso, mensajeRecibido->idHilo, mensajeRecibido->rafaga);
+			result= suse_create_servidor(mensajeRecibido->idProceso, mensajeRecibido->idHilo);
 			enviarInt(socketRespuesta, result);
 			break;
 		case NEXT:
@@ -167,8 +176,8 @@ void rutinaServidor(int  p_socket)
 		default: //incluye el handshake
 			break;
 		}
-		free(mensajeRecibido);
-	}
+	free(mensajeRecibido);
+
 	close(socketRespuesta);
 }
 
@@ -200,12 +209,18 @@ void levantarConfig()
 
 	loggearInfoServidor(ip,puerto);
 }
+void levantarEstructuras()
+{
+	colaNews = queue_create();
+	readys = dictionary_create();
+}
 
 int main(void) {
 	remove("Linuse.log");
 	iniciarLog("SUSE");
 	loggearInfo("Se inicia el proceso SUSE...");
 	levantarConfig();
+	levantarEstructuras();
 	levantarServidorSUSE();
 	printf("jeje");
 	liberarVariablesGlobales();
