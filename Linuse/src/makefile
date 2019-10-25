@@ -23,7 +23,7 @@ LFLAGS = -L"/home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/Shared_Librar
 # define any libraries to link into executable:
 #   if I want to link in libraries (libx.so or libx.a) I use the -llibname 
 #   option, something like (this will link in libmylib.so and libm.so:
-LIBS = -lShared_Library -lrt -lm -lreadline -lpthread -lcommons
+LIBS = -lShared_Library -lrt -lm -lreadline -lpthread -lcommons -lhilolay
 
 # define the C source files
 SRCS = Linuse.c #aca agregar demas .c 
