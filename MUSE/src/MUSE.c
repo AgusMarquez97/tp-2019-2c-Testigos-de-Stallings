@@ -82,7 +82,7 @@ void rutinaServidor(int * p_socket)
 		case CPY:
 			msj = malloc(strlen("Se recibio una operacion CPY sobre la direccion 9999999999999999999999 de 9999999999999999999999 de bytes") + 1 + mensajeRecibido->tamanio);
 			sprintf(msj,"Se recibio una operacion CPY sobre la direccion %u de %d bytes.",mensajeRecibido->posicionMemoria,mensajeRecibido->tamanio);
-			loggearInfo(msj);
+	 		loggearInfo(msj);
 			free(msj);
 
 			char * cadena_ejemplo = malloc(mensajeRecibido->tamanio + 1);
@@ -98,15 +98,51 @@ void rutinaServidor(int * p_socket)
 
 			enviarInt(socketRespuesta,1);
 			break;
-		default: //incluye el handshake
+		case MAP:
+			msj = malloc(strlen("Se recibio un MAP con el flag 9999999999999999999999 del archivo ubicado en ") + 1);
+			sprintf(msj, "Se recibio un MAP con el flag %d del archivo ubicado en ", mensajeRecibido->flag);
+			loggearInfo(msj);
+			free(msj);
+
+			char* pathArchivo = malloc(mensajeRecibido->tamanio + 1);
+
+			memcpy(pathArchivo, mensajeRecibido->contenido, mensajeRecibido->tamanio);
+			pathArchivo[mensajeRecibido->tamanio] = 0;
+			loggearInfo(pathArchivo);
+			free(pathArchivo);
+
+			//procesarMap(mensajeRecibido->idProceso, mensajeRecibido->contenido, mensajeRecibido->tamanio, mensajeRecibido->flag);
+
+			enviarUint(socketRespuesta, 1);
+			break;
+		case SYNC:
+			msj = malloc(strlen("Se recibio un SYNC sobre la dirección de memoria 9999999999999999999999") + 1);
+			sprintf(msj, "Se recibió un SYNC sobre la dirección de memoria %u", mensajeRecibido->posicionMemoria);
+			loggearInfo(msj);
+			free(msj);
+
+			//procesarSync(mensajeRecibido->idProceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
+
+			enviarInt(socketRespuesta, 0);
+			break;
+		case UNMAP:
+			msj = malloc(strlen("Se recibió un UNMAP sobre la dirección 9999999999999999999999") + 1);
+			sprintf(msj, "Se recibió un UNMAP sobre la dirección %u", mensajeRecibido->posicionMemoria);
+			loggearInfo(msj);
+			free(msj);
+
+			//procesarUnmap(mensajeRecibido->idProceso, mensajeRecibido->posicionMemoria);
+
+			enviarInt(socketRespuesta, 0);
+			break;
+		default:
+			//incluye el handshake
 			break;
 		}
 		free(mensajeRecibido);
 
 	}
 	close(socketRespuesta);
-
-
 }
 
 void liberarVariablesGlobales()
