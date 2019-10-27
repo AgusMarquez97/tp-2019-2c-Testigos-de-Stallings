@@ -96,7 +96,7 @@ void rutinaServidor(int * p_socket)
 
 			//procesarCpy(mensajeRecivido->idProceso,mensajeRecibido->posicionMemoria,mensajeRecibido->tamanio);
 
-			enviarInt(socketRespuesta,1);
+			enviarInt(socketRespuesta,0);
 			break;
 		case MAP:
 			msj = malloc(strlen("Se recibio un MAP con el flag 9999999999999999999999 del archivo ubicado en ") + 1);

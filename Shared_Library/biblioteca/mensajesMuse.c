@@ -20,8 +20,8 @@ void enviarCpy(int socketReceptor, int32_t proceso, uint32_t posDestino, void* o
 	enviarOperacion(socketReceptor, proceso, CPY, posDestino, cantBytes, origen, NULL, 0);
 }
 
-void enviarMap(int socketReceptor, int32_t proceso, char* pathArchivo, int32_t flag) {
-	enviarOperacion(socketReceptor, proceso, MAP, 0, 0, NULL, pathArchivo, flag);
+void enviarMap(int socketReceptor, int32_t proceso, int32_t tamanio ,char* contenido, int32_t flag) {
+	enviarOperacion(socketReceptor, proceso, MAP, 0, tamanio, NULL, contenido, flag);
 }
 
 void enviarSync(int socketReceptor, int32_t proceso, uint32_t posMuse, int32_t cantBytes) {
@@ -49,7 +49,7 @@ void enviarOperacion(int socket, int32_t proceso, int32_t operacion, uint32_t po
 	if(origen != NULL)
 		tamanioBuffer += tamanio;
 	if(contenido != NULL)
-		tamanioBuffer += strlen(contenido) + 1;
+		tamanioBuffer += tamanio;
 //	if(destino != 0) --> Revisar
 //		tamanioBuffer += sizeof(uint32_t);
 	if(flag != 0)
@@ -79,7 +79,7 @@ void enviarOperacion(int socket, int32_t proceso, int32_t operacion, uint32_t po
 			serializarVoid(buffer, origen, tamanio, &desplazamiento);
 			break;
 		case MAP:
-			serializarString(buffer, contenido, &desplazamiento);
+			serializarVoid(buffer, contenido,tamanio, &desplazamiento);
 			serializarInt(buffer, flag, &desplazamiento);
 			break;
 		case SYNC:
@@ -93,7 +93,7 @@ void enviarOperacion(int socket, int32_t proceso, int32_t operacion, uint32_t po
 			serializarInt(buffer, flag, &desplazamiento);
 			break;
 		default:
-			;
+			break;
 	}
 
 	enviar(socket, buffer, tamanioBuffer);
