@@ -23,6 +23,7 @@ int32_t suse_create_servidor(int32_t idProc, int32_t idThread){
 	sprintf(aux,"%d",idProc);
 	hiloEntrante->idProceso=aux;
 	hiloEntrante->idHilo= idThread;
+	hiloEntrante->estadoHilo= 0;
 
 
 
@@ -31,7 +32,7 @@ int32_t suse_create_servidor(int32_t idProc, int32_t idThread){
 	sprintf(msj,"Se creo el hilo %d del proceso %d",idThread,idProc);
 	loggearInfo(msj);
 	free(msj);
-
+	planificar_largoPlazo();
 	return 0; //revisar
 
 }
@@ -41,8 +42,7 @@ int32_t suse_create_servidor(int32_t idProc, int32_t idThread){
 /*Transiciona los hilos de new a Ready*/
 void planificar_largoPlazo(){
 	t_hiloPlanificado* hiloEnNews;
-	while(1)
-	{
+
 		if(!queue_is_empty(colaNews)){
 
 				hiloEnNews=queue_peek(colaNews);
@@ -54,6 +54,7 @@ void planificar_largoPlazo(){
 					if(multiprogActual < maxMultiprog)
 					{
 						queue_pop(colaNews);
+						hiloEnNews->estadoHilo=1;
 						queue_push(colaReady, hiloEnNews);
 						//dictionary_put(readys, hiloEnNews->idProceso , colaReady);
 						loggearInfo("Agregamos 1 hilo de New a Ready");
@@ -65,6 +66,7 @@ void planificar_largoPlazo(){
 
 					t_queue* nuevaColaReady= queue_create();
 
+					hiloEnNews->estadoHilo=1;
 					queue_push(nuevaColaReady, hiloEnNews);
 
 					dictionary_put(readys, hiloEnNews->idProceso , nuevaColaReady);
@@ -74,7 +76,7 @@ void planificar_largoPlazo(){
 					}
 		}
 
-	}
+
 }
 int obtenerMultiprogActual()
 	{
@@ -93,35 +95,35 @@ int obtenerMultiprogActual()
 
 int32_t suse_schedule_next_servidor(int idProceso){
 
-	t_queue* colaReady= dictionary_get(readys, idProceso); //busca en el dic. la colaReady del proceso solicitante
+
+	//IF (no hay ningun hilo en exec de ese proceso)----> ver enunciado
+
+	t_queue* colaReady= dictionary_get(readys, idProceso);
+	t_hiloPlanificado* hiloSiguiente;
+
 
 	//FIFO
-	int proximoAEjecutar= queue_peek(colaReady);//peek solo consulta el primero en la cola. NEXT es solo una funcion de consulta
+	//int proximoAEjecutar= queue_peek(colaReady);
 
 
-	/*aca cuando ya tiene completo no habria que intentar ver si puedo meter algun new? Porque el gradoMulti bajó en la cola de este
-	*proceso. O eso solo lo hace suse_create una vez lo pushea a news?.
-	 Algo asi:
-	*/
-	 revisar_newsEsperando();
-	/*
-	 *
-	 */
+	hiloSiguiente= queue_pop(colaReady); //el puntero desaparece? Acordarse que son punteros no variab.
 
+	hiloSiguiente->estadoHilo=2;
+	//que hago con el hilo? Lo guardo?
+
+	int proximoAEjecutar= hiloSiguiente->idHilo;
+	planificar_largoPlazo();
 	return proximoAEjecutar;
 }
 
-//Revisaria todos los hilos. Por ahi no es necesario pero no pierde nada intentando (por ahi cpu al pedo, pero que tanto?)
-void revisar_newsEsperando(){
-
-	for(int i=0;i<=queue_size(colaNews);i++){
-		planificar_largoPlazo();
-	}
-}
 
 
-int32_t suse_return(int idProceso, int tid){
+int32_t suse_close_servidor(int idProceso, int tid){
 
+	//if(buscarHiloEn(readys)){
+		//t_queue* colaReady= dictionary_get(readys, idProceso);
+
+	//}
 	return 1;
 }
 
@@ -237,7 +239,7 @@ int main(void) {
 	loggearInfo("Se inicia el proceso SUSE...");
 	levantarConfig();
 	levantarEstructuras();
-	crearHilo(planificar_largoPlazo,NULL);
+	//crearHilo(planificar_largoPlazo,NULL);
 
 	levantarServidorSUSE();
 
