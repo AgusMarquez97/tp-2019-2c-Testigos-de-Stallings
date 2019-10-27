@@ -49,6 +49,15 @@ typedef enum {
 
 } t_operacionSuse;
 
+typedef enum {
+	NEW,
+	READY,
+	EXEC,
+	BLOCK,
+	EXIT,
+
+} t_estadoHilo;
+
 typedef struct {
 	int32_t idProceso;
 	int32_t tipoOperacion;
@@ -59,6 +68,7 @@ typedef struct {
 typedef struct {
 	char * idProceso; // char * para meterlo en diccionario
 	int32_t idHilo;
+	int32_t estadoHilo;
 	int32_t rafaga;
 } t_hiloPlanificado;
 
