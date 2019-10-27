@@ -98,7 +98,7 @@ int32_t suse_schedule_next_servidor(int idProceso){
 
 	//IF (no hay ningun hilo en exec de ese proceso)----> ver enunciado
 
-	t_queue* colaReady= dictionary_get(readys, idProceso);
+	t_queue* colaReady= dictionary_get(readys, (char*) idProceso); //revisar
 	t_hiloPlanificado* hiloSiguiente;
 
 
