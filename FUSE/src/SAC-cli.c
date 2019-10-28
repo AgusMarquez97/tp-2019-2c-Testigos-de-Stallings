@@ -173,13 +173,43 @@ void escribirEnArchivo(const char *path, const char *contenido)
 	strcpy(tablaNodos[indArch].contenido, contenido);
 }
 
+//ve si un directorio esta vacio. Devuelve 1 si esta vacio, 0 si tiene algo
+int estaVacio(char *nombre)
+{
+
+	int indiceArch = indiceObjeto(nombre);
+
+	for (int indActual = 0; indActual <= indiceTabla; indActual++)
+	{
+		if(tablaNodos[indActual].padre != NULL)
+		{
+			if(strcmp(tablaNodos[indActual].padre->nombre, nombre)==0)
+			return 0;
+		}
+	}
+	return 1;
+}
+
+//"elimina" un objeto de la tabla
+void eliminarObjeto(char* nombre)
+{
+	int objeto = indiceObjeto(nombre);
+
+	tablaNodos[objeto].contenido[0] = '\0';
+	tablaNodos[objeto].estado = 0;
+	tablaNodos[objeto].padre = NULL;
+}
+
 
 
 //va a ser llamada cuando el sistema pida los atributos de un archivo
 
 static int hacer_getattr(const char *path, struct stat *st)
 {
-	printf("pidiendo atributos");
+
+	/*modificar oara archivos borrados*/
+
+
 	st->st_uid = getuid();		//el duenio del archivo
 	st->st_gid = getgid();		//el mismo?
 	st->st_atime = time(NULL);	//last "A"ccess time
@@ -369,6 +399,47 @@ static int hacer_write(const char *path, const char *buffer, size_t size, off_t 
 }
 
 
+//va a ser llamada para remover un directorio
+static int hacer_rmdir (const char *path)
+{
+
+	/*revisar que no deja volver a crear dir con mismo nombre despues de borrar
+	 * aparece en el disco pero no en mount point*/
+
+	char* nombre = nombreObjeto(path);
+
+	if (strcmp(path,"/") == 0) //si es el punto de montaje tira error
+		return EBUSY;
+
+	if(esDirectorio(path) == 0)//si no es directorio tira error
+		return ENOTDIR;
+
+	if(estaVacio(nombre) == 0)//si no esta vacio tira error
+		return ENOENT;
+
+	eliminarObjeto(nombre);
+
+	return 0;
+}
+
+
+//va a ser llamada para remover un archivo
+static int hacer_unlink (const char *path)
+{
+	if(esDirectorio(path) == 1)
+		return EISDIR;
+
+	if(esArchivo(path) == 0)
+		return ENOENT;
+
+	char* nombre = nombreObjeto(path);
+
+	eliminarObjeto(nombre);
+
+	return 0;
+}
+
+
 void levantarClienteFUSE()
 {
 
@@ -411,7 +482,8 @@ void levantarConfig()
 static struct fuse_operations operaciones = {
 
 
-
+	.unlink		= hacer_unlink,
+	.rmdir		= hacer_rmdir,
     .getattr	= hacer_getattr,
     .readdir	= hacer_readdir,
 	.read		= hacer_read,
