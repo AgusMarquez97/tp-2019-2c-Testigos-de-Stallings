@@ -36,9 +36,11 @@
 							<tool id="cdt.managedbuild.tool.gnu.c.linker.exe.debug.329011314" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.exe.debug">
 								<option id="gnu.c.link.option.paths.1839800172" name="Library search path (-L)" superClass="gnu.c.link.option.paths" useByScannerDiscovery="false" valueType="libPaths">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Shared_Library/Debug}&quot;"/>
+									<listOptionValue builtIn="false" value="/home/utnso/workspace/hilolay"/>
 								</option>
 								<option id="gnu.c.link.option.libs.2045032559" name="Libraries (-l)" superClass="gnu.c.link.option.libs" useByScannerDiscovery="false" valueType="libs">
-									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="Shared_Library"/>
+									<listOptionValue builtIn="false" value="Shared_Library"/>
+									<listOptionValue builtIn="false" value="hilolay"/>
 									<listOptionValue builtIn="false" value="fuse"/>
 									<listOptionValue builtIn="false" value="commons"/>
 									<listOptionValue builtIn="false" value="pthread"/>
