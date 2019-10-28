@@ -15,21 +15,21 @@
 //---------------------------------------------------< PLP >----------------------------------------------------------------|
 
 /*Crea un molde de hilo y lo agrega a la cola de news (unica para todos los procesos) y al finalizar intenta mandarlo a la de readys*/
-int32_t suse_create_servidor(int32_t idProc, int32_t idThread){
+int32_t suse_create_servidor(char* idProcString, int32_t idThread){
 
 	t_hiloPlanificado* hiloEntrante= malloc(sizeof(hiloEntrante));//(elemento planificable)
 
-	char * aux = malloc(strlen("9999999999999")+1);
-	sprintf(aux,"%d",idProc);
-	hiloEntrante->idProceso=aux;
+
+	hiloEntrante->idProceso=idProcString;
 	hiloEntrante->idHilo= idThread;
-	hiloEntrante->estadoHilo= 0;
+	hiloEntrante->estadoHilo= CREATE;
 
 
 
 	queue_push(colaNews,hiloEntrante);
+
 	char * msj = malloc(strlen("se crea el hilo 99999999999 del proceso 9999999999999") + 1);
-	sprintf(msj,"Se creo el hilo %d del proceso %d",idThread,idProc);
+	sprintf(msj,"Se creo el hilo %d del proceso %s",idThread,idProcString);
 	loggearInfo(msj);
 	free(msj);
 	planificar_largoPlazo();
@@ -54,7 +54,7 @@ void planificar_largoPlazo(){
 					if(multiprogActual < maxMultiprog)
 					{
 						queue_pop(colaNews);
-						hiloEnNews->estadoHilo=1;
+						hiloEnNews->estadoHilo=READY;
 						queue_push(colaReady, hiloEnNews);
 						//dictionary_put(readys, hiloEnNews->idProceso , colaReady);
 						loggearInfo("Agregamos 1 hilo de New a Ready");
@@ -63,16 +63,19 @@ void planificar_largoPlazo(){
 
 				}
 				else{
+					int multiprogActual = obtenerMultiprogActual();
+					if(multiprogActual < maxMultiprog)
+						{
 
-					t_queue* nuevaColaReady= queue_create();
+						t_queue* nuevaColaReady= queue_create();
+						queue_pop(colaNews);
+						hiloEnNews->estadoHilo=READY;
+						queue_push(nuevaColaReady, hiloEnNews);
 
-					hiloEnNews->estadoHilo=1;
-					queue_push(nuevaColaReady, hiloEnNews);
+						dictionary_put(readys, hiloEnNews->idProceso , nuevaColaReady);
 
-					dictionary_put(readys, hiloEnNews->idProceso , nuevaColaReady);
-
-					loggearInfo("Se crea cola ready para el proceso nuevo y agregamos el hilo a esta");
-
+						loggearInfo("Se crea cola ready para el proceso nuevo y agregamos el hilo a esta");
+						}
 					}
 		}
 
@@ -86,6 +89,8 @@ int obtenerMultiprogActual()
 		multiprogActual += queue_size(cola);
 		}
 	dictionary_iterator(readys,(void *)calculoMultiprog);
+	multiprogActual += dictionary_size(execs);
+
 	return multiprogActual;
 	}
 
@@ -93,39 +98,44 @@ int obtenerMultiprogActual()
 
 //---------------------------------------------------< PCP >----------------------------------------------------------------|
 
-int32_t suse_schedule_next_servidor(int idProceso){
+int32_t suse_schedule_next_servidor(char* idProcString){
 
 
 	//IF (no hay ningun hilo en exec de ese proceso)----> ver enunciado
 
-	t_queue* colaReady= dictionary_get(readys, (char*) idProceso); //revisar
+
+	t_queue* colaReady= dictionary_get(readys, idProcString); //revisar
 	t_hiloPlanificado* hiloSiguiente;
 
-
-	//FIFO
-	//int proximoAEjecutar= queue_peek(colaReady);
-
-
+	//FIFO, (Pasar después a SJF)
 	hiloSiguiente= queue_pop(colaReady); //el puntero desaparece? Acordarse que son punteros no variab.
+	dictionary_put(readys,idProcString,colaReady);
 
-	hiloSiguiente->estadoHilo=2;
-	//que hago con el hilo? Lo guardo?
+	printf("sacamos de ready al hilo : %d",hiloSiguiente->idHilo);
 
-	int proximoAEjecutar= hiloSiguiente->idHilo;
-	planificar_largoPlazo();
-	return proximoAEjecutar;
+	hiloSiguiente->estadoHilo=EXEC;
+	//dictionary_put(execs,idProcString,hiloSiguiente);
+
+	return hiloSiguiente->idHilo;
+
 }
 
 
 
-int32_t suse_close_servidor(int idProceso, int tid){
+int32_t suse_close_servidor(char *  idProcString, int tid)
+{
+	t_hiloPlanificado* hiloParaExec;
 
-	//if(buscarHiloEn(readys)){
-		//t_queue* colaReady= dictionary_get(readys, idProceso);
+	hiloParaExec = dictionary_get(execs,idProcString);
 
-	//}
-	return 1;
+	dictionary_remove(execs,idProcString);
+
+	dictionary_put(exits,idProcString,hiloParaExec);
+	hiloParaExec->estadoHilo=EXIT;
+
+	return 0;
 }
+
 
 
 
@@ -161,10 +171,13 @@ void levantarServidorSUSE()
 
 void rutinaServidor(int * p_socket)
 {
-	int result;
+	int32_t result;
 	int socketRespuesta = *p_socket;
 	free(p_socket);
 	t_mensajeSuse*  mensajeRecibido = recibirOperacionSuse(socketRespuesta);
+	char * idProcString = malloc(strlen("9999999999999")+1);
+	sprintf(idProcString,"%d",mensajeRecibido->idProceso);
+
 
 	switch(mensajeRecibido->tipoOperacion)
 		{
@@ -174,20 +187,21 @@ void rutinaServidor(int * p_socket)
 			break;
 		case CREATE:
 			loggearInfo("Se recibio una operacion CREATE");
-			result= suse_create_servidor(mensajeRecibido->idProceso, mensajeRecibido->idHilo);
+			result= suse_create_servidor(idProcString, mensajeRecibido->idHilo);
 			enviarInt(socketRespuesta, result);
 			break;
 		case NEXT:
 			loggearInfo("Se recibio una operacion NEXT");
-			result=suse_schedule_next_servidor(mensajeRecibido->idProceso);
+			result=suse_schedule_next_servidor(idProcString);
 			enviarInt(socketRespuesta, result);
 			break;
 		case JOIN:
 			loggearInfo("Se recibio una operacion JOIN");
 			enviarInt(socketRespuesta, 1);
 			break;
-		case RETURN:
+		case CLOSE:
 			loggearInfo("Se recibio una operacion RETURN");
+			result = suse_close_servidor(idProcString,mensajeRecibido->idHilo);
 			enviarInt(socketRespuesta, 1);
 			break;
 
@@ -195,6 +209,7 @@ void rutinaServidor(int * p_socket)
 			break;
 		}
 	free(mensajeRecibido);
+
 
 	close(socketRespuesta);
 }
@@ -231,6 +246,8 @@ void levantarEstructuras()
 {
 	colaNews = queue_create();
 	readys = dictionary_create();
+	execs = dictionary_create();
+	exits = dictionary_create();
 }
 
 int main(void) {

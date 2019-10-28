@@ -27,8 +27,8 @@ void enviarNext(int socketReceptor, int32_t proceso) {
 	enviarOperacionSuse(socketReceptor, proceso, NEXT, -1, 0);
 }
 
-void enviarReturn(int socketReceptor, int32_t proceso) {
-	enviarOperacionSuse(socketReceptor, proceso, RETURN, -1,0);
+void enviarCloseSuse(int socketReceptor, int32_t proceso, int32_t tid) {
+	enviarOperacionSuse(socketReceptor, proceso, CLOSE, tid,0);
 }
 
 void enviarOperacionSuse(int socket, int32_t proceso, int32_t operacion, int32_t tid,
@@ -61,8 +61,8 @@ void enviarOperacionSuse(int socket, int32_t proceso, int32_t operacion, int32_t
 		case JOIN:
 			serializarInt(buffer, tid, &desplazamiento);
 			break;
-		case RETURN:
-			//
+		case CLOSE:
+			serializarInt(buffer, tid, &desplazamiento);
 			break;
 
 		default: // la funcion no es void???
@@ -104,8 +104,8 @@ t_mensajeSuse* recibirOperacionSuse(int socketEmisor) {
 		case JOIN:
 			recibirInt(socketEmisor, &mensajeRecibido->idHilo);
 			break;
-		case RETURN:
-			//
+		case CLOSE:
+			recibirInt(socketEmisor, &mensajeRecibido->idHilo);
 			break;
 		default:
 			return NULL;

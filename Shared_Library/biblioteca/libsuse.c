@@ -9,7 +9,7 @@ int suse_create(int tid){
 
 	loggearInfo("Creando hilo...");
 
-			uint32_t estado = -1;
+			int32_t estado = -1;
 			int socketCliente = levantarCliente(ip_suse, puerto_suse);
 
 			if(socketCliente != -1) {
@@ -35,7 +35,7 @@ int suse_create(int tid){
 int suse_schedule_next(void){
 	loggearInfo("Solicitando proximo hilo...");
 
-		uint32_t proxTid;
+		int32_t proxTid;
 		int socketCliente = levantarCliente(ip_suse, puerto_suse);
 
 		if(socketCliente != -1) {
@@ -59,6 +59,24 @@ int suse_join(int tid){
 }
 
 int suse_close(int tid){
+
+	loggearInfo("Cerrando hilo...");
+
+				int32_t estado = -1;
+				int socketCliente = levantarCliente(ip_suse, puerto_suse);
+
+				if(socketCliente != -1) {
+					enviarCloseSuse(socketCliente, id_proceso, tid);
+					recibirInt(socketCliente, &estado);
+				}
+				close(socketCliente);
+
+				if(estado == -1) {
+					loggearError("Error: No se ha podido crear el hilo");
+					return 0;
+				}
+
+
 	printf("Closed thread %i\n", tid);
 	max_tid--;
 	return 0;
@@ -82,16 +100,22 @@ static struct hilolay_operations hiloops = {
 		.suse_wait = &suse_wait,
 		.suse_signal = &suse_signal
 };
-void hilolay_init(int id, char* ip, int puerto) {
+void hilolay_init(void) {
 
 
 		iniciarLog("Linuse");
 		loggearInfo("Iniciando la Biblioteca libsuse...");
 
-		id_proceso = id;//id del proceso
+		id_proceso = getpid();//id del proceso
+
+		t_config * unConfig = retornarConfig(pathConfig);
+
+		strcpy(ip_suse,config_get_string_value(unConfig,"IP"));
+		strcpy(puerto_suse,config_get_string_value(unConfig,"LISTEN_PORT"));
+/*
 		strcpy(ip_suse, ip);
 		sprintf(puerto_suse, "%d", puerto);
-/*
+
 		int respuesta = 0;
 		int socketCliente = levantarCliente(ip_suse, puerto_suse);
 
@@ -107,6 +131,7 @@ void hilolay_init(int id, char* ip, int puerto) {
 			return -1;
 		}
 */
+		config_destroy(unConfig);
 		init_internal(&hiloops);
 		loggearInfo("Biblioteca libsuse iniciada con éxito");
 	}
