@@ -1,6 +1,7 @@
 #include "libmuse.h"
 
 int muse_init(int id, char* ip, int puerto) {
+
 	remove("Linuse.log");
 	iniciarLog("Linuse");
 
@@ -19,7 +20,7 @@ int muse_init(int id, char* ip, int puerto) {
 		retorno = 0;
 		loggearInfo("Biblioteca MUSE inicializada con éxito");
 		close(socketCliente);
-	}	else {
+	} else {
 		loggearError("No se ha podido inicializar la biblioteca MUSE");
 	}
 	return retorno;
@@ -64,7 +65,7 @@ uint32_t muse_alloc(uint32_t tam) {
 	if(direccionMemoria != 0) {
 		loggearInfo("Porción de memoria reservada con éxito");
 	} else {
-	loggearError("No se ha podido reservar la porción de memoria solicitada");
+		loggearError("No se ha podido reservar la porción de memoria solicitada");
 	}
 	return direccionMemoria;
 
@@ -145,7 +146,7 @@ uint32_t muse_map(char* path, size_t length, int flags) {
 
 	uint32_t direccionMemoria;
 	int socketCliente = levantarCliente(ip_muse, puerto_muse);
-	char* contenido = leer_archivo(path, length); //revisar /0 + tam archivo
+	char* contenido = leerDesde(path, length);
 	// revisar si se le envía el path con la longitud a MUSE o los bytes ya leídos en libMuse
 
 	if(socketCliente != -1) {
