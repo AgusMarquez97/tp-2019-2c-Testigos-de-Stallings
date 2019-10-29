@@ -148,7 +148,7 @@ t_mensajeMuse* recibirOperacion(int socketEmisor) {
 			recibirInt(socketEmisor, &mensajeRecibido->tamanio);
 			buffer = malloc(mensajeRecibido->tamanio);
 			recibir(socketEmisor, buffer, mensajeRecibido->tamanio);
-			deserializarVoid(buffer, (void**)&mensajeRecibido->contenido, mensajeRecibido->tamanio, &desplazamiento);
+			deserializarVoid(buffer, &mensajeRecibido->contenido, mensajeRecibido->tamanio, &desplazamiento);
 			recibirInt(socketEmisor, &mensajeRecibido->flag);
 			break;
 		case SYNC:
