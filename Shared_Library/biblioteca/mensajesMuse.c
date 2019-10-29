@@ -124,9 +124,6 @@ t_mensajeMuse* recibirOperacion(int socketEmisor) {
 		case HANDSHAKE:
 			recibirInt(socketEmisor, &mensajeRecibido->flag); // Podria omitirse
 			break;
-		case CLOSE:
-			recibirInt(socketEmisor, &mensajeRecibido->flag); // Podria omitirse
-			break;
 		case MALLOC:
 			recibirInt(socketEmisor, &mensajeRecibido->tamanio);
 			break;
@@ -157,6 +154,9 @@ t_mensajeMuse* recibirOperacion(int socketEmisor) {
 			break;
 		case UNMAP:
 			recibirUint(socketEmisor, &mensajeRecibido->posicionMemoria);
+			break;
+		case CLOSE:
+			recibirInt(socketEmisor, &mensajeRecibido->flag); // Podria omitirse
 			break;
 		default:
 			return NULL;

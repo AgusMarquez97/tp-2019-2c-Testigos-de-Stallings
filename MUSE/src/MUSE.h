@@ -1,10 +1,3 @@
-/*
- * MUSE.h
- *
- *  Created on: Sep 8, 2019
- *      Author: agus
- */
-
 #ifndef MUSE_H_
 #define MUSE_H_
 
@@ -33,8 +26,6 @@
 char ip[46];
 char puerto[10];
 
-
-
 /*
  * Estructura de la memoria principal:
  * 1° Tamanio de la memoria principal
@@ -43,16 +34,16 @@ char puerto[10];
  * 4° Un tamanio de marcos que dividiran logicamente a la memoria
  * 5° Una estructura que determina como se escribe la info. En este caso => t_heap_metadata
  */
+
 int tamMemoria;
 char * memoria;
 t_bitarray * marcosMemoriaPrincipal;
 int tamPagina;
 
-typedef struct{
+typedef struct {
 	int offset; // Busca validar cual es la ultima posicion de la pagina escrita
 	bool estaLibre;
-}t_heap_metadata;
-
+} t_heap_metadata;
 
 /*
  * Estructura de la memoria swap:
@@ -62,44 +53,39 @@ typedef struct{
  * 4° Tamanio de marcos (= memoria principal)
  * 5° Misma estructura t_heap_metadata
  */
+
 int tamSwap;
 char * path_archivo_swap;
 t_bitarray * marcosMemoriaSwap;
 
-
 /*
  * Estructuras para acceder y administrar la memoria principal y la memoria swap:
  * 1° Un diccionario de procesos y archivos, donde cada proceso/archivo posee una lista de segmentos y cada segmento una lista de paginas
- *Nota: En el caso de los archivos hay que tenes mas consideraciones => otro tipo de segmentos
- *Pendiente: Agregar lo necesario para las metricas del algoritmo de reemplazo
- *Importante: Un segmento no podra ser prolongado, unicamente si existe otro segmento de mmap. El segmento da una idea de memoria contigua, por esto tiene
- *un punto de referencia y un tamanio/offset
-
+ * Nota: En el caso de los archivos hay que tenes mas consideraciones => otro tipo de segmentos
+ * Pendiente: Agregar lo necesario para las metricas del algoritmo de reemplazo
+ * Importante: Un segmento no podra ser prolongado, unicamente si existe otro segmento de mmap. El segmento da una idea de memoria contigua, por esto tiene
+ * un punto de referencia y un tamanio/offset
 */
 
 t_dictionary * dictionarioProcesos;
 
-typedef struct{
+typedef struct {
 	int id_segmento;
-
 	uint32_t posicionInicial;
 	int tamanio; //tamanio que sera multiplo del tam de pag siendo este el menor tamanio posible
-
 	bool esCompartido;
-
 	t_list * paginas;
-}t_segmento;
+} t_segmento;
 
-typedef struct{
+typedef struct {
 	int nroPagina;
 	int nroMarco;// Esto me permite calcular la direccion inicial en MP;
 	//bit presencia
 	//bit modificado
-}t_pagina;
+} t_pagina;
 
-
-
-/*Consideraciones
+/*
+ * Consideraciones
  * Se retornar direcciones virtuales, esto quiere decir que no retorno la direccion real de la MP, si no una abstraccion:
  * EJ:
  * Segmento A [0-100]
@@ -107,7 +93,6 @@ typedef struct{
  * Las direcciones de memoria que conoce el proceso son las del segmento A, si realiza un malloc de 10 y el heap_metada=5, el programa retorna la posicion 5 como primera posicion disponible,
  * cuando realmente esta posicion puede ser cualquiera de memoria.
  */
-
 
 /*
  * Se dispone el siguiente ejemplo real para entender bien el funcionamiento: SE OMITE EL CASO DE MEMORIA VIRTUAL O COMPARTIDA
@@ -230,16 +215,21 @@ typedef struct{
  *
  */
 
-
-
 // Entiendo que cada segmento tendra varios de estos HeapMetada => Como esta esto relacionado con las paginas?
 
-
-
-void levantarServidorMUSE();
-void rutinaServidor(int * socketRespuesta);
-
+int main();
 void levantarConfig();
+void levantarMemoria();
+void levantarServidorMUSE();
+void rutinaServidor(int* socketRespuesta);
+uint32_t procesarMalloc(int32_t idProceso, int32_t tamanio);
+uint32_t procesarFree(int32_t idProceso, uint32_t posicionMemoria);
+char* procesarGet(int32_t idProceso, uint32_t posicionMemoria, int32_t tamanio);
+int procesarCpy(int32_t idProceso, uint32_t posicionMemoria, int32_t tamanio, void* origen);
+uint32_t procesarMap(int32_t idProceso, void* contenido, int32_t tamanio, int32_t flag);
+int procesarSync(int32_t idProceso, uint32_t posicionMemoria, int32_t tamanio);
+int procesarUnmap(int32_t idProceso, uint32_t posicionMemoria);
+int procesarClose(int32_t idProceso);
 void liberarVariablesGlobales();
 
 #endif /* MUSE_H_ */

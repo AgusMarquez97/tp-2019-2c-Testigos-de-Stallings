@@ -7,9 +7,9 @@ int main(void) {
 
 	muse_init(getpid(),"127.0.0.1",5003);
 
-	uint32_t direccionMemoria = muse_alloc(100);
+	uint32_t pos = muse_alloc(100);
 	char* msj = malloc(strlen("Se_recibió_la_siguiente_dirección:_9999999999999999999999"));
-	sprintf(msj, "Se recibió la siguiente dirección: %u\n", direccionMemoria);
+	sprintf(msj, "Se recibió la siguiente dirección: %u\n", pos);
 	loggearInfo(msj);
 	free(msj);
 
@@ -23,11 +23,11 @@ int main(void) {
 
 	muse_map("path_archivo", 10, MUSE_MAP_PRIVATE);
 
-	muse_sync(direccionMemoria, 10);
+	muse_sync(pos, 10);
 
-	muse_unmap(direccionMemoria);
+	muse_unmap(pos);
 
-	muse_free(direccionMemoria);
+	muse_free(pos);
 
 	muse_close();
 

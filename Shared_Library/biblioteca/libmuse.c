@@ -27,28 +27,6 @@ int muse_init(int id, char* ip, int puerto) {
 
 }
 
-void muse_close() {
-
-	loggearInfo("Cerrando la biblioteca MUSE...");
-
-	int32_t retorno = -1;
-	int socketCliente = levantarCliente(ip_muse, puerto_muse);
-
-	if(socketCliente != -1) {
-		enviarClose(socketCliente, id_muse);
-		recibirInt(socketCliente, &retorno); //@return: error [-1] / ok [0]
-		close(socketCliente);
-	}
-
-	if(retorno != -1) {
-		loggearInfo("Biblioteca MUSE cerrada con éxito");
-		destruirLog();
-	} else {
-		loggearError("No se ha podido cerrar la biblioteca, servidor MUSE caido");
-	}
-
-}
-
 uint32_t muse_alloc(uint32_t tam) {
 
 	loggearInfo("Reservando porción de memoria...");
@@ -201,5 +179,27 @@ int muse_unmap(uint32_t dir) {
 		loggearError("No se ha podido eliminar el archivo de mappeo");
 	}
 	return retorno;
+
+}
+
+void muse_close() {
+
+	loggearInfo("Cerrando la biblioteca MUSE...");
+
+	int32_t retorno = -1;
+	int socketCliente = levantarCliente(ip_muse, puerto_muse);
+
+	if(socketCliente != -1) {
+		enviarClose(socketCliente, id_muse);
+		recibirInt(socketCliente, &retorno); //@return: error [-1] / ok [0]
+		close(socketCliente);
+	}
+
+	if(retorno != -1) {
+		loggearInfo("Biblioteca MUSE cerrada con éxito");
+		destruirLog();
+	} else {
+		loggearError("No se ha podido cerrar la biblioteca, servidor MUSE caido");
+	}
 
 }
