@@ -46,9 +46,23 @@ pthread_t crearHilo(void* funcion, void* param)
 	return nuevoHilo;
 
 }
-char * leer_archivo(char * path, int length)
-{
-	char * contenido = malloc(length);
-	strcpy(contenido,"ver de leer el archivo");
-	return contenido;
+
+char* leerDesde(char* path, int length) {
+
+	//PEDIR AL FUSE EL CONTENIDO DEL ARCHIVO DEL PATH?
+	//char* contenido = leerArchivoEn(path);
+	char* contenidoArchivo = "Lorem ipsum dolor sit amet.";
+
+	char* bytesLeidos = malloc(length);
+	strcpy(bytesLeidos, contenidoArchivo);
+
+	int i = length - strlen(contenidoArchivo);
+
+	while(i > 0) {
+		strcpy(bytesLeidos, "/0");
+		i--;
+	}
+
+	return bytesLeidos;
+
 }
