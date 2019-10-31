@@ -46,7 +46,9 @@ char ** semMax;
 t_queue* colaNews; //hilos que no pudieron entrar al ready
 t_dictionary *readys; //diccionario con colas ready. KEY= processId VALUE= colaReady
 t_dictionary *execs; //diccionario de exec. Key = processId Value = procesoEjecutando(1 por programa según enunciado)
-t_dictionary *exits; //exit estado comun para todos los procesos, indexamos por proceso por comodidad
+t_list *exits; //exit estado comun para todos los procesos, indexamos por proceso por comodidad
+t_list *blockeds; //hilos bloqueados esperando para volver al ready
+
 //
 int32_t suse_create_servidor(char* idProcString, int32_t idThread);
 
@@ -59,6 +61,8 @@ int obtenerMultiprogActual();
 int32_t suse_schedule_next_servidor(char* idProcString);
 void revisar_newsEsperando();
 int32_t suse_close_servidor(char* idProcString, int tid);
+int32_t suse_join_servidor(char idProcString, int tid);
+bool hiloFinalizo(char idProcString,int tid);
 
 
 

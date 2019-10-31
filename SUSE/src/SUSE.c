@@ -100,42 +100,79 @@ int obtenerMultiprogActual()
 
 int32_t suse_schedule_next_servidor(char* idProcString){
 
+    t_queue* colaReady= dictionary_get(readys, idProcString);
+    t_hiloPlanificado* hiloSiguiente;
 
-	//IF (no hay ningun hilo en exec de ese proceso)----> ver enunciado
+    //FIFO, (Pasar después a SJF)
+    hiloSiguiente= queue_pop(colaReady);
+    hiloSiguiente->estadoHilo=EXEC;
+    dictionary_put(execs,idProcString,hiloSiguiente);
+
+    char * msj = malloc(strlen("El hilo 99999999999 del proceso 9999999999999 entro en EXEC " ) + 1);
+    sprintf(msj,"El hilo %d del proceso %s entro en EXEC ",hiloSiguiente->idHilo,idProcString);
+    loggearInfo(msj);
+    free(msj);
 
 
-	t_queue* colaReady= dictionary_get(readys, idProcString); //revisar
-	t_hiloPlanificado* hiloSiguiente;
-
-	//FIFO, (Pasar después a SJF)
-	hiloSiguiente= queue_pop(colaReady); //el puntero desaparece? Acordarse que son punteros no variab.
-	dictionary_put(readys,idProcString,colaReady);
-
-	printf("sacamos de ready al hilo : %d",hiloSiguiente->idHilo);
-
-	hiloSiguiente->estadoHilo=EXEC;
-	//dictionary_put(execs,idProcString,hiloSiguiente);
-
-	return hiloSiguiente->idHilo;
+    return hiloSiguiente->idHilo;
 
 }
 
+int32_t suse_join_servidor(char idProcString, int tid)
+{
+	if(hiloFinalizo(idProcString,tid))
+	{
+	return 0;
+	}
+
+	t_hiloPlanificado hiloABloquear;
+
+	hiloABloquear= dictionary_remove(execs, idProcString);//lo quito
+	hiloABloquear->estadoHilo=BLOCK; //lo bloqueo
+	list_add(blockeds,hiloABloquear);//lo meto en blockeds
+
+	//ESPERAR
+
+
+
+
+    return 0;
+}
+
+bool hiloFinalizo(char idProcString, int tid)
+{
+	bool encontroHilo(t_hiloPlanificado* unHilo)
+	{
+		return (unHilo->idProceso == idProcString && unHilo->idHilo == tid);
+	}
+
+	return list_any_satisfy(exits,(void*) encontroHilo);
+}
 
 
 int32_t suse_close_servidor(char *  idProcString, int tid)
 {
-	t_hiloPlanificado* hiloParaExec;
 
-	hiloParaExec = dictionary_get(execs,idProcString);
+    t_hiloPlanificado* hiloParaExit;
+    hiloParaExit = dictionary_get(execs,idProcString);
 
-	dictionary_remove(execs,idProcString);
+    if(hiloParaExit->idHilo==tid)//y que onda si no es el id que me pidieron?
 
-	dictionary_put(exits,idProcString,hiloParaExec);
-	hiloParaExec->estadoHilo=EXIT;
+    {
+    dictionary_remove(execs,idProcString);
+    hiloParaExit->estadoHilo=EXIT;
+    list_add(exits,hiloParaExit);
 
-	return 0;
+    char * msj = malloc(strlen("El hilo 99999999999 del proceso 9999999999999 finalizo") + 1);
+    sprintf(msj,"El hilo %d del proceso %s finalizo",hiloParaExit->idHilo,idProcString);
+    loggearInfo(msj);
+    free(msj);
+    return 0;
+
+    }
+    else return -1;
+
 }
-
 
 
 
@@ -197,6 +234,7 @@ void rutinaServidor(int * p_socket)
 			break;
 		case JOIN:
 			loggearInfo("Se recibio una operacion JOIN");
+			result= suse_join_servidor(idProcString, mensajeRecibido->idHilo);
 			enviarInt(socketRespuesta, 1);
 			break;
 		case CLOSE:
@@ -247,7 +285,8 @@ void levantarEstructuras()
 	colaNews = queue_create();
 	readys = dictionary_create();
 	execs = dictionary_create();
-	exits = dictionary_create();
+	exits = list_create();
+	blockeds = list_create();
 }
 
 int main(void) {
@@ -256,11 +295,9 @@ int main(void) {
 	loggearInfo("Se inicia el proceso SUSE...");
 	levantarConfig();
 	levantarEstructuras();
-	//crearHilo(planificar_largoPlazo,NULL);
+
 
 	levantarServidorSUSE();
-
-	printf("jeje");
 	liberarVariablesGlobales();
 	return EXIT_SUCCESS;
 }
