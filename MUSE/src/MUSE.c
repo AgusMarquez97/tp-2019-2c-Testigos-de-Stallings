@@ -1,4 +1,4 @@
-#include "MUSE.h"
+#include "MuseOperaciones.h"
 
 int main(void) {
 
@@ -7,6 +7,7 @@ int main(void) {
 	loggearInfo("Se inicia el proceso MUSE...");
 	levantarConfig();
 	levantarMemoria();
+	inicializarSemaforos();
 	levantarServidorMUSE();
 	liberarVariablesGlobales();
 	return EXIT_SUCCESS;
@@ -31,6 +32,37 @@ void levantarConfig() {
 
 void levantarMemoria() {
 	dictionarioProcesos = dictionary_create();
+	crearMemoriaSwap();
+	memoria = malloc(tamMemoria);
+
+	levantarMarcos(&marcosMemoriaPrincipal,tamMemoria,&cantidadMarcosMemoriaPrincipal);
+	levantarMarcos(&marcosMemoriaSwap,tamSwap,&cantidadMarcosMemoriaVirtual);
+
+
+}
+
+void levantarMarcos(t_bitarray ** unBitArray, int tamanio, int * cantidadMarcos)
+{
+		*cantidadMarcos = obtenerCantidadMarcos(tamPagina,tamanio);
+		char * bitmap = calloc(1,*cantidadMarcos); // Cuando se libera??
+
+		*unBitArray = bitarray_create_with_mode(bitmap, (*cantidadMarcos)/8, LSB_FIRST); // Array de bits para consultar marcos libres
+
+		for(int i = 0; i<(*cantidadMarcos);i++)
+		{
+		bitarray_clean_bit(*unBitArray,i); //seteo todos los bits en 0 (al principio todos los marcos están libres)
+		}
+}
+
+void crearMemoriaSwap()
+{
+	FILE * f_MS =  txt_open_for_append("Memoria Swap");
+	txt_close_file(f_MS);
+}
+
+void inicializarSemaforos()
+{
+	pthread_mutex_init(&mutex_marcos_libres, NULL);
 }
 
 void levantarServidorMUSE() {
@@ -58,14 +90,21 @@ void levantarServidorMUSE() {
 
 void rutinaServidor(int* p_socket) {
 	char* info;
+	int valorRetorno;
 	int socketRespuesta = *p_socket;
 	free(p_socket);
 	t_mensajeMuse* mensajeRecibido = recibirOperacion(socketRespuesta);
+
+
 	if(mensajeRecibido == NULL) {
-		loggearInfo("Handshake exitoso");
+		loggearInfo("Mensaje no reconocido");
 	}
 	else {
 		switch(mensajeRecibido->tipoOperacion) {
+			case HANDSHAKE:
+			valorRetorno = agregarADiccionario(mensajeRecibido->idProceso);
+			enviarInt(socketRespuesta,valorRetorno);
+			break;
 			case MALLOC:
 				info = malloc(strlen("Se_recibió_una_operación_ALLOC_de_9999999999999999999999_bytes") + 1);
 				sprintf(info, "Se recibió una operación ALLOC de %d bytes", mensajeRecibido->tamanio);
@@ -138,7 +177,7 @@ void rutinaServidor(int* p_socket) {
 				enviarInt(socketRespuesta, retornoUnmap);
 				break;
 
-		case CLOSE:
+			case CLOSE:
 			loggearInfo("Se recibio una operacion CLOSE");
 
 			int retornoClose = procesarClose(mensajeRecibido->idProceso); //funcion que debe liberar la memoria reservada tanto principal como swap y debe eliminar la entrada del diccionario
@@ -155,60 +194,12 @@ void rutinaServidor(int* p_socket) {
 
 }
 
-uint32_t procesarMalloc(int32_t idProceso, int32_t tamanio) {
-	return 1;
-}
 
-uint32_t procesarFree(int32_t idProceso, uint32_t posicionMemoria) {
-	return 1;
-}
-
-char* procesarGet(int32_t idProceso, uint32_t posicionMemoria, int32_t tamanio) {
-	return "PRUEBA";
-}
-
-int procesarCpy(int32_t idProceso, uint32_t posicionMemoria, int32_t tamanio, void* origen) {
-
-	char* cadena = malloc(tamanio + 1);
-
-	memcpy(cadena, origen, tamanio);
-	cadena[tamanio] = 0;
-	loggearInfo(cadena);
-	free(cadena);
-
-	return 0;
-
-}
-
-uint32_t procesarMap(int32_t idProceso, void* contenido, int32_t tamanio, int32_t flag) {
-
-	char* pathArchivo = malloc(tamanio + 1);
-
-	memcpy(pathArchivo, contenido, tamanio);
-	pathArchivo[tamanio] = 0;
-	loggearInfo(pathArchivo);
-	free(pathArchivo);
-
-	return 1;
-
-}
-
-int procesarSync(int32_t idProceso, uint32_t posicionMemoria, int32_t tamanio) {
-	return 0;
-}
-
-int procesarUnmap(int32_t idProceso, uint32_t posicionMemoria) {
-	return 0;
-}
-
-int procesarClose(int32_t idProceso) {
-	return 0;
-}
 
 void liberarVariablesGlobales() {
 	destruirLog();
+	free(memoria);
 }
-
 
 
 

@@ -7,6 +7,9 @@ int main(void) {
 
 	muse_init(getpid(),"127.0.0.1",5003);
 
+	//muse_init(getpid(),"127.0.0.1",5003);
+
+	/*
 	uint32_t pos = muse_alloc(100);
 	char* msj = malloc(strlen("Se_recibió_la_siguiente_dirección:_9999999999999999999999"));
 	sprintf(msj, "Se recibió la siguiente dirección: %u\n", pos);
@@ -28,6 +31,7 @@ int main(void) {
 	muse_unmap(pos);
 
 	muse_free(pos);
+	*/
 
 	muse_close();
 

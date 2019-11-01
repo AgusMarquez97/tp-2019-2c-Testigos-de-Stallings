@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <math.h>
 
 #include <biblioteca/sockets.h>
 #include <biblioteca/serializacion.h>
@@ -20,11 +21,18 @@
 #include <commons/collections/queue.h>
 #include <commons/collections/dictionary.h>
 #include <commons/bitarray.h>
+#include <commons/txt.h>
 
 #define pathConfig "/home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/MUSE/config/configuracion.txt"
 
 char ip[46];
 char puerto[10];
+
+/*
+ * Semaforos:
+ * mutex_marcos_libres : Mutex para que dos hilos no pidan el mismo marco al mismo tiempo
+ */
+pthread_mutex_t mutex_marcos_libres;
 
 /*
  * Estructura de la memoria principal:
@@ -39,6 +47,7 @@ int tamMemoria;
 char * memoria;
 t_bitarray * marcosMemoriaPrincipal;
 int tamPagina;
+int cantidadMarcosMemoriaPrincipal;
 
 typedef struct {
 	int offset; // Busca validar cual es la ultima posicion de la pagina escrita
@@ -57,6 +66,7 @@ typedef struct {
 int tamSwap;
 char * path_archivo_swap;
 t_bitarray * marcosMemoriaSwap;
+int cantidadMarcosMemoriaVirtual;
 
 /*
  * Estructuras para acceder y administrar la memoria principal y la memoria swap:
@@ -220,6 +230,9 @@ typedef struct {
 int main();
 void levantarConfig();
 void levantarMemoria();
+void levantarMarcos(t_bitarray ** unBitArray, int tamanio, int * cantidadMarcos);
+void crearMemoriaSwap();
+void inicializarSemaforos();
 void levantarServidorMUSE();
 void rutinaServidor(int* socketRespuesta);
 uint32_t procesarMalloc(int32_t idProceso, int32_t tamanio);
@@ -231,5 +244,20 @@ int procesarSync(int32_t idProceso, uint32_t posicionMemoria, int32_t tamanio);
 int procesarUnmap(int32_t idProceso, uint32_t posicionMemoria);
 int procesarClose(int32_t idProceso);
 void liberarVariablesGlobales();
+
+
+
+// Funciones para procesar las querys
+int agregarADiccionario(int id_proceso);
+
+
+// AUXILIARES
+
+bool marcoLibreMP(int nroMarco);
+int obtenerCantidadMarcos(int tamanioPagina, int tamanioMemoria);
+void liberarMarcos();
+void liberarMarco(int nroMarco);
+bool estaLibre(t_bitarray * unBitArray,int nroMarco);
+bool estaLlena(t_bitarray * unBitArray);
 
 #endif /* MUSE_H_ */

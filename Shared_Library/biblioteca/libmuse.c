@@ -15,10 +15,14 @@ int muse_init(int id, char* ip, int puerto) {
 	int socketCliente = levantarCliente(ip_muse, puerto_muse);
 
 	if(socketCliente != -1) {
-		//enviarHandshake(socketCliente, id_muse);
-		//recibirInt(socketCliente, &retorno); //@return: error [-1] / ok [0]
-		retorno = 0;
+		enviarHandshake(socketCliente, id_muse);
+		recibirInt(socketCliente, &retorno);
+
+		if(retorno == -1) //@return: error 0 / ok 1
+		loggearInfo("Fallo al realizar el handshake, init duplicado");
+		else
 		loggearInfo("Biblioteca MUSE inicializada con éxito");
+
 		close(socketCliente);
 	} else {
 		loggearError("No se ha podido inicializar la biblioteca MUSE");
