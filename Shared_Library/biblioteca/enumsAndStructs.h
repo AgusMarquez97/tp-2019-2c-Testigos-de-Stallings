@@ -20,8 +20,8 @@ typedef enum {
 } t_operacionMuse;
 
 typedef enum {
-	MUSE_MAP_PRIVATE,
-	MUSE_MAP_SHARED
+	MUSE_MAP_PRIVATE = 1,
+	MUSE_MAP_SHARED = 2
 } t_flagMuse;
 
 typedef struct {
