@@ -8,6 +8,7 @@
 #include <biblioteca/sockets.h>
 #include <biblioteca/serializacion.h>
 #include <biblioteca/mensajes.h>
+#include <biblioteca/mensajesFuse.h>
 #include <biblioteca/enumsAndStructs.h>
 #include <biblioteca/logs.h>
 #include <biblioteca/levantarConfig.h>
@@ -23,10 +24,10 @@
 
 #define IDENTIFICADOR 3
 #define BLOCK_SIZE 4096
-#define MAX_FILE_NUMBER 1024
+#define MAX_FILE_NUMBER 10//1024
 #define MAX_FILENAME_LENGTH 71
 #define BITMAP_START_BLOCK 1
-#define BITMAP_SIZE_IN BLOCKS 1
+#define BITMAP_SIZE_IN_BLOCKS 1
 
 typedef uint32_t ptrGBloque;
 
@@ -34,7 +35,28 @@ typedef uint32_t ptrGBloque;
 char ip[46];
 char puerto[10];
 
+typedef struct bloque
+{
+	unsigned char bytes[BLOCK_SIZE];
+}GBlock;
 
+typedef struct header
+{
+	unsigned char sac[IDENTIFICADOR];
+	uint32_t version;
+	uint32_t bitmap_start;
+	uint32_t bitmap_size;
+	unsigned char padding[4081];
+}GHeader;
+
+typedef struct archivo
+{
+	uint8_t estado; //0:borrado, 1:archivo, 2:directorio
+	char nombre[MAX_FILENAME_LENGTH];
+	uint32_t file_size;
+	char contenido[256];
+	struct archivo* padre;
+}GFile;
 
 /*
  * Levanta los datos de la estructura config y los guarda en las variables globales que corresponda

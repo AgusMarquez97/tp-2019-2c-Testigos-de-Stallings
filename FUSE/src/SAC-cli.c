@@ -1,9 +1,7 @@
 #define FUSE_USE_VERSION 30
 
 #include <stddef.h>
-#include <stdlib.h>
 #include <fuse.h>
-#include <stdio.h>
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -12,17 +10,16 @@
 #include <stdbool.h>
 #include <limits.h>
 #include <time.h>
-/*
 #include <sys/types.h>
 
-
-*/
 #include "FUSE.h"
+
 
 GBlock* disco;
 size_t tamDisco;
-GFile* tablaNodos;//[MAX_FILE_NUMBER];
+GFile* tablaNodos[MAX_FILE_NUMBER];
 int indiceTabla=-1;
+int32_t socketConexion;
 
 struct t_runtime_options {
 	char* disco;
@@ -30,13 +27,13 @@ struct t_runtime_options {
 
 #define CUSTOM_FUSE_OPT_KEY(t, p, v) { t, offsetof(struct t_runtime_options, p), v }
 
-/*void liberarTabla()
+void liberarTabla()
 {
 	for(int i = 0; i <= indiceTabla; i++)
 	{
 		free(tablaNodos[i]);
 	}
-}*/
+}
 
 //recibe un path y devuelve el nombre del archivo o directorio
 char *nombreObjeto(const char *path)
@@ -59,7 +56,7 @@ int existeObjeto(const char *path)
 	char *nombre = nombreObjeto(path);
 
 	for (int indActual = 0; indActual <= indiceTabla; indActual++)
-		if (strcmp(nombre,tablaNodos[indActual].nombre) == 0)
+		if (strcmp(nombre,tablaNodos[indActual]->nombre) == 0)
 			return 1;
 
 	return 0;
@@ -71,7 +68,7 @@ int indiceObjeto(char *nombre)
 	if(indiceTabla != -1)
 	{
 		for (int indActual = 0; indActual <= indiceTabla; indActual++)
-			if (strcmp(nombre,tablaNodos[indActual].nombre) == 0)
+			if (strcmp(nombre,tablaNodos[indActual]->nombre) == 0)
 				return indActual;
 	}
 
@@ -85,7 +82,7 @@ int esDirectorio(const char *path)
 	int indiceDir = indiceObjeto(nombre);
 	if(indiceDir>=0 && indiceDir<=MAX_FILE_NUMBER)
 	{
-		if (tablaNodos[indiceDir].estado == 2)
+		if (tablaNodos[indiceDir]->estado == 2)
 			return 1;
 	}
 
@@ -99,7 +96,7 @@ int esArchivo(const char *path)
 	int indiceArch = indiceObjeto(nombre);
 	if(indiceArch>=0 && indiceArch<=MAX_FILE_NUMBER)
 	{
-		if (tablaNodos[indiceArch].estado == 1)
+		if (tablaNodos[indiceArch]->estado == 1)
 			return 1;
 	}
 
@@ -111,22 +108,21 @@ void agregarDirectorio(char* nombreDir, char* padre)
 {
 	indiceTabla++;
 
-	GFile* nodoNuevo = tablaNodos + indiceTabla;
+		tablaNodos[indiceTabla] = (GFile*) malloc(sizeof(GFile));
 
-	//inicializo valores del nodo
-	strcpy(nodoNuevo->nombre, nombreDir);
-	nodoNuevo->file_size=0;
-	nodoNuevo->estado=2;
+		//inicializo valores del nodo
+		strcpy(tablaNodos[indiceTabla]->nombre,nombreDir);
+		tablaNodos[indiceTabla]->file_size=0;
+		tablaNodos[indiceTabla]->estado=2;//porque es directorio
 
-
-	//linkeo al padre
-	if(padre[0] != '\0')
-	{
-		int indicePadre = indiceObjeto(padre);
-		nodoNuevo->padre = tablaNodos + indicePadre;
-	}
-	else
-		nodoNuevo->padre = NULL;
+		//linkeo al padre
+		if(padre[0] != '\0')
+		{
+			int indicePadre = indiceObjeto(padre);
+			tablaNodos[indiceTabla]->padre = tablaNodos[indicePadre];
+		}
+		else
+			tablaNodos[indiceTabla]->padre = NULL;
 
 }
 
@@ -135,26 +131,22 @@ void agregarArchivo(char *nombreArch, char* padre)
 {
 	indiceTabla++;
 
-	GFile* nodoNuevo = tablaNodos + indiceTabla;
+		tablaNodos[indiceTabla] = (GFile*) malloc(sizeof(GFile));
+		tablaNodos[indiceTabla]->contenido[0] = '\0';
 
+		//inicializo valores del nodo
+		strcpy(tablaNodos[indiceTabla]->nombre,nombreArch);
+		tablaNodos[indiceTabla]->file_size=0;
+		tablaNodos[indiceTabla]->estado=1;//porque es archivo
 
-
-	//inicializo valores del nodo
-	nodoNuevo->contenido[0] = '\0';
-	strcpy(nodoNuevo->nombre, nombreArch);
-	nodoNuevo->file_size=0;
-	nodoNuevo->estado=1;
-
-	//linkeo al padre
-
-	if(padre[0] != '\0')
-	{
-		int indicePadre = indiceObjeto(padre);
-
-		nodoNuevo->padre = tablaNodos + indicePadre;
-	}
-	else
-		nodoNuevo->padre = NULL;
+		//linkeo al padre
+		if(padre[0] != '\0')
+		{
+			int indicePadre = indiceObjeto(padre);
+			tablaNodos[indiceTabla]->padre = tablaNodos[indicePadre];
+		}
+		else
+			tablaNodos[indiceTabla]->padre = NULL;
 
 
 }
@@ -170,7 +162,7 @@ void escribirEnArchivo(const char *path, const char *contenido)
 	if (indArch == -1)
 		return;
 
-	strcpy(tablaNodos[indArch].contenido, contenido);
+	strcpy(tablaNodos[indArch]->contenido, contenido);
 }
 
 //ve si un directorio esta vacio. Devuelve 1 si esta vacio, 0 si tiene algo
@@ -181,9 +173,9 @@ int estaVacio(char *nombre)
 
 	for (int indActual = 0; indActual <= indiceTabla; indActual++)
 	{
-		if(tablaNodos[indActual].padre != NULL)
+		if(tablaNodos[indActual]->padre != NULL)
 		{
-			if(strcmp(tablaNodos[indActual].padre->nombre, nombre)==0)
+			if(strcmp(tablaNodos[indiceArch]->padre->nombre, nombre)==0)
 			return 0;
 		}
 	}
@@ -195,9 +187,9 @@ void eliminarObjeto(char* nombre)
 {
 	int objeto = indiceObjeto(nombre);
 
-	tablaNodos[objeto].contenido[0] = '\0';
-	tablaNodos[objeto].estado = 0;
-	tablaNodos[objeto].padre = NULL;
+	tablaNodos[objeto]->contenido[0] = '\0';
+	tablaNodos[objeto]->estado = 0;
+	tablaNodos[objeto]->padre = NULL;
 }
 
 
@@ -207,7 +199,7 @@ void eliminarObjeto(char* nombre)
 static int hacer_getattr(const char *path, struct stat *st)
 {
 
-	/*modificar oara archivos borrados*/
+	/*modificar para archivos borrados*/
 
 
 	st->st_uid = getuid();		//el duenio del archivo
@@ -239,7 +231,13 @@ static int hacer_getattr(const char *path, struct stat *st)
 static int hacer_readdir(const char *path, void *buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi)
 {
 
-	filler(buffer, ".", NULL, 0); // llenamos la lista de directorios con el directorio actual
+	//enviar READDIR y path a servidor
+	enviarInt(socketConexion, READDIR);
+	char* pathAEnviar = malloc(300);
+	strcpy(pathAEnviar,path);
+	enviarString(socketConexion, pathAEnviar);
+
+	/*filler(buffer, ".", NULL, 0); // llenamos la lista de directorios con el directorio actual
 	filler(buffer, "..", NULL, 0); // padre
 
 	int contArray=0;
@@ -255,8 +253,8 @@ static int hacer_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
 	{
 
 		for (int indActual = 0; indActual <= indiceTabla; indActual++)
-			if(tablaNodos[indActual].padre==NULL)
-				filler(buffer,tablaNodos[indActual].nombre, NULL, 0);
+			if(tablaNodos[indActual]->padre==NULL)
+				filler(buffer,tablaNodos[indActual]->nombre, NULL, 0);
 	}
 	else	//si no es el punto de montaje
 	{
@@ -270,17 +268,16 @@ static int hacer_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
 
 		for (int indActual = 0; indActual <= indiceTabla; indActual++)
 		{
-			if(tablaNodos[indActual].padre != NULL)
+			if(tablaNodos[indActual]->padre != NULL)
 			{
-				if(strcmp(tablaNodos[indActual].padre->nombre, directorio)==0)
-					filler(buffer,tablaNodos[indActual].nombre, NULL, 0);
+				if(strcmp(tablaNodos[indActual]->padre->nombre, directorio)==0)
+					filler(buffer,tablaNodos[indActual]->nombre, NULL, 0);
 			}
 		}
 	}
 
-	//msync(disco, tamDisco, MS_SYNC);
-
-	free(cortado);
+	free(cortado);*/
+	free(pathAEnviar);
 
 	return 0;
 }
@@ -299,11 +296,11 @@ static int hacer_read(const char *path, char *buffer, size_t size, off_t offset,
 	if (indArch == -1)// || tablaNodos[indArch]->estado == 2) //si no existe o es un directorio
 		return -1;
 
-	strcpy(cont,tablaNodos[indArch].contenido);
+	strcpy(cont,tablaNodos[indArch]->contenido);
 
 	memcpy(buffer, cont + offset, size);
 
-	msync(disco, tamDisco, MS_SYNC);
+	//msync(disco, tamDisco, MS_SYNC);
 
 	return strlen(cont) - offset;
 
@@ -342,7 +339,7 @@ static int hacer_mkdir(const char *path, mode_t modo)
 
 	agregarDirectorio(nombre,padre);
 
-	msync(disco, tamDisco, MS_SYNC);
+	//msync(disco, tamDisco, MS_SYNC);
 
 	free(pathCortado);
 
@@ -383,7 +380,7 @@ static int hacer_mknod(const char *path, mode_t modo, dev_t dispositivo)
 
 	agregarArchivo(nombre,padre);
 
-	msync(disco, tamDisco, MS_SYNC);
+	//msync(disco, tamDisco, MS_SYNC);
 
 	free(pathCortado);
 
@@ -419,7 +416,7 @@ static int hacer_rmdir (const char *path)
 
 	eliminarObjeto(nombre);
 
-	msync(disco, tamDisco, MS_SYNC);
+	//msync(disco, tamDisco, MS_SYNC);
 
 	return 0;
 }
@@ -438,7 +435,7 @@ static int hacer_unlink (const char *path)
 
 	eliminarObjeto(nombre);
 
-	msync(disco, tamDisco, MS_SYNC);
+	//msync(disco, tamDisco, MS_SYNC);
 
 	return 0;
 }
@@ -508,13 +505,17 @@ static int hacer_rename(const char *oldpath, const char *newpath)
 
 		eliminarObjeto(nombreNuevo);
 
-		strcpy(tablaNodos[indiceViejo].nombre, nombreNuevo);
+		memset(tablaNodos[indiceViejo]->nombre, 0, MAX_FILENAME_LENGTH);
+
+		strcpy(tablaNodos[indiceViejo]->nombre, nombreNuevo);
 
 	}
 	else//si el nuevo no existe simplemente se renombra el viejo
 	{
 
-		strcpy(tablaNodos[indiceViejo].nombre, nombreNuevo);
+		memset(tablaNodos[indiceViejo]->nombre, 0, MAX_FILENAME_LENGTH);
+
+		strcpy(tablaNodos[indiceViejo]->nombre, nombreNuevo);
 	}
 
 	msync(disco, tamDisco, MS_SYNC);
@@ -522,31 +523,18 @@ static int hacer_rename(const char *oldpath, const char *newpath)
 	return 0;
 }
 
+
 void levantarClienteFUSE()
 {
 
-	//pthread_t hiloAtendedor = 0;
+	/*pthread_t hiloAtendedor = 0;
+	char * info = malloc(300);
+	char * aux = malloc(50);*/
 
-	int32_t cliente = levantarCliente(ip,puerto);
-
-	while(1)
-	{
-		char mensaje[1000];
-		scanf("%s", mensaje);
-		//send(cliente,mensaje,strlen(mensaje),0);
-		int bytesEnviados = enviar(cliente, mensaje, strlen(mensaje));
-	}
+	socketConexion = levantarCliente(ip,puerto);
 
 }
 
-void rutinaServidor(int socketRespuesta)
-{
-	loggearInfo(":)");
-	sleep(5);
-
-	 // Aca viene la magia...enviar y recibir mierda
-
-}
 
 void levantarConfig()
 {
@@ -563,22 +551,23 @@ void levantarConfig()
 
 static struct fuse_operations operaciones = {
 
-	.rename		= hacer_rename,
-	.unlink		= hacer_unlink,
-	.rmdir		= hacer_rmdir,
+
     .getattr	= hacer_getattr,
     .readdir	= hacer_readdir,
 	.read		= hacer_read,
 	.mkdir		= hacer_mkdir,
 	.mknod		= hacer_mknod,
 	.write		= hacer_write,
+	.rename		= hacer_rename,
+	.unlink		= hacer_unlink,
+	.rmdir		= hacer_rmdir,
 };
 
 enum {
 	KEY_VERSION,
 	//KEY_HELP,
 };
-
+/*
 static struct fuse_opt fuse_options[] ={
 		CUSTOM_FUSE_OPT_KEY("--disk %s", disco, 0),
 
@@ -587,7 +576,7 @@ static struct fuse_opt fuse_options[] ={
 		FUSE_OPT_KEY("-h", KEY_HELP),
 		FUSE_OPT_KEY("--help", KEY_HELP),
 		FUSE_OPT_END,
-};
+};*/
 
 size_t tamArchivo(char* archivo)
 {
@@ -603,14 +592,20 @@ size_t tamArchivo(char* archivo)
 int main( int argc, char *argv[] )
 {
 
-	//descomentar y comentar todo lo demas para que solo reciba el punto de montaje
+	remove("Linuse.log");
+	iniciarLog("FUSE");
+	loggearInfo("Se inicia el proceso FUSE...");
+	levantarConfig();
+	//levantarClienteFUSE();
+	socketConexion = levantarCliente(ip,puerto);
 
-	/*int ret = fuse_main(argc, argv, &operaciones, NULL);
+	int ret = fuse_main(argc, argv, &operaciones, NULL);
 
 	liberarTabla();
 
-	return ret;*/
+	return ret;
 
+	/*
 	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
 
 
@@ -635,26 +630,23 @@ int main( int argc, char *argv[] )
 
 	disco = mmap(NULL, tamDisco, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, discoFD, 0);
 
-	disco = disco + 1 + BITMAP_SIZE_IN_BLOCKS; // mueve el puntero dos posiciones hasta la tabla de nodos
+	disco = disco + 1 + BITMAP_SIZE_IN_BLOCKS; // mueve el puntero dos posiciones hasta la tabla de nodos. Cambiar
+	//despues de probar
 
 	tablaNodos = (GFile*) disco;
 
-	int ret = fuse_main(args.argc, args.argv, &operaciones, NULL);
+	tamDisco = tamDisco - (2 * BLOCK_SIZE);
+
+	//int ret = fuse_main(args.argc, args.argv, &operaciones, NULL);
+
+	//lo dejo como antes para el unmap
+	disco = disco - 1 - BITMAP_SIZE_IN_BLOCKS;
+	tamDisco = tamDisco + (2 * BLOCK_SIZE);
 
 	munmap(disco,tamDisco);
-	close(discoFD);
+	close(discoFD);*/
 
-	//liberarTabla();
-
-	return ret;
-
-	/*remove("Linuse.log");
-	iniciarLog("FUSE");
-	loggearInfo("Se inicia el proceso FUSE...");
-	levantarConfig();
-	levantarClienteFUSE();
-
-	return EXIT_SUCCESS;*/
+	return EXIT_SUCCESS;
 
 }
 
