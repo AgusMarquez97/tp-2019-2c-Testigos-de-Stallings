@@ -83,12 +83,41 @@ int suse_close(int tid){
 }
 
 int suse_wait(int tid, char *sem_name){
-	// Not supported
+	int32_t estado = -1;
+	int socketCliente = levantarCliente(ip_suse, puerto_suse);
+
+	if(socketCliente != -1) {
+		enviarWait(socketCliente, id_proceso, tid, sem_name);
+		recibirInt(socketCliente, &estado);
+	}
+	close(socketCliente);
+
+	if(estado == -1) {
+		loggearError("Error al enviar Wait");
+		return 0;
+	}
+
+	loggearInfo("Se realizo la operacion wait");
 	return 0;
 }
 
 int suse_signal(int tid, char *sem_name){
-	// Not supported
+	int32_t estado = -1;
+		int socketCliente = levantarCliente(ip_suse, puerto_suse);
+
+		if(socketCliente != -1) {
+			enviarSignal(socketCliente, id_proceso, tid, sem_name);
+			recibirInt(socketCliente, &estado);
+		}
+		close(socketCliente);
+
+		if(estado == -1) {
+			loggearError("Error al enviar Wait");
+			return 0;
+		}
+
+		loggearInfo("Se realizo la operacion wait");
+		return 0;
 	return 0;
 }
 

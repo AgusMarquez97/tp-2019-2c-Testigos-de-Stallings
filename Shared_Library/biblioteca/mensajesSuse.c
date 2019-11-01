@@ -9,30 +9,33 @@
 #include "mensajesSuse.h"
 
 
-
-
-void enviarHandshakeSuse(int socketReceptor, int32_t proceso) {
-	enviarOperacionSuse(socketReceptor, proceso, HANDSHAKE_SUSE, -1,0);
-}
-
 void enviarCreate(int socketReceptor, int32_t proceso, int32_t tid) {
-	enviarOperacionSuse(socketReceptor, proceso, CREATE, tid, 0);
+	enviarOperacionSuse(socketReceptor, proceso, CREATE, tid, 0,NULL);
 }
 
 void enviarJoin(int socketReceptor, int32_t proceso, int32_t tid) {
-	enviarOperacionSuse(socketReceptor, proceso, JOIN, tid, 0);
+	enviarOperacionSuse(socketReceptor, proceso, JOIN, tid, 0,NULL);
 }
 
 void enviarNext(int socketReceptor, int32_t proceso) {
-	enviarOperacionSuse(socketReceptor, proceso, NEXT, -1, 0);
+	enviarOperacionSuse(socketReceptor, proceso, NEXT, -1, 0,NULL);
 }
 
 void enviarCloseSuse(int socketReceptor, int32_t proceso, int32_t tid) {
-	enviarOperacionSuse(socketReceptor, proceso, CLOSE, tid,0);
+	enviarOperacionSuse(socketReceptor, proceso, CLOSE_SUSE, tid,0,NULL);
 }
 
+void enviarWait (int socketReceptor, int32_t proceso, int32_t tid, char * semId){
+	enviarOperacionSuse(socketReceptor, proceso, WAIT, tid,0,semId);
+}
+
+void enviarSignal (int socketReceptor, int32_t proceso, int32_t tid, char * semId){
+	enviarOperacionSuse(socketReceptor, proceso, SIGNAL, tid,0,semId);
+}
+
+
 void enviarOperacionSuse(int socket, int32_t proceso, int32_t operacion, int32_t tid,
-		int32_t rafaga) {
+		int32_t rafaga, char* semId) {
 
 	int32_t desplazamiento = 0;
 	int32_t tamanioBuffer = sizeof(int32_t) * 2;
@@ -49,9 +52,6 @@ void enviarOperacionSuse(int socket, int32_t proceso, int32_t operacion, int32_t
 	serializarInt(buffer, operacion, &desplazamiento);
 
 	switch(operacion) {
-		case HANDSHAKE_SUSE:
-			loggearInfo("handshake serializado para enviar");
-			break;
 		case CREATE:
 			serializarInt(buffer, tid, &desplazamiento);
 			break;
@@ -61,10 +61,17 @@ void enviarOperacionSuse(int socket, int32_t proceso, int32_t operacion, int32_t
 		case JOIN:
 			serializarInt(buffer, tid, &desplazamiento);
 			break;
-		case CLOSE:
+		case CLOSE_SUSE:
 			serializarInt(buffer, tid, &desplazamiento);
 			break;
-
+		case WAIT:
+			serializarInt(buffer, tid, &desplazamiento);
+			serializarString(buffer,semId,&desplazamiento);
+			break;
+		case SIGNAL:
+			serializarInt(buffer, tid, &desplazamiento);
+			serializarString(buffer,semId,&desplazamiento);
+			break;
 		default: // la funcion no es void???
 			; //return NULL;  //Comento esto para que compile
 	}
@@ -92,9 +99,6 @@ t_mensajeSuse* recibirOperacionSuse(int socketEmisor) {
 	mensajeRecibido->tipoOperacion = operacion;
 
 	switch(operacion) {
-		case HANDSHAKE_SUSE:
-			//recibirInt(socketEmisor, &mensajeRecibido->flag);
-			break;
 		case CREATE:
 			recibirInt(socketEmisor, &mensajeRecibido->idHilo);
 			break;
@@ -104,8 +108,17 @@ t_mensajeSuse* recibirOperacionSuse(int socketEmisor) {
 		case JOIN:
 			recibirInt(socketEmisor, &mensajeRecibido->idHilo);
 			break;
-		case CLOSE:
+		case CLOSE_SUSE:
 			recibirInt(socketEmisor, &mensajeRecibido->idHilo);
+			break;
+		case WAIT:
+			recibirInt(socketEmisor, &mensajeRecibido->idHilo);
+			recibirString(socketEmisor, &mensajeRecibido->semId);
+
+			break;
+		case SIGNAL:
+			recibirInt(socketEmisor, &mensajeRecibido->idHilo);
+			recibirString(socketEmisor, &mensajeRecibido->semId);
 			break;
 		default:
 			return NULL;
