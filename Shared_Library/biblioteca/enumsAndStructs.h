@@ -71,4 +71,31 @@ typedef struct {
 	int32_t rafaga;
 } t_hiloPlanificado;
 
+
+/*
+ * 	FUSE
+ */
+
+typedef enum {
+	HANDSHAKE_FUSE,
+	GETATTR,
+	READDIR,
+	READ,
+	MKDIR,
+	MKNOD,
+	WRITE,
+	RMDIR,
+	UNLINK,
+	RENAME,
+} t_operacionFuse;
+
+
+typedef struct {
+	int32_t tipoOperacion;
+	char* path;
+	int32_t idHilo;
+	int32_t rafaga;
+} t_mensajeFuse;
+
+
 #endif /* ENUMSANDSTRUCTS_H_ */

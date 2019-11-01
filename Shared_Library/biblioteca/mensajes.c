@@ -128,7 +128,7 @@ int recibirString(int socketEmisor, char** cadena) {
 	desplazamiento = 0;
 	deserializarString(buffer, cadena, &desplazamiento);
 
-	free(*cadena);
+	//free(*cadena);	lo comento para que ande
 	free(buffer);
 	return cantidadRecibida;
 
