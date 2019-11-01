@@ -54,12 +54,12 @@ char* leerDesde(char* path, int length) {
 	char* contenidoArchivo = "Lorem ipsum dolor sit amet.";
 
 	char* bytesLeidos = malloc(length);
-	strcpy(bytesLeidos, contenidoArchivo);
+	strncpy(bytesLeidos, contenidoArchivo, length);
 
 	int i = length - strlen(contenidoArchivo);
 
 	while(i > 0) {
-		strcpy(bytesLeidos, "/0");
+		strcat(bytesLeidos, "/0");
 		i--;
 	}
 

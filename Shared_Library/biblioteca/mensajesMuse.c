@@ -20,7 +20,7 @@ void enviarCpy(int socketReceptor, int32_t proceso, uint32_t posDestino, void* o
 	enviarOperacion(socketReceptor, proceso, CPY, posDestino, cantBytes, origen, 0);
 }
 
-void enviarMap(int socketReceptor, int32_t proceso, int32_t tamanio ,void* contenido, int32_t flag) {
+void enviarMap(int socketReceptor, int32_t proceso, int32_t tamanio, void* contenido, int32_t flag) {
 	enviarOperacion(socketReceptor, proceso, MAP, 0, tamanio, contenido, flag);
 }
 
