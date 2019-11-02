@@ -48,6 +48,7 @@ t_dictionary *readys; //diccionario con colas ready. KEY= processId VALUE= colaR
 t_dictionary *execs; //diccionario de exec. Key = processId Value = procesoEjecutando(1 por programa según enunciado)
 t_list *exits; //exit estado comun para todos los procesos, indexamos por proceso por comodidad
 t_list *blockeds; //hilos bloqueados esperando para volver al ready
+t_list *semaforos; //lista de t_semaforoSuse
 
 //
 int32_t suse_create_servidor(char* idProcString, int32_t idThread);
@@ -60,9 +61,11 @@ int obtenerMultiprogActual();
 
 int32_t suse_schedule_next_servidor(char* idProcString);
 void revisar_newsEsperando();
-int32_t suse_close_servidor(char* idProcString, int tid);
-int32_t suse_join_servidor(char idProcString, int tid);
-bool hiloFinalizo(char idProcString,int tid);
+int32_t suse_close_servidor(char* idProcString, int32_t tid);
+int32_t suse_join_servidor(char* idProcString, int32_t tid);
+bool hiloFinalizo(char* idProcString,int32_t tid);
+int32_t suse_wait_servidor(char* idProcString,int32_t idHilo,char *semId);
+int32_t suse_signal_servidor(char* idProcString,int32_t idHilo,char *semId);
 
 
 
@@ -70,6 +73,7 @@ bool hiloFinalizo(char idProcString,int tid);
 void liberarVariablesGlobales();
 void levantarEstructuras();
 void levantarConfig();
+void inicializarSemaforos();
 
 void levantarServidorFUSE();
 void rutinaServidor(int * socketRespuesta);

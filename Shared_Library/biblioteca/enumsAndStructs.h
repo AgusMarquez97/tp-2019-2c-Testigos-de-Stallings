@@ -40,11 +40,12 @@ typedef struct {
  */
 
 typedef enum {
-	HANDSHAKE_SUSE,
 	CREATE,
 	NEXT,
 	JOIN,
-	RETURN,
+	CLOSE_SUSE,
+	WAIT,
+	SIGNAL
 
 } t_operacionSuse;
 
@@ -62,6 +63,7 @@ typedef struct {
 	int32_t tipoOperacion;
 	int32_t idHilo;
 	int32_t rafaga;
+	char * semId;//semaforo que nos mandan para hacerle wait o signal
 } t_mensajeSuse;
 
 typedef struct {
@@ -69,7 +71,14 @@ typedef struct {
 	int32_t idHilo;
 	int32_t estadoHilo;
 	int32_t rafaga;
+	char * semBloqueante;
 } t_hiloPlanificado;
+
+typedef struct {
+	char * idSem;
+	int32_t valorActual;
+	int32_t valorMax;
+} t_semaforoSuse;
 
 
 /*

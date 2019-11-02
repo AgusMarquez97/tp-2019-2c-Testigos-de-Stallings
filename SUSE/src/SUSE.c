@@ -118,14 +118,14 @@ int32_t suse_schedule_next_servidor(char* idProcString){
 
 }
 
-int32_t suse_join_servidor(char idProcString, int tid)
+int32_t suse_join_servidor(char* idProcString, int32_t tid)
 {
 	if(hiloFinalizo(idProcString,tid))
 	{
 	return 0;
 	}
 
-	t_hiloPlanificado hiloABloquear;
+	t_hiloPlanificado* hiloABloquear;
 
 	hiloABloquear= dictionary_remove(execs, idProcString);//lo quito
 	hiloABloquear->estadoHilo=BLOCK; //lo bloqueo
@@ -139,7 +139,7 @@ int32_t suse_join_servidor(char idProcString, int tid)
     return 0;
 }
 
-bool hiloFinalizo(char idProcString, int tid)
+bool hiloFinalizo(char* idProcString, int32_t tid)
 {
 	bool encontroHilo(t_hiloPlanificado* unHilo)
 	{
@@ -150,7 +150,7 @@ bool hiloFinalizo(char idProcString, int tid)
 }
 
 
-int32_t suse_close_servidor(char *  idProcString, int tid)
+int32_t suse_close_servidor(char *  idProcString, int32_t tid)
 {
 
     t_hiloPlanificado* hiloParaExit;
@@ -175,6 +175,64 @@ int32_t suse_close_servidor(char *  idProcString, int tid)
 }
 
 
+//////// WAIT Y SIGNAL //////////
+
+int32_t suse_wait_servidor(char *idProcString,int32_t idHilo,char *semId)
+{
+	bool semEncontrado(t_semaforoSuse* sem)
+	{
+		return sem->idSem == semId; //retorna true si idSem(el id del sem en la lista) es igual a semId (al que te piden)
+	}
+	t_semaforoSuse* semaforo= list_find(semaforos, (void*) semEncontrado);
+	if(semaforo != NULL)//si encontro el semaforo en la lista...
+	{
+		semaforo->valorActual--;
+		if(semaforo->valorActual < 0)// si queda el valor neg el hilo se bloquea
+		{
+			t_hiloPlanificado* hiloABloquear;
+
+			hiloABloquear= dictionary_remove(execs, idProcString);
+			hiloABloquear->estadoHilo=BLOCK;
+			hiloABloquear->semBloqueante = semaforo;
+			list_add(blockeds,hiloABloquear);
+		}
+
+
+		return 0;
+	}
+	return -1;
+}
+
+int32_t suse_signal_servidor(char *idProcString,int32_t idHilo,char *semId)
+{
+	bool semEncontrado(t_semaforoSuse* sem)
+		{
+			return sem->idSem == semId; //retorna true si idSem(el id del sem en la lista) es igual a semId (al que te piden)
+		}
+		t_semaforoSuse* semaforo= list_find(semaforos, (void*) semEncontrado);
+		if(semaforo != NULL)//si encontro el semaforo en la lista...
+		{
+			semaforo->valorActual++;
+			if(semaforo->valorActual <= 0)//si queda en positivo el semaforo no esta bloqueando ningun hilo
+			{
+				t_hiloPlanificado* hiloADesbloquear;
+
+				bool hiloBloqueadoPorSem(t_hiloPlanificado* unHilo)
+						{
+							return unHilo->semBloqueante == semId; //busca el primer hilo que esta bloqueado por este semaforo en particular
+						}
+				hiloADesbloquear= list_remove_by_condition(blockeds, (void *) hiloBloqueadoPorSem);
+				hiloADesbloquear->estadoHilo=READY;
+				hiloADesbloquear->semBloqueante = NULL;
+				t_queue* colaReadyDelProc = dictionary_get(readys,idProcString);
+				queue_push(colaReadyDelProc,hiloADesbloquear);
+			}
+
+
+			return 0;
+		}
+		return -1;
+}
 
 void levantarServidorSUSE()
 {
@@ -218,10 +276,6 @@ void rutinaServidor(int * p_socket)
 
 	switch(mensajeRecibido->tipoOperacion)
 		{
-		case HANDSHAKE_SUSE:
-			enviarInt(socketRespuesta, 1);
-			loggearInfo("Handshake exitoso");
-			break;
 		case CREATE:
 			loggearInfo("Se recibio una operacion CREATE");
 			result= suse_create_servidor(idProcString, mensajeRecibido->idHilo);
@@ -235,14 +289,23 @@ void rutinaServidor(int * p_socket)
 		case JOIN:
 			loggearInfo("Se recibio una operacion JOIN");
 			result= suse_join_servidor(idProcString, mensajeRecibido->idHilo);
-			enviarInt(socketRespuesta, 1);
+			enviarInt(socketRespuesta, result);
 			break;
-		case CLOSE:
-			loggearInfo("Se recibio una operacion RETURN");
+		case CLOSE_SUSE:
+			loggearInfo("Se recibio una operacion CLOSE_SUSE");
 			result = suse_close_servidor(idProcString,mensajeRecibido->idHilo);
-			enviarInt(socketRespuesta, 1);
+			enviarInt(socketRespuesta, result);
 			break;
-
+		case WAIT:
+			loggearInfo("Se recibio una operacion WAIT");
+			result = suse_wait_servidor(idProcString,mensajeRecibido->idHilo,mensajeRecibido->semId);
+			enviarInt(socketRespuesta, result);
+			break;
+		case SIGNAL:
+			loggearInfo("Se recibio una operacion SIGNAL");
+			result = suse_signal_servidor(idProcString,mensajeRecibido->idHilo,mensajeRecibido->semId);
+			enviarInt(socketRespuesta, result);
+			break;
 		default: //incluye el handshake
 			break;
 		}
@@ -271,6 +334,7 @@ void levantarConfig()
 	maxMultiprog = config_get_int_value(unConfig,"MAX_MULTIPROG");
 
 	semIds = config_get_array_value(unConfig,"SEM_IDS");
+
 	semInit = config_get_array_value(unConfig,"SEM_INIT");
 	semMax = config_get_array_value(unConfig,"SEM_MAX");
 
@@ -287,6 +351,25 @@ void levantarEstructuras()
 	execs = dictionary_create();
 	exits = list_create();
 	blockeds = list_create();
+	inicializarSemaforos();
+}
+void inicializarSemaforos(){
+	int i = 0;
+	semaforos = list_create();
+	while(semIds[i]!= NULL)
+	{
+		t_semaforoSuse* sem = malloc(sizeof(t_semaforoSuse));
+
+
+
+		sem->idSem = strdup(semIds[i]);
+		sem->valorActual = atoi(semInit[i]);
+		sem->valorMax = atoi(semMax[i]);
+
+		list_add(semaforos,sem);
+		i++;
+	}
+
 }
 
 int main(void) {
@@ -295,7 +378,6 @@ int main(void) {
 	loggearInfo("Se inicia el proceso SUSE...");
 	levantarConfig();
 	levantarEstructuras();
-
 
 	levantarServidorSUSE();
 	liberarVariablesGlobales();
