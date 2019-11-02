@@ -203,7 +203,7 @@ int32_t procesarFree(char * idProceso, uint32_t posicionMemoria) {
 
 			retorno = liberarHeapMetadata(paginaBuscada->nroMarco*tamPagina,offset);
 
-			return 0;
+			return 1;
 		}
 		else
 		{
