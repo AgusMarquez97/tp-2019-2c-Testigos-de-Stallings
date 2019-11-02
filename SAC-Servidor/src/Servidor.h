@@ -24,7 +24,7 @@
 
 #define IDENTIFICADOR 3
 #define BLOCK_SIZE 4096
-#define MAX_FILE_NUMBER 10//1024
+#define MAX_FILE_NUMBER 1024
 #define MAX_FILENAME_LENGTH 71
 #define BITMAP_START_BLOCK 1
 #define BITMAP_SIZE_IN_BLOCKS 1
@@ -73,7 +73,7 @@ void levantarConfig();
  *
  */
 void levantarServidorFUSE();
-void rutinaServidor(int socketRespuesta);
+//void rutinaServidor(int socketRespuesta);
 
 /*
  * Libera variables globales y memoria alocada que normalmente no se libera. -> Ver de usar signal para atrapar una salida forzada

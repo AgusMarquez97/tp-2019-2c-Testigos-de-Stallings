@@ -207,7 +207,7 @@ static int hacer_getattr(const char *path, struct stat *st)
 	st->st_atime = time(NULL);	//last "A"ccess time
 	st->st_mtime = time(NULL);	//last "M"odification time
 
-	if(strcmp(path,"/") == 0 || esDirectorio(path) == 1)
+	if(strcmp(path,"/") == 0  || esDirectorio(path) == 1)
 	{
 		st->st_mode = S_IFDIR | 0755; //bits de permiso
 		st->st_nlink = 2;		//num de hardlinks
@@ -218,10 +218,10 @@ static int hacer_getattr(const char *path, struct stat *st)
 		st->st_nlink = 1;
 		st->st_size = 1024;		//tamanio de los archivos
 	}
-	else //no existe en el filesystem
+	/*else //no existe en el filesystem
 	{
 		return -ENOENT;
-	}
+	}*/
 
 	return 0;
 }
@@ -231,12 +231,37 @@ static int hacer_getattr(const char *path, struct stat *st)
 static int hacer_readdir(const char *path, void *buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi)
 {
 
+	filler(buffer, ".", NULL, 0);
+	filler(buffer, "..", NULL, 0);
+
+
 	//enviar READDIR y path a servidor
 	enviarInt(socketConexion, READDIR);
 	char* pathAEnviar = malloc(300);
+	char* nombreRecibido = malloc(MAX_FILENAME_LENGTH);
+	int bytesRecibidos;
+
 	strcpy(pathAEnviar,path);
 	enviarString(socketConexion, pathAEnviar);
 
+	/*		recibir buffer 		*/
+	bytesRecibidos = recibirString(socketConexion, &nombreRecibido);
+
+	while( strcmp(nombreRecibido,"dou") != 0)
+	{
+		loggearInfo("recibo el directorio ");
+		loggearInfo(nombreRecibido);
+		filler(buffer, nombreRecibido, NULL, 0);
+		//if es archivo guardar estado
+		bytesRecibidos = recibirString(socketConexion, &nombreRecibido);
+	}
+
+	//free(pathAEnviar);		a valgrind no le gusta
+	free(nombreRecibido);
+
+	loggearInfo("Se recibieron los directorios y archivos de forma correcta");
+
+	return 0;
 	/*filler(buffer, ".", NULL, 0); // llenamos la lista de directorios con el directorio actual
 	filler(buffer, "..", NULL, 0); // padre
 
@@ -277,17 +302,15 @@ static int hacer_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
 	}
 
 	free(cortado);*/
-	free(pathAEnviar);
 
-	return 0;
 }
 
 //lee el contenido de un archivo. Retorna el número de bytes que fueron leidos correctamente
 static int hacer_read(const char *path, char *buffer, size_t size, off_t offset, struct fuse_file_info *fi)
 {
-	printf("... Leyendo %s, %u, %u\n", path, offset, size);
+	enviarInt(socketConexion, READ);
 
-	char cont[256];
+	char* cont = malloc(256);
 
 	char* nombre = nombreObjeto(path);
 
@@ -296,7 +319,11 @@ static int hacer_read(const char *path, char *buffer, size_t size, off_t offset,
 	if (indArch == -1)// || tablaNodos[indArch]->estado == 2) //si no existe o es un directorio
 		return -1;
 
-	strcpy(cont,tablaNodos[indArch]->contenido);
+	enviarString(socketConexion, nombre);
+
+	//strcpy(cont,tablaNodos[indArch]->contenido);
+
+	recibirString(socketConexion,&cont);
 
 	memcpy(buffer, cont + offset, size);
 

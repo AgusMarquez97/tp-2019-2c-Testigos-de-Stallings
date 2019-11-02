@@ -15,13 +15,28 @@ int socketRespuesta;
 int indiceTabla = -1;
 
 
-void readdir(char* path, void *buffer)
+int indiceObjeto(char *nombre)
 {
-	/*filler(buffer, ".");
-	filler(buffer, "..");*/
+	if(indiceTabla != -1)
+	{
+		for (int indActual = 0; indActual <= indiceTabla; indActual++)
+			if (strcmp(nombre,tablaNodos[indActual].nombre) == 0)
+				return indActual;
+	}
 
+	return -1;
+}
+
+void readdir(char* path)
+{
+
+	//enviarString(socketRespuesta, ".");
+	//enviarString(socketRespuesta, "..");
+	char* finalizado = malloc(10);
+	int enviados = 0;
 	int contArray=0;
 	char directorio[MAX_FILENAME_LENGTH];
+	char* nombreAEnviar;// = malloc(sizeof(MAX_FILENAME_LENGTH)); //valgrind
 	char** pathCortado = malloc(10*sizeof(char*));
 
 	for(int i=0;i<=9;i++)
@@ -29,14 +44,23 @@ void readdir(char* path, void *buffer)
 
 	pathCortado=string_n_split(path, 10, "/"); // separa el path en strings
 
-	if(pathCortado[contArray]==NULL) // si es el punto de montaje
-	{
+	//if(pathCortado[contArray]==NULL) // si es el punto de montaje
+	//{
 
-		for (int indActual = 0; indActual <= indiceTabla; indActual++)
+		for (int indActual = 0; tablaNodos[indActual].estado != 0 && indActual < MAX_FILE_NUMBER; indActual++)
+		{
 			if(tablaNodos[indActual].padre==NULL)
-				filler(buffer,tablaNodos[indActual].nombre);
-	}
-	else	//si no es el punto de montaje
+			{
+				nombreAEnviar = strdup(tablaNodos[indActual].nombre);
+				enviarString(socketRespuesta, nombreAEnviar);
+				enviados++;
+				loggearInfo("se envia el nombre del directorio");
+
+			}
+		}
+
+	//}
+	/*else	//si no es el punto de montaje
 	{
 		do
 		{
@@ -51,18 +75,109 @@ void readdir(char* path, void *buffer)
 			if(tablaNodos[indActual].padre != NULL)
 			{
 				if(strcmp(tablaNodos[indActual].padre->nombre, directorio)==0)
-					filler(buffer,tablaNodos[indActual].nombre);
+				{
+					enviarString(socketRespuesta, tablaNodos[indActual].nombre);
+					enviados++;
+				}
 			}
 		}
-	}
+	}*/
+	strcpy(finalizado,"dou");//hago esto porque sino enviarString llora
+	enviarString(socketRespuesta, finalizado);//"avisa" al cliente que termino
 
 	free(pathCortado);
 
 }
+
+
+void rutinaServidor(t_mensajeFuse* mensajeRecibido)
+{
+
+
+	char * info = malloc(530);
+
+	//char * msj;
+	char* path = malloc(500);
+	char* contenido= malloc(256);
+
+		switch(mensajeRecibido->tipoOperacion)
+		{
+			case GETATTR:
+
+			break;
+
+			case READDIR:
+				recibirString(socketRespuesta, &path);
+
+				strcpy(info,"Se recibió el path: ");
+				strcat(info,path);
+				loggearInfo(info);
+
+				readdir(path); 	//recibe un path, lo busca en los nodos y devuelve los que cumplen
+				//free(mensajeRecibido);
+
+			break;
+
+			case READ:
+
+				recibirString(socketRespuesta, &path);//recibe el nombre
+
+				strcpy(info,"Se recibió el path: ");
+				strcat(info,path);
+				loggearInfo(info);
+
+
+				for (int indActual = 0; tablaNodos[indActual].estado != 0 && indActual < MAX_FILE_NUMBER; indActual++)
+				{
+					if( strcmp(tablaNodos[indActual].nombre, path) == 0 )
+						strcpy(contenido,tablaNodos[indActual].contenido);
+				}
+				enviarString(socketRespuesta, contenido);
+
+
+			break;
+
+			case MKDIR:
+
+			break;
+
+			case MKNOD:
+
+			break;
+
+			case WRITE:
+
+			break;
+
+			case RENAME:
+
+			break;
+
+			case UNLINK:
+
+			break;
+
+			case RMDIR:
+
+			break;
+
+			default:
+
+			break;
+
+		}
+
+		free(info);
+		free(path);
+		return;
+
+
+}
+
 void levantarServidorFUSE()
 {
 
-	//pthread_t hiloAtendedor = 0;
+	pthread_t hiloAtendedor = 0;
 
 	int socketServidor = levantarServidor(ip,puerto);
 
@@ -70,95 +185,46 @@ void levantarServidorFUSE()
 	char * info = malloc(300);
 	char * aux = malloc(50);
 
+
 	socketRespuesta = (intptr_t) aceptarConexion(socketServidor);
 
 	loggearNuevaConexion(socketRespuesta);
 
-	free(info);
-	free(aux);
-}
+	t_mensajeFuse* mensajeRecibido = malloc(sizeof(t_mensajeFuse) + 500);
 
-void rutinaServidor(int socketRespuesta)
-{
-	loggearInfo(":)");
+	mensajeRecibido = recibirOperacionFuse(socketRespuesta);
+	mensajeRecibido->idHilo = hiloAtendedor;
 
-	char * info = malloc(530);
-	//char * msj;
-	char** path = malloc(500);
-	t_mensajeFuse* mensajeRecibido = malloc(sizeof(t_mensajeFuse) + sizeof(path));
+	sprintf(info,"La operacion recibida es %d", mensajeRecibido->tipoOperacion);
+	loggearInfo(info);
 
-
-
-	while(1)
+	while(mensajeRecibido != NULL)
 	{
-		mensajeRecibido = recibirOperacionFuse(socketRespuesta);
 
-		if(mensajeRecibido != NULL)
-		{
-			switch(mensajeRecibido->tipoOperacion)
+		//if(mensajeRecibido != NULL)
+		//{
+			int err = pthread_create(&hiloAtendedor, NULL, (void*) rutinaServidor, (void*) mensajeRecibido);
+
+			if(err != 0)
+				loggearInfo("Error al crear un nuevo hilo");
+			else
 			{
-				case GETATTR:
-
-				break;
-
-				case READDIR:
-					recibirString(socketRespuesta, path);
-
-					strcpy(info,"Se recibió el path: ");
-					strcat(info,*path);
-					loggearInfo(info);
-
-					//readdir(path); 	//recibe un path, lo busca en los nodos y devuelve los que cumplen
-					free(mensajeRecibido);
-				break;
-
-				case READ:
-
-				break;
-
-				case MKDIR:
-
-				break;
-
-				case MKNOD:
-
-				break;
-
-				case WRITE:
-
-				break;
-
-				case RENAME:
-
-				break;
-
-				case UNLINK:
-
-				break;
-
-				case RMDIR:
-
-				break;
-
-				default:
-					//free(mensajeRecibido);
-				break;
-
+				sprintf(info,"Se crea el hilo %d",mensajeRecibido->idHilo);
+				loggearInfo(info);
+				pthread_join(hiloAtendedor, NULL);
+				hiloAtendedor++;
+				mensajeRecibido->idHilo = hiloAtendedor;
 			}
 
-
-		}
-		else
-		{
-			close(socketRespuesta);
-			free(info);
-			free(path);
-			return;
-		}
-
+		//}
+		mensajeRecibido = recibirOperacionFuse(socketRespuesta);
 
 	}
 
+	free(info);
+	free(aux);
+	free(mensajeRecibido);
+	close(socketRespuesta);
 }
 
 void levantarConfig()
@@ -205,7 +271,7 @@ int main( int argc, char *argv[] )
 	loggearInfo("Se inicia el proceso FUSE...");
 	levantarConfig();
 	levantarServidorFUSE();
-	rutinaServidor(socketRespuesta);
+
 
 	/**/
 
