@@ -31,8 +31,11 @@ char puerto[10];
 /*
  * Semaforos:
  * mutex_marcos_libres : Mutex para que dos hilos no pidan el mismo marco al mismo tiempo
+ * mutex_diccionario: No quiero que al modificar los datos del diccionario (debo sacar y agregar el mismo elemento) alguien consulte por este
  */
+pthread_mutex_t mutex_memoria;
 pthread_mutex_t mutex_marcos_libres;
+pthread_mutex_t mutex_diccionario;
 
 /*
  * Estructura de la memoria principal:
@@ -50,7 +53,7 @@ int tamPagina;
 int cantidadMarcosMemoriaPrincipal;
 
 typedef struct {
-	int offset; // Busca validar cual es la ultima posicion de la pagina escrita
+	uint32_t offset; // Busca validar cual es la ultima posicion de la pagina escrita
 	bool estaLibre;
 } t_heap_metadata;
 
@@ -77,7 +80,7 @@ int cantidadMarcosMemoriaVirtual;
  * un punto de referencia y un tamanio/offset
 */
 
-t_dictionary * dictionarioProcesos;
+t_dictionary * diccionarioProcesos;
 
 typedef struct {
 	int id_segmento;
@@ -235,23 +238,70 @@ void crearMemoriaSwap();
 void inicializarSemaforos();
 void levantarServidorMUSE();
 void rutinaServidor(int* socketRespuesta);
-uint32_t procesarMalloc(int32_t idProceso, int32_t tamanio);
-uint32_t procesarFree(int32_t idProceso, uint32_t posicionMemoria);
-char* procesarGet(int32_t idProceso, uint32_t posicionMemoria, int32_t tamanio);
-int procesarCpy(int32_t idProceso, uint32_t posicionMemoria, int32_t tamanio, void* origen);
-uint32_t procesarMap(int32_t idProceso, void* contenido, int32_t tamanio, int32_t flag);
-int procesarSync(int32_t idProceso, uint32_t posicionMemoria, int32_t tamanio);
-int procesarUnmap(int32_t idProceso, uint32_t posicionMemoria);
-int procesarClose(int32_t idProceso);
 void liberarVariablesGlobales();
 
 
+// Se agrega el proceso al realizar el HANDSHAKE
+int procesarHandshake(char * idProceso);
 
-// Funciones para procesar las querys
-int agregarADiccionario(int id_proceso);
+
+/*
+ * MALLOC: Pasos a seguir
+ * 1° Buscar en el diccionario el proceso correspondiente
+ * 2° Calcular cuantos frames necesito para asignar la memoria correspondiente ()
+ * 3° Analizar si el segmento del proceso existe .Si no existe lo creo, si no evalua lo siguiente:
+ *  	3A) Puedo agrandar el segmento => lo agrando, busco los frames que necesito, los escribo (considero la estructura HeapMetadata) y retorno la direccion del segmento
+ *  	3B) No puedo agrandar mas el segmento por un mmap => Creo un nuevo segmento en la lista de segmentos (Por ahora no va a pasar)
+ *
+ */
+uint32_t procesarMalloc(char * idProceso, int32_t tamanio);
+
+t_list * obtenerPaginas(int tamanio, int cantidadFrames);
+t_segmento * instanciarSegmento(int tamanio, int cantidadFrames);
+uint32_t crearSegmento (char * idProceso, int tamanio, int cantidadFrames); // podria ocurrir con mmap?
+void escribirPaginas(t_list * listaPaginas, int tamanio);
+
+
+
+
+
+int32_t procesarFree(char * idProceso, uint32_t posicionMemoria);
+
+t_segmento * obtenerSegmento(t_list * segmentos, uint32_t posicionMemoria);
+t_pagina * obtenerPagina(t_list * paginas, uint32_t posicionMemoria);
+int liberarHeapMetadata(int base,int offset);
+t_heap_metadata * obtenerHeapMetadata(int base,int offset);
+
+
+
+void * procesarGet(char * idProceso, uint32_t posicionMemoria, int32_t tamanio);
+void * leerDeMemoria(int posicionInicial, int tamanio);
+
+
+int procesarCpy(char * idProceso, uint32_t posicionMemoria, int32_t tamanio, void* contenido);
+void copiarEnMemoria(void * contenido, int posicionInicial, int tamanio);
+
+
+
+int procesarClose(char * idProceso);
+
+// Pendientes para la proxima entrega
+
+uint32_t procesarMap(char * idProceso, void* contenido, int32_t tamanio, int32_t flag);
+int procesarSync(char * idProceso, uint32_t posicionMemoria, int32_t tamanio);
+int procesarUnmap(char * idProceso, uint32_t posicionMemoria);
+
+
+
+
+
+
 
 
 // AUXILIARES
+
+uint32_t evaluarSegmento (char * idProceso, int tamanio, int cantidadFrames);
+bool poseeSegmentos(char * idProceso);
 
 bool marcoLibreMP(int nroMarco);
 int obtenerCantidadMarcos(int tamanioPagina, int tamanioMemoria);

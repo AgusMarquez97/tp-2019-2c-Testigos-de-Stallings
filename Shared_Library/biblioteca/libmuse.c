@@ -18,7 +18,7 @@ int muse_init(int id, char* ip, int puerto) {
 		enviarHandshake(socketCliente, id_muse);
 		recibirInt(socketCliente, &retorno);
 
-		if(retorno == -1) //@return: error 0 / ok 1
+		if(retorno == -1) //@return: error -1 / ok 0
 		loggearInfo("Fallo al realizar el handshake, init duplicado");
 		else
 		loggearInfo("Biblioteca MUSE inicializada con éxito");
@@ -57,12 +57,12 @@ void muse_free(uint32_t dir) {
 
 	loggearInfo("Liberando porción de memoria...");
 
-	int32_t retorno = 0;
+	int32_t retorno = -1;
 	int socketCliente = levantarCliente(ip_muse, puerto_muse);
 
 	if(socketCliente != -1) {
 		enviarFree(socketCliente, id_muse, dir);
-		recibirInt(socketCliente, &retorno); //@return: error [0] / ok [dirección de memoria]
+		recibirInt(socketCliente, &retorno);
 		close(socketCliente);
 	}
 

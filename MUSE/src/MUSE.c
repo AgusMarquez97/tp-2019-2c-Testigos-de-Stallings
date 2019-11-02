@@ -31,9 +31,9 @@ void levantarConfig() {
 }
 
 void levantarMemoria() {
-	dictionarioProcesos = dictionary_create();
-	crearMemoriaSwap();
+	diccionarioProcesos = dictionary_create();
 	memoria = malloc(tamMemoria);
+	crearMemoriaSwap();
 
 	levantarMarcos(&marcosMemoriaPrincipal,tamMemoria,&cantidadMarcosMemoriaPrincipal);
 	levantarMarcos(&marcosMemoriaSwap,tamSwap,&cantidadMarcosMemoriaVirtual);
@@ -56,6 +56,7 @@ void levantarMarcos(t_bitarray ** unBitArray, int tamanio, int * cantidadMarcos)
 
 void crearMemoriaSwap()
 {
+	remove("Memoria Swap"); // Analizar si la MS debe ser persistida
 	FILE * f_MS =  txt_open_for_append("Memoria Swap");
 	txt_close_file(f_MS);
 }
@@ -63,6 +64,9 @@ void crearMemoriaSwap()
 void inicializarSemaforos()
 {
 	pthread_mutex_init(&mutex_marcos_libres, NULL);
+	pthread_mutex_init(&mutex_diccionario, NULL);
+	pthread_mutex_init(&mutex_memoria, NULL);
+
 }
 
 void levantarServidorMUSE() {
@@ -92,9 +96,11 @@ void rutinaServidor(int* p_socket) {
 	char* info;
 	int valorRetorno;
 	int socketRespuesta = *p_socket;
+	char id_proceso[30];
 	free(p_socket);
 	t_mensajeMuse* mensajeRecibido = recibirOperacion(socketRespuesta);
 
+	sprintf(id_proceso,"%d",mensajeRecibido->idProceso);
 
 	if(mensajeRecibido == NULL) {
 		loggearInfo("Mensaje no reconocido");
@@ -102,7 +108,7 @@ void rutinaServidor(int* p_socket) {
 	else {
 		switch(mensajeRecibido->tipoOperacion) {
 			case HANDSHAKE:
-			valorRetorno = agregarADiccionario(mensajeRecibido->idProceso);
+			valorRetorno = procesarHandshake(id_proceso);
 			enviarInt(socketRespuesta,valorRetorno);
 			break;
 			case MALLOC:
@@ -110,9 +116,7 @@ void rutinaServidor(int* p_socket) {
 				sprintf(info, "Se recibió una operación ALLOC de %d bytes", mensajeRecibido->tamanio);
 				loggearInfo(info);
 				free(info);
-
-				uint32_t retornoMalloc = procesarMalloc(mensajeRecibido->idProceso, mensajeRecibido->tamanio);
-
+				uint32_t retornoMalloc = procesarMalloc(id_proceso, mensajeRecibido->tamanio);
 				enviarUint(socketRespuesta, retornoMalloc);
 				break;
 			case FREE:
@@ -121,7 +125,7 @@ void rutinaServidor(int* p_socket) {
 				loggearInfo(info);
 				free(info);
 
-				uint32_t retornoFree = procesarFree(mensajeRecibido->idProceso, mensajeRecibido->posicionMemoria);
+				int32_t retornoFree = procesarFree(id_proceso, mensajeRecibido->posicionMemoria);
 
 				enviarInt(socketRespuesta, retornoFree);
 				break;
@@ -131,10 +135,11 @@ void rutinaServidor(int* p_socket) {
 				loggearInfo(info);
 				free(info);
 
-				char* retornoGet = malloc(strlen("PRUEBA") + 1);
-				retornoGet = procesarGet(mensajeRecibido->idProceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
+				void* retornoGet = malloc(mensajeRecibido->tamanio);
+				retornoGet = procesarGet(id_proceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
+				enviarVoid(socketRespuesta, retornoGet, mensajeRecibido->tamanio);
 
-				enviarVoid(socketRespuesta, retornoGet, strlen(retornoGet));
+				free(retornoGet);
 				break;
 			case CPY:
 				info = malloc(strlen("Se_recibió_una_operación_CPY_sobre_la_dirección_9999999999999999999999_de_9999999999999999999999_bytes") + 1);
@@ -142,7 +147,7 @@ void rutinaServidor(int* p_socket) {
 		 		loggearInfo(info);
 				free(info);
 
-				int retornoCpy = procesarCpy(mensajeRecibido->idProceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio, mensajeRecibido->contenido);
+				int retornoCpy = procesarCpy(id_proceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio, mensajeRecibido->contenido);
 
 				enviarInt(socketRespuesta, retornoCpy);
 				break;
@@ -152,7 +157,7 @@ void rutinaServidor(int* p_socket) {
 				loggearInfo(info);
 				free(info);
 
-				uint32_t retornoMap = procesarMap(mensajeRecibido->idProceso, mensajeRecibido->contenido, mensajeRecibido->tamanio, mensajeRecibido->flag);
+				uint32_t retornoMap = procesarMap(id_proceso, mensajeRecibido->contenido, mensajeRecibido->tamanio, mensajeRecibido->flag);
 
 				enviarUint(socketRespuesta, retornoMap);
 				break;
@@ -162,7 +167,7 @@ void rutinaServidor(int* p_socket) {
 				loggearInfo(info);
 				free(info);
 
-				int retornoSync = procesarSync(mensajeRecibido->idProceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
+				int retornoSync = procesarSync(id_proceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
 
 				enviarInt(socketRespuesta, retornoSync);
 				break;
@@ -172,7 +177,7 @@ void rutinaServidor(int* p_socket) {
 				loggearInfo(info);
 				free(info);
 
-				int retornoUnmap = procesarUnmap(mensajeRecibido->idProceso, mensajeRecibido->posicionMemoria);
+				int retornoUnmap = procesarUnmap(id_proceso, mensajeRecibido->posicionMemoria);
 
 				enviarInt(socketRespuesta, retornoUnmap);
 				break;
@@ -180,11 +185,11 @@ void rutinaServidor(int* p_socket) {
 			case CLOSE:
 			loggearInfo("Se recibio una operacion CLOSE");
 
-			int retornoClose = procesarClose(mensajeRecibido->idProceso); //funcion que debe liberar la memoria reservada tanto principal como swap y debe eliminar la entrada del diccionario
+			int retornoClose = procesarClose(id_proceso); //funcion que debe liberar la memoria reservada tanto principal como swap y debe eliminar la entrada del diccionario
 
 			enviarInt(socketRespuesta, retornoClose);
 			break;
-		default: //incluye el handshake
+		default:
 			break;
 		}
 		free(mensajeRecibido);
