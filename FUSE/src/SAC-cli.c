@@ -201,27 +201,40 @@ static int hacer_getattr(const char *path, struct stat *st)
 
 	/*modificar para archivos borrados*/
 
+	char* nombre = malloc(MAX_FILENAME_LENGTH);
+	int estadoNodo;
+
+	if(strcmp(path,"/") != 0)
+		nombre = nombreObjeto(path);
+	else
+		strcpy(nombre,"/");
+
+	enviarInt(socketConexion, GETATTR);
+
+	enviarString(socketConexion, nombre);
 
 	st->st_uid = getuid();		//el duenio del archivo
 	st->st_gid = getgid();		//el mismo?
 	st->st_atime = time(NULL);	//last "A"ccess time
 	st->st_mtime = time(NULL);	//last "M"odification time
 
-	if(strcmp(path,"/") == 0  || esDirectorio(path) == 1)
+	recibirInt(socketConexion, &estadoNodo);
+
+	if(estadoNodo == 2)//directorio
 	{
 		st->st_mode = S_IFDIR | 0755; //bits de permiso
 		st->st_nlink = 2;		//num de hardlinks
 	}
-	else if (esArchivo(path) == 1)//si es un archivo
+	else if(estadoNodo == 1)//archivo
 	{
 		st->st_mode = S_IFREG | 0644;
 		st->st_nlink = 1;
 		st->st_size = 1024;		//tamanio de los archivos
 	}
-	/*else //no existe en el filesystem
+	else //no existe en el filesystem
 	{
 		return -ENOENT;
-	}*/
+	}
 
 	return 0;
 }
@@ -249,81 +262,35 @@ static int hacer_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
 
 	while( strcmp(nombreRecibido,"dou") != 0)
 	{
-		loggearInfo("recibo el directorio ");
-		loggearInfo(nombreRecibido);
 		filler(buffer, nombreRecibido, NULL, 0);
-		//if es archivo guardar estado
 		bytesRecibidos = recibirString(socketConexion, &nombreRecibido);
 	}
 
 	//free(pathAEnviar);		a valgrind no le gusta
 	free(nombreRecibido);
 
-	loggearInfo("Se recibieron los directorios y archivos de forma correcta");
-
 	return 0;
-	/*filler(buffer, ".", NULL, 0); // llenamos la lista de directorios con el directorio actual
-	filler(buffer, "..", NULL, 0); // padre
-
-	int contArray=0;
-	char directorio[MAX_FILENAME_LENGTH];
-	char** cortado = malloc(10*sizeof(char*));
-
-	for(int i=0;i<=9;i++)
-		cortado[i] = malloc(sizeof(char*));
-
-	cortado=string_n_split(path, 10, "/"); // separa el path en strings
-
-	if(cortado[contArray]==NULL) // si es el punto de montaje
-	{
-
-		for (int indActual = 0; indActual <= indiceTabla; indActual++)
-			if(tablaNodos[indActual]->padre==NULL)
-				filler(buffer,tablaNodos[indActual]->nombre, NULL, 0);
-	}
-	else	//si no es el punto de montaje
-	{
-		do
-		{
-			strcpy(directorio,cortado[contArray]);
-
-			contArray++;
-		}
-		while(cortado[contArray]!=NULL);
-
-		for (int indActual = 0; indActual <= indiceTabla; indActual++)
-		{
-			if(tablaNodos[indActual]->padre != NULL)
-			{
-				if(strcmp(tablaNodos[indActual]->padre->nombre, directorio)==0)
-					filler(buffer,tablaNodos[indActual]->nombre, NULL, 0);
-			}
-		}
-	}
-
-	free(cortado);*/
 
 }
 
 //lee el contenido de un archivo. Retorna el número de bytes que fueron leidos correctamente
 static int hacer_read(const char *path, char *buffer, size_t size, off_t offset, struct fuse_file_info *fi)
 {
-	enviarInt(socketConexion, READ);
 
+	int continuar;		//si llega un 0 continua, -1 sale
 	char* cont = malloc(256);
-
+	char* info = malloc(50);
 	char* nombre = nombreObjeto(path);
 
-	int indArch = indiceObjeto(nombre);
-
-	if (indArch == -1)// || tablaNodos[indArch]->estado == 2) //si no existe o es un directorio
-		return -1;
-
+	enviarInt(socketConexion, READ);
 	enviarString(socketConexion, nombre);
 
-	//strcpy(cont,tablaNodos[indArch]->contenido);
+	recibirInt(socketConexion,&continuar);
 
-	recibirString(socketConexion,&cont);
+	if(continuar == -1)//no existe en el FS
+		return -1;
+
+	recibirString(socketConexion,&cont);//recibo el contenido del archivo
 
 	memcpy(buffer, cont + offset, size);
 
@@ -673,7 +640,6 @@ int main( int argc, char *argv[] )
 	munmap(disco,tamDisco);
 	close(discoFD);*/
 
-	return EXIT_SUCCESS;
 
 }
 

@@ -17,12 +17,10 @@ int indiceTabla = -1;
 
 int indiceObjeto(char *nombre)
 {
-	if(indiceTabla != -1)
-	{
-		for (int indActual = 0; indActual <= indiceTabla; indActual++)
-			if (strcmp(nombre,tablaNodos[indActual].nombre) == 0)
-				return indActual;
-	}
+
+	for (int indActual = 0; tablaNodos[indActual].estado != 0 && indActual < MAX_FILE_NUMBER; indActual++)
+		if (strcmp(nombre,tablaNodos[indActual].nombre) == 0)
+			return indActual;
 
 	return -1;
 }
@@ -30,13 +28,11 @@ int indiceObjeto(char *nombre)
 void readdir(char* path)
 {
 
-	//enviarString(socketRespuesta, ".");
-	//enviarString(socketRespuesta, "..");
 	char* finalizado = malloc(10);
 	int enviados = 0;
 	int contArray=0;
 	char directorio[MAX_FILENAME_LENGTH];
-	char* nombreAEnviar;// = malloc(sizeof(MAX_FILENAME_LENGTH)); //valgrind
+	char* nombreAEnviar;// = malloc(sizeof(MAX_FILENAME_LENGTH)); valgrind
 	char** pathCortado = malloc(10*sizeof(char*));
 
 	for(int i=0;i<=9;i++)
@@ -54,7 +50,6 @@ void readdir(char* path)
 				nombreAEnviar = strdup(tablaNodos[indActual].nombre);
 				enviarString(socketRespuesta, nombreAEnviar);
 				enviados++;
-				loggearInfo("se envia el nombre del directorio");
 
 			}
 		}
@@ -104,36 +99,41 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido)
 		{
 			case GETATTR:
 
+				recibirString(socketRespuesta, &path);
+				if(strcmp(path,"/") == 0)
+				{
+					enviarInt(socketRespuesta, 2);
+					break;
+				}
+				int indice = indiceObjeto(path);
+				int estado = tablaNodos[indice].estado;
+				enviarInt(socketRespuesta, estado);
 			break;
 
 			case READDIR:
 				recibirString(socketRespuesta, &path);
 
-				strcpy(info,"Se recibió el path: ");
-				strcat(info,path);
-				loggearInfo(info);
-
 				readdir(path); 	//recibe un path, lo busca en los nodos y devuelve los que cumplen
-				//free(mensajeRecibido);
-
 			break;
 
 			case READ:
 
 				recibirString(socketRespuesta, &path);//recibe el nombre
 
-				strcpy(info,"Se recibió el path: ");
-				strcat(info,path);
-				loggearInfo(info);
+				int indArch = indiceObjeto(path);
 
+				enviarInt(socketRespuesta, indArch);
+
+				if (indArch == -1)// si no existe
+					break;
 
 				for (int indActual = 0; tablaNodos[indActual].estado != 0 && indActual < MAX_FILE_NUMBER; indActual++)
 				{
 					if( strcmp(tablaNodos[indActual].nombre, path) == 0 )
 						strcpy(contenido,tablaNodos[indActual].contenido);
 				}
-				enviarString(socketRespuesta, contenido);
 
+				enviarString(socketRespuesta, contenido);
 
 			break;
 
@@ -209,8 +209,8 @@ void levantarServidorFUSE()
 				loggearInfo("Error al crear un nuevo hilo");
 			else
 			{
-				sprintf(info,"Se crea el hilo %d",mensajeRecibido->idHilo);
-				loggearInfo(info);
+				/*sprintf(info,"Se crea el hilo %d",mensajeRecibido->idHilo);
+				loggearInfo(info);*/
 				pthread_join(hiloAtendedor, NULL);
 				hiloAtendedor++;
 				mensajeRecibido->idHilo = hiloAtendedor;
