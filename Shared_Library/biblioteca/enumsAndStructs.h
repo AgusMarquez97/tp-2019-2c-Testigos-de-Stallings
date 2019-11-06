@@ -72,6 +72,7 @@ typedef struct {
 	int32_t estadoHilo;
 	int32_t rafaga;
 	char * semBloqueante;
+	int32_t hiloBloqueante;
 } t_hiloPlanificado;
 
 typedef struct {

@@ -54,8 +54,26 @@ int suse_schedule_next(void){
 }
 
 int suse_join(int tid){
-	// Not supported
-	return 0;
+
+	loggearInfo("Joinenando hilo...");
+
+				int32_t estado = -1;
+				int socketCliente = levantarCliente(ip_suse, puerto_suse);
+
+				if(socketCliente != -1) {
+					enviarJoin(socketCliente, id_proceso, tid);
+					recibirInt(socketCliente, &estado);
+				}
+				close(socketCliente);
+
+				if(estado == -1) {
+					loggearError("Error: No se ha podido realizar Join");
+					return 0;
+				}
+
+				loggearInfo("Join ejecutado exitosamente");
+				return estado;
+
 }
 
 int suse_close(int tid){

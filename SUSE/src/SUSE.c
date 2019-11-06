@@ -100,9 +100,10 @@ int obtenerMultiprogActual()
 
 int32_t suse_schedule_next_servidor(char* idProcString){
 
+
     t_queue* colaReady= dictionary_get(readys, idProcString);
     t_hiloPlanificado* hiloSiguiente;
-
+if(!queue_is_empty(colaReady)){
     //FIFO, (Pasar después a SJF)
     hiloSiguiente= queue_pop(colaReady);
     hiloSiguiente->estadoHilo=EXEC;
@@ -115,30 +116,10 @@ int32_t suse_schedule_next_servidor(char* idProcString){
 
 
     return hiloSiguiente->idHilo;
+}
+return 0;
 
 }
-
-int32_t suse_join_servidor(char* idProcString, int32_t tid)
-{
-	if(hiloFinalizo(idProcString,tid))
-	{
-	return 0;
-	}
-
-	t_hiloPlanificado* hiloABloquear;
-
-	hiloABloquear= dictionary_remove(execs, idProcString);//lo quito
-	hiloABloquear->estadoHilo=BLOCK; //lo bloqueo
-	list_add(blockeds,hiloABloquear);//lo meto en blockeds
-
-	//ESPERAR
-
-
-
-
-    return 0;
-}
-
 bool hiloFinalizo(char* idProcString, int32_t tid)
 {
 	bool encontroHilo(t_hiloPlanificado* unHilo)
@@ -147,6 +128,48 @@ bool hiloFinalizo(char* idProcString, int32_t tid)
 	}
 
 	return list_any_satisfy(exits,(void*) encontroHilo);
+}
+int32_t suse_join_servidor(char* idProcString, int32_t tid)
+{
+
+	if(hiloFinalizo(idProcString,tid))
+	{
+	return 0;
+	}
+
+
+	t_hiloPlanificado* hiloABloquear;
+
+	hiloABloquear= dictionary_remove(execs, idProcString);//lo quito
+	hiloABloquear->estadoHilo=BLOCK;
+	hiloABloquear->hiloBloqueante=tid;//lo bloqueo
+	list_add(blockeds,hiloABloquear);//lo meto en blockeds
+
+
+
+    return 0;
+}
+
+
+
+void desbloquearJoin(t_hiloPlanificado* hilo)
+{
+	t_hiloPlanificado* hiloBloqueadoPorJoin;
+
+		bool existeHiloBloqueado(t_hiloPlanificado* unHilo)
+			{
+				return (unHilo->idProceso==hilo->idProceso) && unHilo->hiloBloqueante == hilo->idHilo; //busca el primer hilo que esta bloqueado por el hiloBloqueante del mismo proceso
+			}
+
+		if(list_any_satisfy(blockeds, (void*)existeHiloBloqueado)){ //existe algun hilo bloqueado por el que termino?
+
+					hiloBloqueadoPorJoin= list_remove_by_condition(blockeds, (void *) existeHiloBloqueado);
+					hiloBloqueadoPorJoin->estadoHilo=READY;
+					hiloBloqueadoPorJoin->hiloBloqueante = NULL;
+					t_queue* colaReadyDelProc = dictionary_get(readys,hilo->idProceso);
+					queue_push(colaReadyDelProc,hiloBloqueadoPorJoin);
+			}
+
 }
 
 
@@ -167,7 +190,11 @@ int32_t suse_close_servidor(char *  idProcString, int32_t tid)
     sprintf(msj,"El hilo %d del proceso %s finalizo",hiloParaExit->idHilo,idProcString);
     loggearInfo(msj);
     free(msj);
+
+
+    //desbloquearJoin(hiloParaExit); //revisa si dicho hilo estaba bloqueando a otro
     return 0;
+
 
     }
     else return -1;
@@ -210,7 +237,7 @@ int32_t suse_signal_servidor(char *idProcString,int32_t idHilo,char *semId)
 			return sem->idSem == semId; //retorna true si idSem(el id del sem en la lista) es igual a semId (al que te piden)
 		}
 		t_semaforoSuse* semaforo= list_find(semaforos, (void*) semEncontrado);
-		if(semaforo != NULL)//si encontro el semaforo en la lista...
+		if(semaforo != NULL && (semaforo->valorActual < semaforo->valorMax))//si encontro el semaforo en la lista...
 		{
 			semaforo->valorActual++;
 			if(semaforo->valorActual <= 0)//si queda en positivo el semaforo no esta bloqueando ningun hilo
