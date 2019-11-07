@@ -28,6 +28,7 @@
 #define MAX_FILENAME_LENGTH 71
 #define BITMAP_START_BLOCK 1
 #define BITMAP_SIZE_IN_BLOCKS 1
+#define BLOQUES_INDIRECTOS 1000
 
 typedef uint32_t ptrGBloque;
 
@@ -54,8 +55,10 @@ typedef struct archivo
 	uint8_t estado; //0:borrado, 1:archivo, 2:directorio
 	char nombre[MAX_FILENAME_LENGTH];
 	uint32_t file_size;
-	char contenido[256];
-	struct archivo* padre;
+	ptrGBloque bloques_ind[BLOQUES_INDIRECTOS];//"Cada posición del array contiene la dirección del bloque que almacena un array de 1024 direcciones de bloques de datos"
+	ptrGBloque padre;
+	uint64_t fecha_creacion;
+	uint64_t fecha_modif;
 }GFile;
 
 /*

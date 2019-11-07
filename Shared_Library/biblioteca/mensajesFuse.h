@@ -10,5 +10,6 @@
 
 #include "mensajes.h"
 
+t_mensajeFuse* recibirOperacionFuse(int socketEmisor);
 
 #endif /* BIBLIOTECA_MENSAJESFUSE_H_ */

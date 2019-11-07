@@ -199,8 +199,6 @@ void eliminarObjeto(char* nombre)
 static int hacer_getattr(const char *path, struct stat *st)
 {
 
-	/*modificar para archivos borrados*/
-
 	char* nombre = malloc(MAX_FILENAME_LENGTH);
 	int estadoNodo;
 
@@ -304,38 +302,12 @@ static int hacer_read(const char *path, char *buffer, size_t size, off_t offset,
 //va a ser llamada para crear un nuevo directorio. "modo" son los bits de permiso, ver documentacion de mkdir
 static int hacer_mkdir(const char *path, mode_t modo)
 {
+	char* pathAEnviar = malloc(300);
 
-	char nombre[MAX_FILENAME_LENGTH];
-	char padre[MAX_FILENAME_LENGTH];
-	int contador = 0;
-	char** pathCortado = malloc(10*sizeof(char*));
+	enviarInt(socketConexion, MKDIR);
 
-	for(int i=0;i<=9;i++)
-		pathCortado[i] = malloc(sizeof(char*));
-
-	pathCortado = string_n_split(path, 10, "/");
-
-	if(pathCortado[1]==NULL) //estamos en punto de montaje
-	{
-		strcpy(nombre,pathCortado[0]);
-		padre[0]='\0';
-	}
-	else // "/dir/algo" minimo
-	{
-		contador++;
-		while(pathCortado[contador]!=NULL)
-		{
-			strcpy(padre,pathCortado[contador-1]);
-			strcpy(nombre,pathCortado[contador]);
-			contador++;
-		}
-	}
-
-	agregarDirectorio(nombre,padre);
-
-	//msync(disco, tamDisco, MS_SYNC);
-
-	free(pathCortado);
+	strcpy(pathAEnviar,path);
+	enviarString(socketConexion, pathAEnviar);
 
 	return 0;
 
@@ -346,37 +318,12 @@ static int hacer_mkdir(const char *path, mode_t modo)
 static int hacer_mknod(const char *path, mode_t modo, dev_t dispositivo)
 {
 
-	char nombre[MAX_FILENAME_LENGTH];
-	char padre[MAX_FILENAME_LENGTH];
-	int contador = 0;
-	char** pathCortado = malloc(10*sizeof(char*));
+	char* pathAEnviar = malloc(300);
 
-		for(int i=0;i<=9;i++)
-			pathCortado[i] = malloc(sizeof(char*));
+	enviarInt(socketConexion, MKNOD);
 
-	pathCortado = string_n_split(path, 10, "/");
-
-	if(pathCortado[1]==NULL)
-	{
-		strcpy(nombre,pathCortado[0]);
-		padre[0]='\0';
-	}
-	else
-	{
-		contador++;
-		while(pathCortado[contador]!=NULL)
-		{
-			strcpy(padre,pathCortado[contador-1]);
-			strcpy(nombre,pathCortado[contador]);
-			contador++;
-		}
-	}
-
-	agregarArchivo(nombre,padre);
-
-	//msync(disco, tamDisco, MS_SYNC);
-
-	free(pathCortado);
+	strcpy(pathAEnviar,path);
+	enviarString(socketConexion, pathAEnviar);
 
 	return 0;
 
@@ -394,44 +341,80 @@ static int hacer_write(const char *path, const char *buffer, size_t size, off_t 
 static int hacer_rmdir (const char *path)
 {
 
-	/*revisar que no deja volver a crear dir con mismo nombre despues de borrar
-	 * aparece en el disco pero no en mount point*/
+	enviarInt(socketConexion, RMDIR);
 
 	char* nombre = nombreObjeto(path);
 
-	if (strcmp(path,"/") == 0) //si es el punto de montaje tira error
-		return EBUSY;
+	int error;
 
-	if(esDirectorio(path) == 0)//si no es directorio tira error
-		return ENOTDIR;
+	enviarString(socketConexion, nombre);
 
-	if(estaVacio(nombre) == 0)//si no esta vacio tira error
-		return ENOENT;
+	/*			*/
 
-	eliminarObjeto(nombre);
+	recibirInt(socketConexion, &error);
+	if( error != 0 )
+	{
+		switch(error)
+		{
+			case EBUSY:
+				return EBUSY;
+			break;
 
-	//msync(disco, tamDisco, MS_SYNC);
+			case ENOTDIR:
+				return ENOTDIR;
+			break;
+
+			case ENOENT:
+				return ENOENT;
+			break;
+
+			default:
+			break;
+		}
+	}
+
 
 	return 0;
 }
 
 
 //va a ser llamada para remover un archivo
-static int hacer_unlink (const char *path)
+static int hacer_unlink(const char *path)
 {
-	if(esDirectorio(path) == 1)
-		return EISDIR;
 
-	if(esArchivo(path) == 0)
-		return ENOENT;
+	enviarInt(socketConexion, UNLINK);
 
 	char* nombre = nombreObjeto(path);
 
-	eliminarObjeto(nombre);
+	int error;
 
-	//msync(disco, tamDisco, MS_SYNC);
+	enviarString(socketConexion, nombre);
+
+	/*			*/
+
+	recibirInt(socketConexion, &error);
+
+	if( error != 0 )
+	{
+		switch(error)
+		{
+			case EISDIR:
+				return EISDIR;
+			break;
+
+			case ENOENT:
+				return ENOENT;
+			break;
+
+			default:
+			break;
+		}
+	}
+
 
 	return 0;
+
+
 }
 
 //va a ser llamada para renombar un archivo o directorio. Devuelve 0 si funca

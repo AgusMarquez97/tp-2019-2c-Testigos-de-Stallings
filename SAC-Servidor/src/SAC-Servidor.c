@@ -14,16 +14,168 @@ GFile* tablaNodos;
 int socketRespuesta;
 int indiceTabla = -1;
 
+typedef enum {
+	BORRADO,
+	ARCHIVO,
+	DIRECTORIO,
+} t_estadoNodo;
+
+char* nombreObjeto(char* path)
+{
+    char* nombre = malloc(MAX_FILENAME_LENGTH);
+	char* reverso =	string_reverse(path);
+    int cont = 0;
+    while(reverso[cont]!='/')
+    {
+        cont++;
+    }
+    reverso[cont] = '\0';
+    nombre = string_reverse(reverso);
+    return nombre;
+}
+
+//devuelve 1 si el directorio o archivo existe, 0 si no existe
+int existeObjeto(char* path)
+{
+	char* nombre = nombreObjeto(path);
+
+	for (int indActual = 0; indActual <= MAX_FILE_NUMBER; indActual++)
+		if (tablaNodos[indActual].estado != 0 && strcmp(nombre,tablaNodos[indActual].nombre) == 0)
+			return 1;
+
+	return 0;
+}
 
 int indiceObjeto(char *nombre)
 {
 
-	for (int indActual = 0; tablaNodos[indActual].estado != 0 && indActual < MAX_FILE_NUMBER; indActual++)
-		if (strcmp(nombre,tablaNodos[indActual].nombre) == 0)
+	for (int indActual = 0; indActual < MAX_FILE_NUMBER; indActual++)
+		if (tablaNodos[indActual].estado != 0 && strcmp(nombre,tablaNodos[indActual].nombre) == 0)
 			return indActual;
 
 	return -1;
 }
+
+//devuelve 1 si existe y es un directorio, 0 si no
+int esDirectorio(char* nombre)
+{
+	int indiceDir = indiceObjeto(nombre);
+	if(indiceDir>=0 && indiceDir<=MAX_FILE_NUMBER)
+	{
+		if (tablaNodos[indiceDir].estado == DIRECTORIO)
+			return 1;
+	}
+
+	return 0;
+}
+
+//devuelve 1 si existe y es un archivo, 0 si no
+int esArchivo(char* nombre)
+{
+
+	int indiceArch = indiceObjeto(nombre);
+	if(indiceArch>=0 && indiceArch<=MAX_FILE_NUMBER)
+	{
+		if (tablaNodos[indiceArch].estado == ARCHIVO)
+			return 1;
+	}
+
+	return 0;
+}
+
+//ve si un directorio esta vacio. Devuelve 1 si esta vacio, 0 si tiene algo
+int estaVacio(char* nombre)
+{
+
+	int indiceArch = indiceObjeto(nombre);
+
+	for (int indActual = 0; indActual < MAX_FILE_NUMBER; indActual++)
+	{
+		if(tablaNodos[indActual].estado != 0 && tablaNodos[indActual].padre == indiceArch)
+		return 0;
+	}
+	return 1;
+}
+
+//"elimina" un objeto de la tabla
+void eliminarObjeto(char* nombre)
+{
+	int objeto = indiceObjeto(nombre);
+
+	//tablaNodos[objeto]->contenido[0] = '\0';
+	tablaNodos[objeto].estado = 0;
+	memset(tablaNodos[objeto].nombre, 0, MAX_FILENAME_LENGTH);
+	tablaNodos[objeto].file_size = 0;
+	tablaNodos[objeto].padre = 0;
+
+}
+
+
+void agregarObjeto(char* nombre, char* padre, int estado)
+{
+
+	char* info=malloc(50);
+	int indActual = 0;
+
+	while(tablaNodos[indActual].estado != 0 && indActual <MAX_FILE_NUMBER)
+		indActual++;
+
+	GFile* nodoNuevo = tablaNodos + indActual;
+
+	//inicializo valores del nodo
+	/*if(estado == ARCHIVO)
+		nodoNuevo->bloques_ind[0]*/
+	strcpy(nodoNuevo->nombre, nombre);
+	nodoNuevo->file_size=0;
+	nodoNuevo->estado=estado;
+
+	//linkeo al padre
+
+	if(padre[0] != '\0')
+	{
+		int indicePadre = indiceObjeto(padre);
+		nodoNuevo->padre = indicePadre;
+	}
+	else
+		nodoNuevo->padre = 0;
+
+}
+
+void crearObjeto(char *path, int estado)
+{
+
+	char nombre[MAX_FILENAME_LENGTH];
+	char padre[MAX_FILENAME_LENGTH];
+	int contador = 0;
+	char** pathCortado = malloc(10*sizeof(char*));
+
+	for(int i=0;i<=9;i++)
+		pathCortado[i] = malloc(sizeof(char*));
+
+	pathCortado = string_n_split(path, 10, "/");
+
+	if(pathCortado[1]==NULL) //estamos en punto de montaje
+	{
+		strcpy(nombre,pathCortado[0]);
+		padre[0]='\0';
+	}
+	else // "/dir/algo" minimo
+	{
+		contador++;
+		while(pathCortado[contador]!=NULL)
+		{
+			strcpy(padre,pathCortado[contador-1]);
+			strcpy(nombre,pathCortado[contador]);
+			contador++;
+		}
+	}
+
+	agregarObjeto(nombre, padre, estado);
+
+	free(pathCortado);
+
+}
+
 
 void readdir(char* path)
 {
@@ -40,12 +192,12 @@ void readdir(char* path)
 
 	pathCortado=string_n_split(path, 10, "/"); // separa el path en strings
 
-	//if(pathCortado[contArray]==NULL) // si es el punto de montaje
-	//{
+	if(pathCortado[contArray]==NULL) // si es el punto de montaje
+	{
 
-		for (int indActual = 0; tablaNodos[indActual].estado != 0 && indActual < MAX_FILE_NUMBER; indActual++)
+		for(int indActual = 0; indActual < MAX_FILE_NUMBER; indActual++)
 		{
-			if(tablaNodos[indActual].padre==NULL)
+			if(tablaNodos[indActual].estado != 0 && tablaNodos[indActual].padre==0)
 			{
 				nombreAEnviar = strdup(tablaNodos[indActual].nombre);
 				enviarString(socketRespuesta, nombreAEnviar);
@@ -54,8 +206,8 @@ void readdir(char* path)
 			}
 		}
 
-	//}
-	/*else	//si no es el punto de montaje
+	}
+	else	//si no es el punto de montaje
 	{
 		do
 		{
@@ -63,24 +215,28 @@ void readdir(char* path)
 
 			contArray++;
 		}
-		while(pathCortado[contArray]!=NULL);
+		while(pathCortado[contArray]!=NULL);//pone en directorio el ultimo elemento del path
 
-		for (int indActual = 0; indActual <= indiceTabla; indActual++)
+		for (int indActual = 0; tablaNodos[indActual].estado != 0 && indActual < MAX_FILE_NUMBER; indActual++)
 		{
-			if(tablaNodos[indActual].padre != NULL)
+			if(tablaNodos[indActual].padre != 0)
 			{
-				if(strcmp(tablaNodos[indActual].padre->nombre, directorio)==0)
+				int indicePadre = tablaNodos[indActual].padre;
+				if(strcmp(tablaNodos[indicePadre].nombre, directorio)==0)//los hijos del directorio
 				{
-					enviarString(socketRespuesta, tablaNodos[indActual].nombre);
+					nombreAEnviar = strdup(tablaNodos[indActual].nombre);
+					enviarString(socketRespuesta, nombreAEnviar);
 					enviados++;
 				}
 			}
 		}
-	}*/
+	}
 	strcpy(finalizado,"dou");//hago esto porque sino enviarString llora
 	enviarString(socketRespuesta, finalizado);//"avisa" al cliente que termino
 
 	free(pathCortado);
+	//free(nombreAEnviar);
+	//free(finalizado);
 
 }
 
@@ -88,89 +244,155 @@ void readdir(char* path)
 void rutinaServidor(t_mensajeFuse* mensajeRecibido)
 {
 
-
 	char * info = malloc(530);
+	int error;
 
 	//char * msj;
-	char* path = malloc(500);
+	char* path;// = malloc(500);
 	char* contenido= malloc(256);
 
-		switch(mensajeRecibido->tipoOperacion)
-		{
-			case GETATTR:
+	switch(mensajeRecibido->tipoOperacion)
+	{
+		case GETATTR:
 
-				recibirString(socketRespuesta, &path);
-				if(strcmp(path,"/") == 0)
-				{
-					enviarInt(socketRespuesta, 2);
-					break;
-				}
+			recibirString(socketRespuesta, &path);
+			if(strcmp(path,"/") == 0)
+			{
+				enviarInt(socketRespuesta, DIRECTORIO);
+				break;
+			}
+			if(existeObjeto(path) == 1)//si existe envia su estado
+			{
 				int indice = indiceObjeto(path);
 				int estado = tablaNodos[indice].estado;
 				enviarInt(socketRespuesta, estado);
-			break;
+			}
+			else
+				enviarInt(socketRespuesta, BORRADO);
+		break;
 
-			case READDIR:
-				recibirString(socketRespuesta, &path);
+		case READDIR:
 
-				readdir(path); 	//recibe un path, lo busca en los nodos y devuelve los que cumplen
-			break;
+			recibirString(socketRespuesta, &path);
 
-			case READ:
+			readdir(path); 	//recibe un path, lo busca en los nodos y devuelve los que cumplen
+		break;
 
-				recibirString(socketRespuesta, &path);//recibe el nombre
+		case READ:
 
-				int indArch = indiceObjeto(path);
+			recibirString(socketRespuesta, &path);//recibe el nombre
 
-				enviarInt(socketRespuesta, indArch);
+			int indArch = indiceObjeto(path);
 
-				if (indArch == -1)// si no existe
-					break;
+			enviarInt(socketRespuesta, indArch);
 
+			if (indArch == -1)// si no existe
+				break;
+/*
 				for (int indActual = 0; tablaNodos[indActual].estado != 0 && indActual < MAX_FILE_NUMBER; indActual++)
 				{
 					if( strcmp(tablaNodos[indActual].nombre, path) == 0 )
-						strcpy(contenido,tablaNodos[indActual].contenido);
-				}
+						strcpy(contenido,tablaNodos[indActual].contenido);	hacer algo con el contenido
+				}*/
 
-				enviarString(socketRespuesta, contenido);
+			strcpy(contenido, "no se, a ver si con esto anda");
 
-			break;
+			enviarString(socketRespuesta, contenido);
 
-			case MKDIR:
+		break;
 
-			break;
+		case MKDIR:
 
-			case MKNOD:
+			recibirString(socketRespuesta, &path);
 
-			break;
+			crearObjeto(path,DIRECTORIO);
+		break;
 
-			case WRITE:
+		case MKNOD:
 
-			break;
+			recibirString(socketRespuesta, &path);
 
-			case RENAME:
+			crearObjeto(path,ARCHIVO);
 
-			break;
+		break;
 
-			case UNLINK:
+		case WRITE:
 
-			break;
+		break;
 
-			case RMDIR:
+		case RENAME:
 
-			break;
+		break;
 
-			default:
+		case UNLINK:
 
-			break;
+			recibirString(socketRespuesta, &path);//recibe el nombre del directorio
 
-		}
+			if(esDirectorio(path) == 1)//si no es directorio tira error
+			{
+				error = EISDIR;
+				enviarInt(socketRespuesta, error);
+				break;
+			}
 
-		free(info);
-		free(path);
-		return;
+			if(esArchivo(path) == 0)//si no esta vacio tira error
+			{
+				error = ENOENT;
+				enviarInt(socketRespuesta, error);
+				break;
+			}
 
+			eliminarObjeto(path);
+
+
+			enviarInt(socketRespuesta, 0);//avisa que esta todo piola
+
+		break;
+
+		case RMDIR:
+
+			/*revisar el caso de borrar 2 directorios con la misma id*/
+
+
+			recibirString(socketRespuesta, &path);//recibe el nombre del directorio
+
+
+			if (strcmp(path,"/") == 0) //si es el punto de montaje tira error
+			{
+				error = EBUSY;
+				enviarInt(socketRespuesta, error);
+				break;
+			}
+
+			if(esDirectorio(path) == 0)//si no es directorio tira error
+			{
+				error = ENOTDIR;
+				enviarInt(socketRespuesta, error);
+				break;
+			}
+
+			if(estaVacio(path) == 0)//si no esta vacio tira error
+			{
+				error = ENOENT;
+				enviarInt(socketRespuesta, error);
+				break;
+			}
+
+
+			eliminarObjeto(path);
+
+
+			enviarInt(socketRespuesta, 0);
+		break;
+
+		default:
+		break;
+
+	}
+
+	free(info);
+	free(path);
+	return;
 
 }
 
@@ -262,7 +484,9 @@ int main( int argc, char *argv[] )
 
 	disco = mmap(NULL, tamDisco, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, discoFD, 0);
 
-	disco = disco + 1 + BITMAP_SIZE_IN_BLOCKS; // mueve el puntero dos posiciones hasta la tabla de nodos
+	//int tamBitmap = tamDisco/BLOCK_SIZE/8; //tamanio del bitmap
+
+	disco = disco + 1 + BITMAP_SIZE_IN_BLOCKS; // mueve el puntero por el header y bitmap hasta la tabla de nodos
 
 	tablaNodos = (GFile*) disco;
 
