@@ -83,5 +83,16 @@ void levantarServidorFUSE();
  */
 void liberarVariablesGlobales();
 
+char* nombreObjeto(char* path);
+void renombrar(char* oldpath, char* newpath);
+int existeObjeto(char* path);
+int indiceObjeto(char *nombre);
+int esDirectorio(char* nombre);
+int esArchivo(char* nombre);
+int estaVacio(char* nombre);
+void eliminarObjeto(char* nombre);
+void agregarObjeto(char* nombre, char* padre, int estado);
+void crearObjeto(char *path, int estado);
+void readdir(char* path);
 
 #endif

@@ -418,86 +418,26 @@ static int hacer_unlink(const char *path)
 }
 
 //va a ser llamada para renombar un archivo o directorio. Devuelve 0 si funca
-static int hacer_rename(const char *oldpath, const char *newpath)
+static int hacer_rename(const char *oldpath, const char *newpath, unsigned int flags)
 {
 
-	//ERRORES
+	int error = 0;
 
-	if (esDirectorio(oldpath) == 1)
-	{
-		//si queres renombrar un directorio, el nuevo no tiene que existir o debe estar vacio
-		if( (existeObjeto(newpath) == 1) && (estaVacio(newpath) == 0) )
-			return ENOTEMPTY; //o EEXIST
+	enviarInt(socketConexion, RENAME);
+
+	char* pathsAEnviar = malloc( sizeof(oldpath) + sizeof(newpath) + 1 );
 
 
-		if ( (strcmp(oldpath,"/") == 0) || (strcmp(newpath,"/") == 0) )//si es el punto de montaje tira error
-				return EBUSY;
+	strcpy(pathsAEnviar, oldpath);
+	strcat(pathsAEnviar, ",");
+	strcat(pathsAEnviar, newpath);
 
-		/* EINVAL The new pathname contained a path prefix of the old, or, more
-              generally, an attempt was made to make a directory a
-              subdirectory of itself.*/
+	enviarString(socketConexion, pathsAEnviar);
 
+	recibirInt(socketConexion, &error);
 
-		if( (existeObjeto(newpath) == 1 ) && (esDirectorio(newpath) == 0) )//newpath existe pero no es directorio
-			return ENOTDIR;
+	return error;
 
-	}
-
-	if( (esDirectorio(newpath) == 1) && (esDirectorio(oldpath) == 0) )//new es directorio pero old no
-		return EISDIR;
-
-	if( existeObjeto(oldpath) == 0 )
-		return ENOENT;
-
-	//FUNCIONALIDAD
-
-	if(strcmp(oldpath,newpath) == 0)
-		return 0;
-
-	char nombreNuevo[MAX_FILENAME_LENGTH];
-
-	/*int contador = 0;
-	char** pathCortado = malloc(10*sizeof(char*));
-
-	for(int i=0;i<=9;i++)
-		pathCortado[i] = malloc(sizeof(char*));
-
-	pathCortado = string_n_split(newpath, 10, "/");
-
-	while(pathCortado[contador]!=NULL)
-	{
-		contador++;
-	}
-
-	strcpy(nombreNuevo,pathCortado[contador-1]);*/
-
-	int indiceViejo = indiceObjeto(oldpath);
-
-	strcpy( nombreNuevo, nombreObjeto(newpath) );
-
-	if( existeObjeto(newpath) == 1 ) //si el nuevo ya existe, se renombra el viejo y se borra el nuevo
-	{
-
-		int indiceNuevo = indiceObjeto(newpath);
-
-		eliminarObjeto(nombreNuevo);
-
-		memset(tablaNodos[indiceViejo]->nombre, 0, MAX_FILENAME_LENGTH);
-
-		strcpy(tablaNodos[indiceViejo]->nombre, nombreNuevo);
-
-	}
-	else//si el nuevo no existe simplemente se renombra el viejo
-	{
-
-		memset(tablaNodos[indiceViejo]->nombre, 0, MAX_FILENAME_LENGTH);
-
-		strcpy(tablaNodos[indiceViejo]->nombre, nombreNuevo);
-	}
-
-	msync(disco, tamDisco, MS_SYNC);
-
-	return 0;
 }
 
 
