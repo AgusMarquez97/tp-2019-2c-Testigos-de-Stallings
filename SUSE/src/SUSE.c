@@ -17,10 +17,10 @@
 /*Crea un molde de hilo y lo agrega a la cola de news (unica para todos los procesos) y al finalizar intenta mandarlo a la de readys*/
 int32_t suse_create_servidor(char* idProcString, int32_t idThread){
 
-	t_hiloPlanificado* hiloEntrante= malloc(sizeof(hiloEntrante));//(elemento planificable)
+	t_hiloPlanificado* hiloEntrante= malloc(sizeof(t_hiloPlanificado)+20);//(elemento planificable)
 
 
-	hiloEntrante->idProceso=idProcString;
+	hiloEntrante->idProceso=strdup(idProcString);
 	hiloEntrante->idHilo= idThread;
 	hiloEntrante->estadoHilo= CREATE;
 
@@ -103,10 +103,16 @@ int32_t suse_schedule_next_servidor(char* idProcString){
 
     t_queue* colaReady= dictionary_get(readys, idProcString);
     t_hiloPlanificado* hiloSiguiente;
+    t_hiloPlanificado* hiloActual;//este hilo estaba ejecutando, como llega un next debe volver a ready para dejarlo ejecutar al siguiente
+    hiloActual = dictionary_get(execs,idProcString);
+
 if(!queue_is_empty(colaReady)){
     //FIFO, (Pasar después a SJF)
     hiloSiguiente= queue_pop(colaReady);
     hiloSiguiente->estadoHilo=EXEC;
+
+        if(hiloActual != NULL)
+    queue_push(colaReady,hiloActual);
     dictionary_put(execs,idProcString,hiloSiguiente);
 
     char * msj = malloc(strlen("El hilo 99999999999 del proceso 9999999999999 entro en EXEC " ) + 1);
@@ -117,7 +123,7 @@ if(!queue_is_empty(colaReady)){
 
     return hiloSiguiente->idHilo;
 }
-return 0;
+return hiloActual->idHilo;
 
 }
 bool hiloFinalizo(char* idProcString, int32_t tid)
@@ -143,6 +149,7 @@ int32_t suse_join_servidor(char* idProcString, int32_t tid)
 	hiloABloquear= dictionary_remove(execs, idProcString);//lo quito
 	hiloABloquear->estadoHilo=BLOCK;
 	hiloABloquear->hiloBloqueante=tid;//lo bloqueo
+	//hiloABloquear->idProceso=idProcString;//bug? sin esto guarda idprocstring "1924/002" o algo asi
 	list_add(blockeds,hiloABloquear);//lo meto en blockeds
 
 
@@ -158,17 +165,22 @@ void desbloquearJoin(t_hiloPlanificado* hilo)
 
 		bool existeHiloBloqueado(t_hiloPlanificado* unHilo)
 			{
-				return (unHilo->idProceso==hilo->idProceso) && unHilo->hiloBloqueante == hilo->idHilo; //busca el primer hilo que esta bloqueado por el hiloBloqueante del mismo proceso
+				if((!strcmp(unHilo->idProceso,hilo->idProceso)) && (unHilo->hiloBloqueante == hilo->idHilo)) //busca el primer hilo que esta bloqueado por el hiloBloqueante del mismo proceso
+				//strcmp devuelve 0 si son iguales las cadenas, por eso el !. Si son iguales y hiloB e idHilo coinciden retorna 1...
+				return 1;
+				return 0;
 			}
 
-		if(list_any_satisfy(blockeds, (void*)existeHiloBloqueado)){ //existe algun hilo bloqueado por el que termino?
+
 
 					hiloBloqueadoPorJoin= list_remove_by_condition(blockeds, (void *) existeHiloBloqueado);
-					hiloBloqueadoPorJoin->estadoHilo=READY;
-					hiloBloqueadoPorJoin->hiloBloqueante = NULL;
-					t_queue* colaReadyDelProc = dictionary_get(readys,hilo->idProceso);
-					queue_push(colaReadyDelProc,hiloBloqueadoPorJoin);
-			}
+					if(hiloBloqueadoPorJoin!=NULL)
+					{
+						hiloBloqueadoPorJoin->estadoHilo=READY;
+						hiloBloqueadoPorJoin->hiloBloqueante = NULL;
+						t_queue* colaReadyDelProc = dictionary_get(readys,hilo->idProceso);
+						queue_push(colaReadyDelProc,hiloBloqueadoPorJoin);
+					}
 
 }
 
@@ -192,7 +204,7 @@ int32_t suse_close_servidor(char *  idProcString, int32_t tid)
     free(msj);
 
 
-    //desbloquearJoin(hiloParaExit); //revisa si dicho hilo estaba bloqueando a otro
+    desbloquearJoin(hiloParaExit); //revisa si dicho hilo estaba bloqueando a otro
     return 0;
 
 
@@ -220,7 +232,7 @@ int32_t suse_wait_servidor(char *idProcString,int32_t idHilo,char *semId)
 
 			hiloABloquear= dictionary_remove(execs, idProcString);
 			hiloABloquear->estadoHilo=BLOCK;
-			hiloABloquear->semBloqueante = semaforo;
+			hiloABloquear->semBloqueante = semaforo->idSem;
 			list_add(blockeds,hiloABloquear);
 		}
 
