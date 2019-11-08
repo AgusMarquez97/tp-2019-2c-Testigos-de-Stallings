@@ -20,18 +20,57 @@ typedef enum {
 	DIRECTORIO,
 } t_estadoNodo;
 
+void renombrar(char* oldpath, char* newpath)
+{
+
+	char nombreViejo[MAX_FILENAME_LENGTH];
+	char nombreNuevo[MAX_FILENAME_LENGTH];
+
+	strcpy(nombreViejo, nombreObjeto(oldpath) );
+	strcpy(nombreNuevo, nombreObjeto(newpath) );
+
+	int indiceViejo = indiceObjeto(nombreViejo);
+
+	if( existeObjeto(newpath) == 1 ) //si el nuevo ya existe, se renombra el viejo y se borra el nuevo
+	{
+
+		eliminarObjeto(nombreNuevo);
+
+		memset(tablaNodos[indiceViejo].nombre, 0, MAX_FILENAME_LENGTH);
+
+		strcpy(tablaNodos[indiceViejo].nombre, nombreNuevo);
+
+	}
+	else//si el nuevo no existe simplemente se renombra el viejo
+	{
+
+		memset(tablaNodos[indiceViejo].nombre, 0, MAX_FILENAME_LENGTH);
+
+		strcpy(tablaNodos[indiceViejo].nombre, nombreNuevo);
+
+	}
+
+}
+
+//recibe un path y devuelve el nombre del objeto o directorio
 char* nombreObjeto(char* path)
 {
-    char* nombre = malloc(MAX_FILENAME_LENGTH);
-	char* reverso =	string_reverse(path);
-    int cont = 0;
-    while(reverso[cont]!='/')
-    {
-        cont++;
-    }
-    reverso[cont] = '\0';
-    nombre = string_reverse(reverso);
-    return nombre;
+
+	char* nombre = malloc(MAX_FILENAME_LENGTH);
+	int contador = 0;
+	char** pathCortado = malloc(10*sizeof(char*));
+
+	for(int i=0;i<=9;i++)
+		pathCortado[i] = malloc(sizeof(char*));
+
+	pathCortado = string_n_split(path, 10, "/");
+
+	while(pathCortado[contador]!=NULL)
+		contador++;
+
+	strcpy(nombre,pathCortado[contador-1] );
+
+	return nombre;
 }
 
 //devuelve 1 si el directorio o archivo existe, 0 si no existe
@@ -46,6 +85,7 @@ int existeObjeto(char* path)
 	return 0;
 }
 
+//recibe un nombre y devuelve el indice de ese objeto en la tabla de nodos
 int indiceObjeto(char *nombre)
 {
 
@@ -114,7 +154,6 @@ void eliminarObjeto(char* nombre)
 void agregarObjeto(char* nombre, char* padre, int estado)
 {
 
-	char* info=malloc(50);
 	int indActual = 0;
 
 	while(tablaNodos[indActual].estado != 0 && indActual <MAX_FILE_NUMBER)
@@ -247,9 +286,12 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido)
 	char * info = malloc(530);
 	int error;
 
-	//char * msj;
 	char* path;// = malloc(500);
 	char* contenido= malloc(256);
+	char* oldpath = malloc(100);
+	char* newpath = malloc(100);
+	char* nombreNuevo = malloc(MAX_FILENAME_LENGTH);
+	char* nombreViejo = malloc(MAX_FILENAME_LENGTH);
 
 	switch(mensajeRecibido->tipoOperacion)
 	{
@@ -322,6 +364,80 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido)
 
 		case RENAME:
 
+			recibirString(socketRespuesta, &path);
+
+			char** pathsRecibidos = string_split(path, ",");//[0] es oldpath, [1] es newpath
+
+			strcpy(oldpath, pathsRecibidos[0]);
+			strcpy(newpath, pathsRecibidos[1]);
+
+
+			nombreNuevo = nombreObjeto(newpath);
+			nombreViejo = nombreObjeto(oldpath);
+
+
+			//ERRORES
+
+			if (esDirectorio(nombreViejo) == 1)
+			{
+
+				//si queres renombrar un directorio, el nuevo no tiene que existir o debe estar vacio
+				if( (existeObjeto(newpath) == 1) && (estaVacio(nombreNuevo) == 0) )
+				{
+					enviarInt(socketRespuesta, ENOTEMPTY);//o EEXIST
+					break;
+				}
+
+
+				if ( (strcmp(oldpath,"/") == 0) || (strcmp(newpath,"/") == 0) )//si es el punto de montaje tira error
+				{
+					enviarInt(socketRespuesta, EBUSY);
+					break;
+				}
+
+				/*ver como hacer esto
+				 EINVAL The new pathname contained a path prefix of the old, or, more
+				 generally, an attempt was made to make a directory a
+				 subdirectory of itself.*/
+
+				if( (existeObjeto(newpath) == 1 ) && (esDirectorio(nombreNuevo) == 0) )//newpath existe pero no es directorio
+				{
+					enviarInt(socketRespuesta, ENOTDIR);
+					break;
+				}
+
+
+			}
+
+			if( (esDirectorio(nombreNuevo) == 1) && (esDirectorio(nombreViejo) == 0) )//new es directorio pero old no
+			{
+				enviarInt(socketRespuesta, EISDIR);
+				break;
+			}
+
+			if( existeObjeto(oldpath) == 0 )
+			{
+				enviarInt(socketRespuesta, ENOENT);
+				break;
+			}
+
+			//FUNCIONALIDAD
+
+			if(strcmp(oldpath,newpath) == 0)//si son iguales no se hace nada y se devuelve 0
+			{
+				enviarInt(socketRespuesta, 0);
+				break;
+			}
+
+			renombrar(oldpath, newpath);
+
+			free(oldpath);
+			free(newpath);
+			free(nombreNuevo);
+			free(nombreViejo);
+
+			enviarInt(socketRespuesta, 0);
+
 		break;
 
 		case UNLINK:
@@ -391,7 +507,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido)
 	}
 
 	free(info);
-	free(path);
+	//free(path);
 	return;
 
 }
@@ -486,9 +602,9 @@ int main( int argc, char *argv[] )
 
 	//int tamBitmap = tamDisco/BLOCK_SIZE/8; //tamanio del bitmap
 
-	disco = disco + 1 + BITMAP_SIZE_IN_BLOCKS; // mueve el puntero por el header y bitmap hasta la tabla de nodos
+	//disco = disco + 1 + BITMAP_SIZE_IN_BLOCKS; // mueve el puntero por el header y bitmap hasta la tabla de nodos
 
-	tablaNodos = (GFile*) disco;
+	tablaNodos = (GFile*) disco + 1 + BITMAP_SIZE_IN_BLOCKS;
 
 	remove("Linuse.log");
 	iniciarLog("FUSE");
@@ -499,7 +615,7 @@ int main( int argc, char *argv[] )
 
 	/**/
 
-	disco = disco - 1 - BITMAP_SIZE_IN_BLOCKS;
+	//disco = disco - 1 - BITMAP_SIZE_IN_BLOCKS;
 
 	msync(disco, tamDisco, MS_SYNC);
 	munmap(disco,tamDisco);
