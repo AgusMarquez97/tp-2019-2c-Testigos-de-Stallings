@@ -29,6 +29,7 @@
 #define BITMAP_START_BLOCK 1
 #define BITMAP_SIZE_IN_BLOCKS 1
 #define BLOQUES_INDIRECTOS 1000
+#define ESTRUCTURAS_ADMIN 1026
 
 typedef uint32_t ptrGBloque;
 

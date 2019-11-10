@@ -11,6 +11,7 @@
 GBlock* disco;
 size_t tamDisco;
 GFile* tablaNodos;
+t_bitarray* bitmap;
 int socketRespuesta;
 int indiceTabla = -1;
 
@@ -140,13 +141,14 @@ int estaVacio(char* nombre)
 //"elimina" un objeto de la tabla
 void eliminarObjeto(char* nombre)
 {
-	int objeto = indiceObjeto(nombre);
+	int indObjeto = indiceObjeto(nombre);
 
 	//tablaNodos[objeto]->contenido[0] = '\0';
-	tablaNodos[objeto].estado = 0;
-	memset(tablaNodos[objeto].nombre, 0, MAX_FILENAME_LENGTH);
-	tablaNodos[objeto].file_size = 0;
-	tablaNodos[objeto].padre = 0;
+	tablaNodos[indObjeto].estado = 0;
+	memset(tablaNodos[indObjeto].nombre, 0, MAX_FILENAME_LENGTH);
+	tablaNodos[indObjeto].file_size = 0;
+	tablaNodos[indObjeto].padre = 0;
+	bitarray_clean_bit(bitmap, ESTRUCTURAS_ADMIN + indObjeto);
 
 }
 
@@ -154,12 +156,21 @@ void eliminarObjeto(char* nombre)
 void agregarObjeto(char* nombre, char* padre, int estado)
 {
 
-	int indActual = 0;
+	int indActual = ESTRUCTURAS_ADMIN + 1;//se saltea los bits de estructuras administrativas y 1 del "/"
 
-	while(tablaNodos[indActual].estado != 0 && indActual <MAX_FILE_NUMBER)
+
+	/*while(tablaNodos[indActual].estado != 0 && indActual <MAX_FILE_NUMBER)
+		indActual++;*/
+	int valorBit = bitarray_test_bit(bitmap, indActual);
+	while(valorBit != 0 && indActual <(ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER) )
+	{
 		indActual++;
+		valorBit = bitarray_test_bit(bitmap, indActual);
+	}
 
-	GFile* nodoNuevo = tablaNodos + indActual;
+
+	GFile* nodoNuevo = tablaNodos + indActual - ESTRUCTURAS_ADMIN;
+	bitarray_set_bit(bitmap, indActual);//seteo el bit en el bitmap
 
 	//inicializo valores del nodo
 	/*if(estado == ARCHIVO)
@@ -234,7 +245,7 @@ void readdir(char* path)
 	if(pathCortado[contArray]==NULL) // si es el punto de montaje
 	{
 
-		for(int indActual = 0; indActual < MAX_FILE_NUMBER; indActual++)
+		for(int indActual = 1; indActual < MAX_FILE_NUMBER; indActual++)
 		{
 			if(tablaNodos[indActual].estado != 0 && tablaNodos[indActual].padre==0)
 			{
@@ -256,7 +267,7 @@ void readdir(char* path)
 		}
 		while(pathCortado[contArray]!=NULL);//pone en directorio el ultimo elemento del path
 
-		for (int indActual = 0; tablaNodos[indActual].estado != 0 && indActual < MAX_FILE_NUMBER; indActual++)
+		for (int indActual = 1; tablaNodos[indActual].estado != 0 && indActual < MAX_FILE_NUMBER; indActual++)
 		{
 			if(tablaNodos[indActual].padre != 0)
 			{
@@ -292,6 +303,8 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido)
 	char* newpath = malloc(100);
 	char* nombreNuevo = malloc(MAX_FILENAME_LENGTH);
 	char* nombreViejo = malloc(MAX_FILENAME_LENGTH);
+
+
 
 	switch(mensajeRecibido->tipoOperacion)
 	{
@@ -592,30 +605,45 @@ size_t tamArchivo(char* archivo)
 int main( int argc, char *argv[] )
 {
 
+	remove("Linuse.log");
+	iniciarLog("FUSE");
+
+
 	/**/
 
-	tamDisco= tamArchivo(argv[1]);
+
+	tamDisco = tamArchivo(argv[1]);
+	//size_t tamBitmap = (tamDisco/BLOCK_SIZE/8);
 
 	int discoFD = open(argv[1], O_RDWR,0);
 
 	disco = mmap(NULL, tamDisco, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, discoFD, 0);
 
-	//int tamBitmap = tamDisco/BLOCK_SIZE/8; //tamanio del bitmap
+	/*			bitmap			*/
 
-	//disco = disco + 1 + BITMAP_SIZE_IN_BLOCKS; // mueve el puntero por el header y bitmap hasta la tabla de nodos
+	int tamBitmap = tamDisco/BLOCK_SIZE/8; //tamanio del bitmap
 
-	tablaNodos = (GFile*) disco + 1 + BITMAP_SIZE_IN_BLOCKS;
+	bitmap = bitarray_create_with_mode( (char*) disco + BLOCK_SIZE, tamBitmap, LSB_FIRST);
 
-	remove("Linuse.log");
-	iniciarLog("FUSE");
+
+	//bitarray_set_bit(bitmap, 0);
+
+	/*			tabla de nodos			*/
+
+	disco = disco + 1 + BITMAP_SIZE_IN_BLOCKS; // mueve el puntero por el header y bitmap hasta la tabla de nodos
+
+	tablaNodos = (GFile*) disco;// + 1 + BITMAP_SIZE_IN_BLOCKS;
+
+
+
+
 	loggearInfo("Se inicia el proceso FUSE...");
 	levantarConfig();
 	levantarServidorFUSE();
 
-
 	/**/
 
-	//disco = disco - 1 - BITMAP_SIZE_IN_BLOCKS;
+	disco = disco - 1 - BITMAP_SIZE_IN_BLOCKS;
 
 	msync(disco, tamDisco, MS_SYNC);
 	munmap(disco,tamDisco);
