@@ -15,11 +15,15 @@ t_bitarray* bitmap;
 int socketRespuesta;
 int indiceTabla = -1;
 
-typedef enum {
-	BORRADO,
-	ARCHIVO,
-	DIRECTORIO,
-} t_estadoNodo;
+
+void setearTiempo(char* path)
+{
+	char* nombre = nombreObjeto(path);
+	int indice = indiceObjeto(nombre);
+
+	tablaNodos[indice].fecha_creacion = time(NULL);
+	tablaNodos[indice].fecha_modif = time(NULL);
+}
 
 void renombrar(char* oldpath, char* newpath)
 {
@@ -32,7 +36,7 @@ void renombrar(char* oldpath, char* newpath)
 
 	int indiceViejo = indiceObjeto(nombreViejo);
 
-	if( existeObjeto(newpath) == 1 ) //si el nuevo ya existe, se renombra el viejo y se borra el nuevo
+	if( existeObjeto(nombreNuevo) == 1 ) //si el nuevo ya existe, se renombra el viejo y se borra el nuevo
 	{
 
 		eliminarObjeto(nombreNuevo);
@@ -75,9 +79,9 @@ char* nombreObjeto(char* path)
 }
 
 //devuelve 1 si el directorio o archivo existe, 0 si no existe
-int existeObjeto(char* path)
+int existeObjeto(char* nombre)
 {
-	char* nombre = nombreObjeto(path);
+	//char* nombre = nombreObjeto(path);
 
 	for (int indActual = 0; indActual <= MAX_FILE_NUMBER; indActual++)
 		if (tablaNodos[indActual].estado != 0 && strcmp(nombre,tablaNodos[indActual].nombre) == 0)
@@ -178,6 +182,11 @@ void agregarObjeto(char* nombre, char* padre, int estado)
 	strcpy(nodoNuevo->nombre, nombre);
 	nodoNuevo->file_size=0;
 	nodoNuevo->estado=estado;
+
+	time_t tiempo = time(NULL);
+
+	nodoNuevo->fecha_creacion = tiempo;
+	nodoNuevo->fecha_modif = tiempo;
 
 	//linkeo al padre
 
@@ -310,20 +319,35 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido)
 	{
 		case GETATTR:
 
-			recibirString(socketRespuesta, &path);
-			if(strcmp(path,"/") == 0)
+			recibirString(socketRespuesta, &path);//recibe nombre
+
+			/*if(strcmp(path,"/") == 0)
 			{
 				enviarInt(socketRespuesta, DIRECTORIO);
 				break;
-			}
-			if(existeObjeto(path) == 1)//si existe envia su estado
+			}*/
+
+			if(existeObjeto(path) == 1)//si existe envia su estado y ultima modificacion
 			{
+
 				int indice = indiceObjeto(path);
-				int estado = tablaNodos[indice].estado;
+				uint8_t estado = tablaNodos[indice].estado;
+				time_t ultimaMod = tablaNodos[indice].fecha_modif;
+				void* buffer = malloc( sizeof(time_t) );
+
 				enviarInt(socketRespuesta, estado);
+
+
+				memcpy(buffer, &ultimaMod, sizeof(time_t) );
+				enviarVoid(socketRespuesta, buffer, sizeof(buffer) );
+
+
 			}
 			else
+			{
 				enviarInt(socketRespuesta, BORRADO);
+			}
+
 		break;
 
 		case READDIR:
@@ -395,7 +419,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido)
 			{
 
 				//si queres renombrar un directorio, el nuevo no tiene que existir o debe estar vacio
-				if( (existeObjeto(newpath) == 1) && (estaVacio(nombreNuevo) == 0) )
+				if( (existeObjeto(nombreNuevo) == 1) && (estaVacio(nombreNuevo) == 0) )
 				{
 					enviarInt(socketRespuesta, ENOTEMPTY);//o EEXIST
 					break;
@@ -413,7 +437,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido)
 				 generally, an attempt was made to make a directory a
 				 subdirectory of itself.*/
 
-				if( (existeObjeto(newpath) == 1 ) && (esDirectorio(nombreNuevo) == 0) )//newpath existe pero no es directorio
+				if( (existeObjeto(nombreNuevo) == 1 ) && (esDirectorio(nombreNuevo) == 0) )//newpath existe pero no es directorio
 				{
 					enviarInt(socketRespuesta, ENOTDIR);
 					break;
@@ -428,7 +452,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido)
 				break;
 			}
 
-			if( existeObjeto(oldpath) == 0 )
+			if( existeObjeto(nombreViejo) == 0 )
 			{
 				enviarInt(socketRespuesta, ENOENT);
 				break;
@@ -512,6 +536,12 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido)
 
 
 			enviarInt(socketRespuesta, 0);
+		break;
+
+		case UTIMENS:
+
+			recibirString(socketRespuesta, &path);
+			setearTiempo(path);
 		break;
 
 		default:

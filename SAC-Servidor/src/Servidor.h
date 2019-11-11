@@ -58,8 +58,8 @@ typedef struct archivo
 	uint32_t file_size;
 	ptrGBloque bloques_ind[BLOQUES_INDIRECTOS];//"Cada posición del array contiene la dirección del bloque que almacena un array de 1024 direcciones de bloques de datos"
 	ptrGBloque padre;
-	uint64_t fecha_creacion;
-	uint64_t fecha_modif;
+	time_t fecha_creacion;
+	time_t fecha_modif;
 }GFile;
 
 /*

@@ -38,16 +38,21 @@ void liberarTabla()
 //recibe un path y devuelve el nombre del archivo o directorio
 char *nombreObjeto(const char *path)
 {
-    char *nombre=NULL;
-	char *reverso =	string_reverse(path);
-    int cont=0;
-    while(reverso[cont]!='/')
-    {
-        cont++;
-    }
-    reverso[cont]='\0';
-    nombre=string_reverse(reverso);
-    return nombre;
+	char* nombre = malloc(MAX_FILENAME_LENGTH);
+	int contador = 0;
+	char** pathCortado = malloc(10*sizeof(char*));
+
+	for(int i=0;i<=9;i++)
+		pathCortado[i] = malloc(sizeof(char*));
+
+	pathCortado = string_n_split(path, 10, "/");
+
+	while(pathCortado[contador]!=NULL)
+		contador++;
+
+	strcpy(nombre,pathCortado[contador-1] );
+
+	return nombre;
 }
 
 //devuelve 1 si el directorio o archivo existe, 0 si no existe
@@ -199,42 +204,61 @@ void eliminarObjeto(char* nombre)
 static int hacer_getattr(const char *path, struct stat *st)
 {
 
+
 	char* nombre = malloc(MAX_FILENAME_LENGTH);
 	int estadoNodo;
+	time_t ultimaMod;
+	void* bufferDestino;// = malloc( sizeof(uint64_t) + sizeof(int32_t));
 
-	if(strcmp(path,"/") != 0)
-		nombre = nombreObjeto(path);
-	else
-		strcpy(nombre,"/");
+
+	if(strcmp(path,"/") == 0)
+	{
+		st->st_uid = getuid();
+		st->st_mtime = time(NULL);
+		st->st_atime = time(NULL);
+		st->st_mode = S_IFDIR | 0755;
+		st->st_nlink = 2;
+		return 0;
+	}
+
+	nombre = nombreObjeto(path);
 
 	enviarInt(socketConexion, GETATTR);
 
 	enviarString(socketConexion, nombre);
 
 	st->st_uid = getuid();		//el duenio del archivo
-	st->st_gid = getgid();		//el mismo?
-	st->st_atime = time(NULL);	//last "A"ccess time
-	st->st_mtime = time(NULL);	//last "M"odification time
+	st->st_gid = getgid();
+	st->st_mtime = time(NULL);
+	st->st_atime = time(NULL);
 
 	recibirInt(socketConexion, &estadoNodo);
 
-	if(estadoNodo == 2)//directorio
+	if(estadoNodo != 0)//existe el nodo en el fs
 	{
-		st->st_mode = S_IFDIR | 0755; //bits de permiso
-		st->st_nlink = 2;		//num de hardlinks
-	}
-	else if(estadoNodo == 1)//archivo
-	{
-		st->st_mode = S_IFREG | 0644;
-		st->st_nlink = 1;
-		st->st_size = 1024;		//tamanio de los archivos
+
+		recibirVoid(socketConexion, &bufferDestino);
+		memcpy(&ultimaMod, bufferDestino, sizeof(time_t));
+
+		st->st_mtime = ultimaMod;
+
+		if(estadoNodo == DIRECTORIO)
+		{
+			st->st_mode = S_IFDIR | 0755; //bits de permiso
+			st->st_nlink = 2;		//num de hardlinks
+		}
+		else//archivo
+		{
+			st->st_mode = S_IFREG | 0644;
+			st->st_nlink = 1;
+			st->st_size = 1024;		//tamanio de los archivos
+		}
 	}
 	else //no existe en el filesystem
-	{
 		return -ENOENT;
-	}
 
 	return 0;
+
 }
 
 //hace una lista de los archivos o directorios disponibles en una ruta específica
@@ -418,7 +442,7 @@ static int hacer_unlink(const char *path)
 }
 
 //va a ser llamada para renombar un archivo o directorio. Devuelve 0 si funca
-static int hacer_rename(const char *oldpath, const char *newpath, unsigned int flags)
+int hacer_rename(const char *oldpath, const char *newpath, unsigned int flags)
 {
 
 	int error = 0;
@@ -437,6 +461,16 @@ static int hacer_rename(const char *oldpath, const char *newpath, unsigned int f
 	recibirInt(socketConexion, &error);
 
 	return error;
+
+}
+
+int hacer_utimens(const char* path, const struct timespec tv[2])
+{
+	enviarInt(socketConexion, UTIMENS);
+	char* pathAEnviar = strdup(path);
+
+	enviarString(socketConexion, pathAEnviar);
+	return 0;
 
 }
 
@@ -478,6 +512,7 @@ static struct fuse_operations operaciones = {
 	.rename		= hacer_rename,
 	.unlink		= hacer_unlink,
 	.rmdir		= hacer_rmdir,
+	.utimens	= hacer_utimens,
 };
 
 enum {

@@ -97,6 +97,7 @@ typedef enum {
 	RMDIR,
 	UNLINK,
 	RENAME,
+	UTIMENS,
 } t_operacionFuse;
 
 
@@ -107,5 +108,10 @@ typedef struct {
 	int32_t rafaga;
 } t_mensajeFuse;
 
+typedef enum {
+	BORRADO,
+	ARCHIVO,
+	DIRECTORIO,
+} t_estadoNodo;
 
 #endif /* ENUMSANDSTRUCTS_H_ */
