@@ -52,11 +52,11 @@ t_bitarray * marcosMemoriaPrincipal;
 int tamPagina;
 int cantidadMarcosMemoriaPrincipal;
 
-typedef struct {
+typedef struct __attribute__((packed)) {
 	uint32_t offset; // Busca validar cual es la ultima posicion de la pagina escrita
 	bool estaLibre;
 } t_heap_metadata;
-
+//asdasd
 /*
  * Estructura de la memoria swap:
  * 1° Un tamanio de la memoria swap
@@ -259,7 +259,22 @@ uint32_t procesarMalloc(char * idProceso, int32_t tamanio);
 t_list * obtenerPaginas(int tamanio, int cantidadFrames);
 t_segmento * instanciarSegmento(int tamanio, int cantidadFrames);
 uint32_t crearSegmento (char * idProceso, int tamanio, int cantidadFrames); // podria ocurrir con mmap?
-void escribirPaginas(t_list * listaPaginas, int tamanio);
+
+/*
+ * funcion para escribir el heap metadata en la memoria:
+ * 			0 - Creo un heap metadata con el tamanio a escribir (tam del malloc) y el estado en ocupado
+ * 			1 - Escribo siempre el heap metadata en la primera posicion de memoria del primerMarco
+ * 			Luego calculo lo siguiente
+ *
+ * 				A) Cantidad de espacio reservado en memoria = cantidad_marcos_pedidos * tam_marco/pag
+ * 				B) Cantidad de espacio usado realmente = tam_malloc + tam_heap_metadata
+ * 				C) El tamanio que me sobro = A - B
+ * 			2- Analizo si C > tam_heap_metadata
+ * 					=> Verdadero: entonces creo un nuevo heap metadata en la posicion: (tamanio total - C)
+ * 					=> Falso: No creo nada, asumo fragmentacion interna en la ultima pagina
+ *
+ */
+void escribirPaginas(int cantidadPaginas, int tamanio, int primerMarco, int ultimoMarco);
 
 
 
@@ -302,6 +317,9 @@ int procesarUnmap(char * idProceso, uint32_t posicionMemoria);
 
 uint32_t evaluarSegmento (char * idProceso, int tamanio, int cantidadFrames);
 bool poseeSegmentos(char * idProceso);
+
+void liberarMarcoBitarray(int nroMarco);
+
 
 bool marcoLibreMP(int nroMarco);
 int obtenerCantidadMarcos(int tamanioPagina, int tamanioMemoria);

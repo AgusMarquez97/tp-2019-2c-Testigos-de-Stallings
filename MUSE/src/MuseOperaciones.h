@@ -65,63 +65,58 @@ uint32_t procesarMalloc(char * idProceso, int32_t tamanio)
 
 }
 
-void escribirPaginas(t_list * listaPaginas, int tamanio)
+void escribirPaginas(int cantidadPaginas, int tamanio, int primerMarco, int ultimoMarco)
 {
-	//t_list * listaHM;
-
-	int offset = 0;
-
-
-	void escribirPagina(t_pagina * unaPagina)
-	{
-			/*t_heap_metadata = 5;
-			1° pagina[5 bytes del heap {false, 26} - 1 de /0] 26
-			2° Pagina[23 bytes de /0 + 5 de heap ]*/
-
-			offset = unaPagina->nroMarco*tamPagina;
-
-			if(unaPagina->nroPagina == 0)
-			{
-				t_heap_metadata * metadata = malloc(sizeof(t_heap_metadata));
-
-				metadata->estaLibre = false;
-				metadata->offset = tamanio;
-
-				//offset += tamanioRestante;
-
-				pthread_mutex_lock(&mutex_memoria);
-				memcpy(memoria + offset,metadata,sizeof(t_heap_metadata)); // Escribo la metadata (5 primeros bytes)
-				pthread_mutex_unlock(&mutex_memoria);
-
-				offset += sizeof(t_heap_metadata);
-
-				free(metadata);
-
-			}
-
-			if(tamanio + 2*sizeof(t_heap_metadata) >= tamPagina)
-			{
-				tamanio = tamPagina - sizeof(t_heap_metadata); // Lo que entre en esta pagina 27
-			}
-			else
-			{
-				t_heap_metadata * metadataFinal = malloc(sizeof(t_heap_metadata));
-
-				metadataFinal->estaLibre = true;
-				metadataFinal->offset = tamPagina - tamanio - sizeof(t_heap_metadata);
-
-				pthread_mutex_lock(&mutex_memoria);
-				memcpy(memoria + offset + tamanio,metadataFinal,sizeof(t_heap_metadata)); // Escribo la metadata (5 primeros bytes)
-				pthread_mutex_unlock(&mutex_memoria);
-
-				free(metadataFinal);
-			}
+    int tamanioTotalReservado = cantidadPaginas*tamPagina;
+    int tamanioEscribir = sizeof(t_heap_metadata) + tamanio; // Lo que se escribe obligatoriamente en memoria
+    int tamanioSobrante = tamanioTotalReservado - tamanioEscribir; // Los bytes que me sobran o que no uso
 
 
-	}
+	int offset = primerMarco*tamPagina; // Primer marco donde voy a escribir la heap metadata, voy a estar parado al inicio de la primer pagina que me den
 
-	list_iterate(listaPaginas,(void *)escribirPagina);
+    t_heap_metadata * metadata = malloc(sizeof(t_heap_metadata));
+
+    metadata->estaLibre = false;
+    metadata->offset = tamanio;
+
+
+    char aux[300];
+
+    sprintf(aux,"Se carga en memoria un t_heap_metadata con offset de %d bytes en el marco %d",metadata->offset,primerMarco);
+    loggearInfo(aux);
+
+
+    pthread_mutex_lock(&mutex_memoria);
+    memcpy(memoria + offset,metadata,sizeof(t_heap_metadata)); // Escribo la metadata (5 primeros bytes)
+    pthread_mutex_unlock(&mutex_memoria);
+
+    free(metadata);
+
+    if(tamanioSobrante > sizeof(t_heap_metadata)) // quiere decir que me sobra suficiente lugar en la ultima pagina para escribir un metadata libre = true
+    {
+
+        offset = ultimoMarco*tamPagina + (tamPagina - tamanioSobrante); // ver si hay que restar 1
+        t_heap_metadata * metadata = malloc(sizeof(t_heap_metadata));
+
+        metadata->estaLibre = true;
+        metadata->offset = tamanioSobrante - sizeof(t_heap_metadata);
+
+
+        sprintf(aux,"Se carga en memoria un segundo t_heap_metadata con offset de %d bytes en el marco %d",metadata->offset,ultimoMarco);
+        loggearInfo(aux);
+
+        pthread_mutex_lock(&mutex_memoria);
+        memcpy(memoria + offset,metadata,sizeof(t_heap_metadata)); // Escribo la metadata (5 primeros bytes)
+        pthread_mutex_unlock(&mutex_memoria);
+
+        free(metadata);
+    }
+    else
+    {
+    	loggearInfo("Fragmentacion interna...");
+    }
 }
+
 
 t_list * obtenerPaginas(int tamanio, int cantidadFrames)
 {
@@ -136,7 +131,11 @@ t_list * obtenerPaginas(int tamanio, int cantidadFrames)
 
 		list_add(listaPaginas,unaPagina);
 	}
-	escribirPaginas(listaPaginas,tamanio); // escribe en MP posta, Memoria ya reservada
+	int cantidadMarcos = list_size(listaPaginas);
+	int primerMarco = ((t_pagina*)list_get(listaPaginas,0))->nroMarco;
+	int ultimoMarco = ((t_pagina*)list_get(listaPaginas,cantidadMarcos-1))->nroMarco;
+
+	escribirPaginas(cantidadMarcos, tamanio, primerMarco, ultimoMarco); // escribe en MP posta, Memoria ya reservada
 	return listaPaginas;
 }
 
@@ -322,7 +321,16 @@ int procesarClose(char * idProceso) {
 		{
 			void liberarSegmento(t_segmento * unSegmento)
 			{
-				// Liberar Segmento....
+					void liberarPaginas(t_pagina * unaPagina)
+					{
+						liberarMarcoBitarray(unaPagina->nroMarco);
+						free(unaPagina);
+					}
+
+					list_iterate(unSegmento->paginas,(void*)liberarPaginas);
+					list_destroy(unSegmento->paginas);
+
+					free(unSegmento);
 			}
 
 			list_iterate(segmentos,(void*)liberarSegmento);

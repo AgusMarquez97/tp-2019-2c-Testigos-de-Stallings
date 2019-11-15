@@ -12,6 +12,12 @@
 
 
 // Auxiliares:
+void liberarMarcoBitarray(int nroMarco)
+{
+	pthread_mutex_lock(&mutex_marcos_libres);
+	bitarray_clean_bit(marcosMemoriaPrincipal,nroMarco);
+	pthread_mutex_unlock(&mutex_marcos_libres);
+}
 
 int asignarMarcoLibre()
 {
