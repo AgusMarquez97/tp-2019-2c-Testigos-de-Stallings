@@ -23,6 +23,9 @@ int32_t suse_create_servidor(char* idProcString, int32_t idThread){
 	hiloEntrante->idProceso=strdup(idProcString);
 	hiloEntrante->idHilo= idThread;
 	hiloEntrante->estadoHilo= CREATE;
+	hiloEntrante->timestampEntra= 0;
+	hiloEntrante->timestampSale= 0;
+
 
 
 
@@ -49,13 +52,13 @@ void planificar_largoPlazo(){
 
 				if(dictionary_has_key(readys,hiloEnNews->idProceso))
 				{
-					t_queue* colaReady= dictionary_get(readys, hiloEnNews->idProceso);
+					t_list* colaReady= dictionary_get(readys, hiloEnNews->idProceso);//colaReady es una lista para poder aplicar sjf
 					int multiprogActual = obtenerMultiprogActual();
 					if(multiprogActual < maxMultiprog)
 					{
 						queue_pop(colaNews);
 						hiloEnNews->estadoHilo=READY;
-						queue_push(colaReady, hiloEnNews);
+						list_add(colaReady, hiloEnNews);
 						//dictionary_put(readys, hiloEnNews->idProceso , colaReady);
 						loggearInfo("Agregamos 1 hilo de New a Ready");
 					}
@@ -67,10 +70,10 @@ void planificar_largoPlazo(){
 					if(multiprogActual < maxMultiprog)
 						{
 
-						t_queue* nuevaColaReady= queue_create();
+						t_list* nuevaColaReady= list_create();
 						queue_pop(colaNews);
 						hiloEnNews->estadoHilo=READY;
-						queue_push(nuevaColaReady, hiloEnNews);
+						list_add(nuevaColaReady, hiloEnNews);
 
 						dictionary_put(readys, hiloEnNews->idProceso , nuevaColaReady);
 
@@ -84,9 +87,9 @@ void planificar_largoPlazo(){
 int obtenerMultiprogActual()
 	{
 	int multiprogActual = 0;
-	void calculoMultiprog(char * proceso, t_queue* cola)
+	void calculoMultiprog(char * proceso, t_list* cola)
 		{
-		multiprogActual += queue_size(cola);
+		multiprogActual += list_size(cola);
 		}
 	dictionary_iterator(readys,(void *)calculoMultiprog);
 	multiprogActual += dictionary_size(execs);
@@ -101,19 +104,27 @@ int obtenerMultiprogActual()
 int32_t suse_schedule_next_servidor(char* idProcString){
 
 
-    t_queue* colaReady= dictionary_get(readys, idProcString);
+    t_list* colaReady= dictionary_get(readys, idProcString);
     t_hiloPlanificado* hiloSiguiente;
     t_hiloPlanificado* hiloActual;//este hilo estaba ejecutando, como llega un next debe volver a ready para dejarlo ejecutar al siguiente
     hiloActual = dictionary_get(execs,idProcString);
 
-if(!queue_is_empty(colaReady)){
+if(!list_is_empty(colaReady)){
     //FIFO, (Pasar después a SJF)
-    hiloSiguiente= queue_pop(colaReady);
+    hiloSiguiente= removerHiloConRafagaMasCorta(colaReady);
     hiloSiguiente->estadoHilo=EXEC;
+    hiloSiguiente->timestampEntra = (int32_t)time(NULL);
+
 
         if(hiloActual != NULL)
-    queue_push(colaReady,hiloActual);
-    dictionary_put(execs,idProcString,hiloSiguiente);
+        {
+        	hiloActual->estadoHilo = READY;
+        	hiloActual->timestampSale = (int32_t)time(NULL);
+        	hiloActual->estimado = (hiloActual->estimado+(hiloActual->timestampSale-hiloActual->timestampEntra))/2;
+        	list_add(colaReady,hiloActual);
+
+        }
+        dictionary_put(execs,idProcString,hiloSiguiente);
 
     char * msj = malloc(strlen("El hilo 99999999999 del proceso 9999999999999 entro en EXEC " ) + 1);
     sprintf(msj,"El hilo %d del proceso %s entro en EXEC ",hiloSiguiente->idHilo,idProcString);
@@ -126,6 +137,27 @@ if(!queue_is_empty(colaReady)){
 return hiloActual->idHilo;
 
 }
+
+t_hiloPlanificado * removerHiloConRafagaMasCorta(t_list* colaReady)
+{
+	t_hiloPlanificado* hiloMasCorto = list_get(colaReady,0);
+	int indicieHiloCortoActual = 0;
+	int indiceHiloMasCorto = 0;
+		void rafagaCorta(t_hiloPlanificado* hiloCortoActual)
+		{
+
+			if(hiloCortoActual->estimado < hiloMasCorto->estimado)
+			{
+				hiloMasCorto = hiloCortoActual;
+				indiceHiloMasCorto=indicieHiloCortoActual;
+			}
+			indicieHiloCortoActual++;
+		}
+
+	list_iterate(colaReady,(void*)rafagaCorta);
+	return list_remove(colaReady,indiceHiloMasCorto);
+}
+
 bool hiloFinalizo(char* idProcString, int32_t tid)
 {
 	bool encontroHilo(t_hiloPlanificado* unHilo)
@@ -149,6 +181,9 @@ int32_t suse_join_servidor(char* idProcString, int32_t tid)
 	hiloABloquear= dictionary_remove(execs, idProcString);//lo quito
 	hiloABloquear->estadoHilo=BLOCK;
 	hiloABloquear->hiloBloqueante=tid;//lo bloqueo
+	hiloABloquear->timestampSale=(int32_t) time(NULL);
+	hiloABloquear->estimado = (hiloABloquear->estimado+(hiloABloquear->timestampSale-hiloABloquear->timestampEntra))/2;
+
 	//hiloABloquear->idProceso=idProcString;//bug? sin esto guarda idprocstring "1924/002" o algo asi
 	list_add(blockeds,hiloABloquear);//lo meto en blockeds
 
@@ -178,8 +213,8 @@ void desbloquearJoin(t_hiloPlanificado* hilo)
 					{
 						hiloBloqueadoPorJoin->estadoHilo=READY;
 						hiloBloqueadoPorJoin->hiloBloqueante = NULL;
-						t_queue* colaReadyDelProc = dictionary_get(readys,hilo->idProceso);
-						queue_push(colaReadyDelProc,hiloBloqueadoPorJoin);
+						t_list* colaReadyDelProc = dictionary_get(readys,hilo->idProceso);
+						list_add(colaReadyDelProc,hiloBloqueadoPorJoin);
 					}
 
 }
@@ -195,6 +230,8 @@ int32_t suse_close_servidor(char *  idProcString, int32_t tid)
 
     {
     dictionary_remove(execs,idProcString);
+    hiloParaExit->timestampSale = (int32_t) time(NULL);
+    hiloParaExit->estimado = (hiloParaExit->estimado+(hiloParaExit->timestampSale-hiloParaExit->timestampEntra))/2;
     hiloParaExit->estadoHilo=EXIT;
     list_add(exits,hiloParaExit);
 
@@ -263,8 +300,8 @@ int32_t suse_signal_servidor(char *idProcString,int32_t idHilo,char *semId)
 				hiloADesbloquear= list_remove_by_condition(blockeds, (void *) hiloBloqueadoPorSem);
 				hiloADesbloquear->estadoHilo=READY;
 				hiloADesbloquear->semBloqueante = NULL;
-				t_queue* colaReadyDelProc = dictionary_get(readys,idProcString);
-				queue_push(colaReadyDelProc,hiloADesbloquear);
+				t_list* colaReadyDelProc = dictionary_get(readys,idProcString);
+				list_add(colaReadyDelProc,hiloADesbloquear);
 			}
 
 

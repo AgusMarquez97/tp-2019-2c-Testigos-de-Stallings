@@ -60,6 +60,7 @@ int obtenerMultiprogActual();
 
 
 int32_t suse_schedule_next_servidor(char* idProcString);
+t_hiloPlanificado * removerHiloConRafagaMasCorta(t_list* colaReady);
 void revisar_newsEsperando();
 int32_t suse_close_servidor(char* idProcString, int32_t tid);
 int32_t suse_join_servidor(char* idProcString, int32_t tid);
