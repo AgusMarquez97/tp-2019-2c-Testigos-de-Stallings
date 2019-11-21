@@ -300,27 +300,37 @@ static int hacer_read(const char *path, char *buffer, size_t size, off_t offset,
 {
 
 	int continuar;		//si llega un 0 continua, -1 sale
-	char* cont = malloc(256);
-	char* info = malloc(50);
+	char* cont = malloc(size);
 	char* nombre = nombreObjeto(path);
+	int tamNombre = strlen(nombre) + 1;
+
+	void* bufferEnviar = malloc( sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + sizeof(off_t) );
+
+	//int que le va a indicar al servidor que tamanio recibir
+	int tamARecibir = sizeof(int) + tamNombre + sizeof(size_t) + sizeof(off_t);
 
 	enviarInt(socketConexion, READ);
-	enviarString(socketConexion, nombre);
+
+	memcpy(bufferEnviar, &tamARecibir, sizeof(int) );
+	memcpy(bufferEnviar + sizeof(int), &tamNombre, sizeof(int) );
+	memcpy(bufferEnviar + sizeof(int) + sizeof(int), nombre, tamNombre );
+	memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre, &size, sizeof(size_t) );
+	memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t), &offset, sizeof(off_t) );
+
+	enviar(socketConexion, bufferEnviar, sizeof(int) + tamARecibir);
 
 	recibirInt(socketConexion,&continuar);
 
 	if(continuar == -1)//no existe en el FS
 		return -1;
 
+
 	recibirString(socketConexion,&cont);//recibo el contenido del archivo
 
-	memcpy(buffer, cont + offset, size);
+	memcpy(buffer, cont, size );
 
-	//msync(disco, tamDisco, MS_SYNC);
-
-	return strlen(cont) - offset;
-
-
+	free(bufferEnviar);
+	return strlen(cont);
 }
 
 //va a ser llamada para crear un nuevo directorio. "modo" son los bits de permiso, ver documentacion de mkdir
@@ -356,7 +366,33 @@ static int hacer_mknod(const char *path, mode_t modo, dev_t dispositivo)
 //va a ser llamada para escribir contenido en un archivo
 static int hacer_write(const char *path, const char *buffer, size_t size, off_t offset, struct fuse_file_info *info)
 {
-	escribirEnArchivo(path, buffer);
+
+	/*ver offset
+	 *
+	 *
+	 * */
+
+	enviarInt(socketConexion, WRITE);
+
+	char* contenido = strdup(buffer);
+	string_trim_right(&contenido);
+	size_t tamCont = strlen(contenido) + 1;
+
+	char* nombre = nombreObjeto(path);
+	int tamNombre = strlen(nombre) + 1;
+
+	void* bufferEnviar = malloc(sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + size );
+
+	int tamEnviar = sizeof(int) + tamNombre + sizeof(size_t) + size;
+
+	memcpy(bufferEnviar, &tamEnviar, sizeof(int) );
+	memcpy(bufferEnviar + sizeof(int), &tamNombre, sizeof(int) );
+	memcpy(bufferEnviar + sizeof(int) + sizeof(int), nombre, tamNombre );
+	memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre, &tamCont, sizeof(size_t) );
+	memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t), contenido, tamCont);//buffer + offset
+	enviar(socketConexion, bufferEnviar, sizeof(int) + tamEnviar );
+
+	free(bufferEnviar);
 	return size;
 }
 
@@ -556,6 +592,7 @@ int main( int argc, char *argv[] )
 	liberarTabla();
 
 	return ret;
+
 
 	/*
 	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);

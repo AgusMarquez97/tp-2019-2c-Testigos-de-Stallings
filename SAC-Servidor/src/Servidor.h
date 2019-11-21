@@ -30,6 +30,7 @@
 #define BITMAP_SIZE_IN_BLOCKS 1
 #define BLOQUES_INDIRECTOS 1000
 #define ESTRUCTURAS_ADMIN 1026
+#define BLOQUES_DATOS 1024
 
 typedef uint32_t ptrGBloque;
 
@@ -39,8 +40,13 @@ char puerto[10];
 
 typedef struct bloque
 {
-	unsigned char bytes[BLOCK_SIZE];
+	char bytes[BLOCK_SIZE];//unsigned char
 }GBlock;
+
+typedef struct bloqueInd
+{
+	GBlock* bloquesDatos[BLOQUES_DATOS];//GBlock*
+}IndBlock;
 
 typedef struct header
 {
@@ -54,12 +60,12 @@ typedef struct header
 typedef struct archivo
 {
 	uint8_t estado; //0:borrado, 1:archivo, 2:directorio
-	char nombre[MAX_FILENAME_LENGTH];
+	 char nombre[MAX_FILENAME_LENGTH];
 	uint32_t file_size;
-	ptrGBloque bloques_ind[BLOQUES_INDIRECTOS];//"Cada posición del array contiene la dirección del bloque que almacena un array de 1024 direcciones de bloques de datos"
+	IndBlock* bloques_ind[BLOQUES_INDIRECTOS];//
 	ptrGBloque padre;
-	time_t fecha_creacion;
-	time_t fecha_modif;
+	uint64_t fecha_creacion;//time_t
+	uint64_t fecha_modif;//time_t
 }GFile;
 
 /*
