@@ -478,7 +478,7 @@ static int hacer_unlink(const char *path)
 }
 
 //va a ser llamada para renombar un archivo o directorio. Devuelve 0 si funca
-int hacer_rename(const char *oldpath, const char *newpath, unsigned int flags)
+int hacer_rename(const char *oldpath, const char *newpath)
 {
 
 	int error = 0;
