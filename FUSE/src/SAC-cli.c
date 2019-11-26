@@ -381,15 +381,16 @@ static int hacer_write(const char *path, const char *buffer, size_t size, off_t 
 	char* nombre = nombreObjeto(path);
 	int tamNombre = strlen(nombre) + 1;
 
-	void* bufferEnviar = malloc(sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + size );
+	void* bufferEnviar = malloc(sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + size + sizeof(off_t) );
 
-	int tamEnviar = sizeof(int) + tamNombre + sizeof(size_t) + size;
+	int tamEnviar = sizeof(int) + tamNombre + sizeof(size_t) + size + sizeof(off_t);
 
 	memcpy(bufferEnviar, &tamEnviar, sizeof(int) );
 	memcpy(bufferEnviar + sizeof(int), &tamNombre, sizeof(int) );
 	memcpy(bufferEnviar + sizeof(int) + sizeof(int), nombre, tamNombre );
 	memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre, &tamCont, sizeof(size_t) );
-	memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t), contenido, tamCont);//buffer + offset
+	memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t), contenido, tamCont);
+	memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + tamCont, &offset, sizeof(off_t) );
 	enviar(socketConexion, bufferEnviar, sizeof(int) + tamEnviar );
 
 	free(bufferEnviar);

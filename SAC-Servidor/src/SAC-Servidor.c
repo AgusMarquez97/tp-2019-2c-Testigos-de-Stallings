@@ -19,27 +19,34 @@ sem_t mutWrite;
 sem_t mutRename;
 int tamBitmap;
 
-void escribir(int indArchivo, char* contenido, size_t tamanio)
+void escribir(int indArchivo, char* contenido, size_t tamanio, off_t offset)
 {
-	//anda con poco contenido
+	//revisar al editar archivo existente
 
-	int offset = 0;
+	int cantidadEscrita = 0;
 	int bloqInd = 0;
 	int bloqDatos = 0;
+	int cantAEscribir = BLOCK_SIZE - offset;
 
 	sem_wait(&mutWrite);
 
-	if(tamanio < BLOCK_SIZE)
-		strcpy(tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[0]->bytes, contenido);
+	if(tamanio + offset < BLOCK_SIZE)
+		strncpy(tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[0]->bytes, contenido, tamanio+offset);
 	else
 	{
-		while(offset < tamanio && bloqInd < BLOQUES_INDIRECTOS)
+		while(cantidadEscrita < tamanio && bloqInd < BLOQUES_INDIRECTOS)
 		{
-			while( offset < tamanio && bloqDatos < BLOQUES_DATOS)
+			while( cantidadEscrita < tamanio && bloqDatos < BLOQUES_DATOS)
 			{
-				strcpy(tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes, contenido + offset);
-				offset = offset + BLOCK_SIZE;
+				strncpy(tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[0]->bytes + offset, contenido+cantidadEscrita, cantAEscribir);
+				cantidadEscrita = cantidadEscrita + BLOCK_SIZE;
+				cantAEscribir = BLOCK_SIZE;
+				if( (tamanio-cantidadEscrita) < BLOCK_SIZE)
+					cantAEscribir = tamanio-cantidadEscrita;
+				bloqDatos++;
+				offset = 0;
 			}
+			bloqInd++;
 		}
 	}
 
@@ -212,11 +219,24 @@ void eliminarObjeto(char* nombre)
 	}
 
 	//recorre el bitmap y pone en 0 los bloques que estan vacios
+	GBlock* bloqueActual;
+	IndBlock* bloqueIndActual;
 	for(int indiceBloque = ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER; indiceBloque < (ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER + cantBloqueDatos); indiceBloque++)
 	{
 		int valorBit = bitarray_test_bit(bitmap, indiceBloque);
-		if( valorBit == 1 && (tablaNodos + indiceBloque - ESTRUCTURAS_ADMIN) == NULL)
-			bitarray_clean_bit(bitmap, indiceBloque);
+		bloqueActual = (GBlock*)(tablaNodos + indiceBloque - ESTRUCTURAS_ADMIN);
+		if( valorBit == 1)
+		{
+			if( bloqueActual->bytes[0] == 0 )
+				bitarray_clean_bit(bitmap, indiceBloque);
+			else
+			{
+				bloqueIndActual = (IndBlock*)(tablaNodos + indiceBloque - ESTRUCTURAS_ADMIN);
+				if(bloqueIndActual->bloquesDatos == NULL)
+					bitarray_clean_bit(bitmap, indiceBloque);
+			}
+		}
+
 	}
 
 	tablaNodos[indObjeto].estado = 0;
@@ -562,6 +582,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 			char* nombre = malloc(MAX_FILENAME_LENGTH);
 			int tamNom;
 			size_t tamContenido;
+			off_t offset;
 
 			memcpy(&tamNom, bufferWrite, sizeof(int));
 			memcpy(nombre, (char*) (bufferWrite + sizeof(int) ), tamNom);
@@ -569,12 +590,13 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 
 			char* contenido = malloc(tamContenido);
 			memcpy(contenido, (char*) (bufferWrite + sizeof(int) + tamNom + sizeof(size_t) ), tamContenido);
+			memcpy(&offset, (char*) (bufferWrite + sizeof(int) + tamNom + sizeof(size_t) + tamContenido ), sizeof(off_t) );
 
 			indArch = indiceObjeto(nombre);
 			if (indArch == -1)
 				break;
 
-			escribir(indArch, contenido, tamContenido);
+			escribir(indArch, contenido, tamContenido, offset);
 
 			free(contenido);
 			free(nombre);
