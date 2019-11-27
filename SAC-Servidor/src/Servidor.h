@@ -100,6 +100,7 @@ int estaVacio(char* nombre);
 void eliminarObjeto(char* nombre);
 void agregarObjeto(char* nombre, char* padre, int estado);
 void crearObjeto(char *path, int estado);
-void readdir(char* path);
+void readdir(char* path, int socketRespuesta);
+void recibirOperaciones(int* p_socket);
 
 #endif

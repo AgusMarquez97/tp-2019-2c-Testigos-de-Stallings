@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <semaphore.h>
 
 #include "Servidor.h"
 
@@ -12,32 +13,46 @@ GBlock* disco;
 size_t tamDisco;
 GFile* tablaNodos;
 t_bitarray* bitmap;
-int socketRespuesta;
+//int socketRespuesta;
 int cantBloqueDatos;
+sem_t mutWrite;
+sem_t mutRename;
+int tamBitmap;
 
-void escribir(int indArchivo, char* contenido, size_t tamanio)
+void escribir(int indArchivo, char* contenido, size_t tamanio, off_t offset)
 {
-	//anda con poco contenido
+	//revisar al editar archivo existente
 
-	int offset = 0;
+	int cantidadEscrita = 0;
 	int bloqInd = 0;
 	int bloqDatos = 0;
+	int cantAEscribir = BLOCK_SIZE - offset;
 
-	if(tamanio < BLOCK_SIZE)
-		strcpy(tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[0]->bytes, contenido);
+	sem_wait(&mutWrite);
+
+	if(tamanio + offset < BLOCK_SIZE)
+		strncpy(tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[0]->bytes, contenido, tamanio+offset);
 	else
 	{
-		while(offset < tamanio && bloqInd < BLOQUES_INDIRECTOS)
+		while(cantidadEscrita < tamanio && bloqInd < BLOQUES_INDIRECTOS)
 		{
-			while( offset < tamanio && bloqDatos < BLOQUES_DATOS)
+			while( cantidadEscrita < tamanio && bloqDatos < BLOQUES_DATOS)
 			{
-				strcpy(tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes, contenido + offset);
-				offset = offset + BLOCK_SIZE;
+				strncpy(tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[0]->bytes + offset, contenido+cantidadEscrita, cantAEscribir);
+				cantidadEscrita = cantidadEscrita + BLOCK_SIZE;
+				cantAEscribir = BLOCK_SIZE;
+				if( (tamanio-cantidadEscrita) < BLOCK_SIZE)
+					cantAEscribir = tamanio-cantidadEscrita;
+				bloqDatos++;
+				offset = 0;
 			}
+			bloqInd++;
 		}
 	}
 
 	tablaNodos[indArchivo].file_size = tamanio;
+
+	sem_post(&mutWrite);
 
 }
 
@@ -55,6 +70,8 @@ void renombrar(char* oldpath, char* newpath)
 
 	char nombreViejo[MAX_FILENAME_LENGTH];
 	char nombreNuevo[MAX_FILENAME_LENGTH];
+
+	sem_wait(&mutRename);
 
 	strcpy(nombreViejo, nombreObjeto(oldpath) );
 	strcpy(nombreNuevo, nombreObjeto(newpath) );
@@ -80,6 +97,7 @@ void renombrar(char* oldpath, char* newpath)
 
 	}
 
+	sem_post(&mutRename);
 }
 
 //recibe un path y devuelve el nombre del objeto o directorio
@@ -175,7 +193,52 @@ void eliminarObjeto(char* nombre)
 {
 	int indObjeto = indiceObjeto(nombre);
 
-	//tablaNodos[objeto]->contenido[0] = '\0';
+
+	int cont = 0;
+	int contDatos = 0;
+
+	if(tablaNodos[indObjeto].estado == ARCHIVO)
+	{
+		while(tablaNodos[indObjeto].bloques_ind[cont] != NULL && cont < BLOQUES_INDIRECTOS)
+		{
+
+			while(tablaNodos[indObjeto].bloques_ind[cont]->bloquesDatos[contDatos] != NULL && contDatos < BLOQUES_DATOS)
+			{
+
+				if(tablaNodos[indObjeto].bloques_ind[cont]->bloquesDatos[contDatos]->bytes[0] != 0)
+				{
+					memset(tablaNodos[indObjeto].bloques_ind[cont]->bloquesDatos[contDatos]->bytes, 0, BLOCK_SIZE);
+				}
+				contDatos++;
+			}
+			(tablaNodos[indObjeto].bloques_ind[cont]->bloquesDatos[contDatos]) = NULL;
+			cont++;
+		}
+		(tablaNodos[indObjeto].bloques_ind[cont]) = NULL;
+		memset(tablaNodos[indObjeto].bloques_ind, 0 , BLOQUES_INDIRECTOS);
+	}
+
+	//recorre el bitmap y pone en 0 los bloques que estan vacios
+	GBlock* bloqueActual;
+	IndBlock* bloqueIndActual;
+	for(int indiceBloque = ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER; indiceBloque < (ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER + cantBloqueDatos); indiceBloque++)
+	{
+		int valorBit = bitarray_test_bit(bitmap, indiceBloque);
+		bloqueActual = (GBlock*)(tablaNodos + indiceBloque - ESTRUCTURAS_ADMIN);
+		if( valorBit == 1)
+		{
+			if( bloqueActual->bytes[0] == 0 )
+				bitarray_clean_bit(bitmap, indiceBloque);
+			else
+			{
+				bloqueIndActual = (IndBlock*)(tablaNodos + indiceBloque - ESTRUCTURAS_ADMIN);
+				if(bloqueIndActual->bloquesDatos == NULL)
+					bitarray_clean_bit(bitmap, indiceBloque);
+			}
+		}
+
+	}
+
 	tablaNodos[indObjeto].estado = 0;
 	memset(tablaNodos[indObjeto].nombre, 0, MAX_FILENAME_LENGTH);
 	tablaNodos[indObjeto].file_size = 0;
@@ -188,7 +251,7 @@ void eliminarObjeto(char* nombre)
 void agregarObjeto(char* nombre, char* padre, int estado)
 {
 
-	int indActual = ESTRUCTURAS_ADMIN; //se saltea los bits de estructuras administrativas
+	int indActual = ESTRUCTURAS_ADMIN + 1; //se saltea los bits de estructuras administrativas y la raiz
 
 
 	int valorBit = bitarray_test_bit(bitmap, indActual);
@@ -301,7 +364,7 @@ void crearObjeto(char *path, int estado)
 }
 
 
-void readdir(char* path)
+void readdir(char* path, int socketRespuesta)
 {
 
 	char* finalizado = malloc(10);
@@ -345,7 +408,7 @@ void readdir(char* path)
 		}
 		while(pathCortado[contArray]!=NULL);//pone en directorio el ultimo elemento del path
 
-		for (int indActual = 0; tablaNodos[indActual].estado != 0 && indActual < MAX_FILE_NUMBER; indActual++)
+		for (int indActual = 0; indActual < MAX_FILE_NUMBER; indActual++)//tablaNodos[indActual].estado != 0 &&
 		{
 
 			if(tablaNodos[indActual].padre != 0)
@@ -370,7 +433,7 @@ void readdir(char* path)
 }
 
 
-void rutinaServidor(t_mensajeFuse* mensajeRecibido)
+void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 {
 
 	switch(mensajeRecibido->tipoOperacion)
@@ -412,7 +475,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido)
 			char* pathReaddir = malloc(200);
 			recibirString(socketRespuesta, &pathReaddir);
 
-			readdir(pathReaddir); 	//recibe un path, lo busca en los nodos y devuelve los que cumplen
+			readdir(pathReaddir, socketRespuesta); 	//recibe un path, lo busca en los nodos y devuelve los que cumplen
 
 			free(pathReaddir);
 
@@ -519,6 +582,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido)
 			char* nombre = malloc(MAX_FILENAME_LENGTH);
 			int tamNom;
 			size_t tamContenido;
+			off_t offset;
 
 			memcpy(&tamNom, bufferWrite, sizeof(int));
 			memcpy(nombre, (char*) (bufferWrite + sizeof(int) ), tamNom);
@@ -526,12 +590,13 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido)
 
 			char* contenido = malloc(tamContenido);
 			memcpy(contenido, (char*) (bufferWrite + sizeof(int) + tamNom + sizeof(size_t) ), tamContenido);
+			memcpy(&offset, (char*) (bufferWrite + sizeof(int) + tamNom + sizeof(size_t) + tamContenido ), sizeof(off_t) );
 
 			indArch = indiceObjeto(nombre);
 			if (indArch == -1)
 				break;
 
-			escribir(indArch, contenido, tamContenido);
+			escribir(indArch, contenido, tamContenido, offset);
 
 			free(contenido);
 			free(nombre);
@@ -717,32 +782,54 @@ void levantarServidorFUSE()
 {
 
 	pthread_t hiloAtendedor = 0;
-
+	int socketRespuesta;
 	int socketServidor = levantarServidor(ip,puerto);
 
-	//char* buffer = malloc(1000);
-	char * info = malloc(300);
-	char * aux = malloc(50);
+	sem_init(&mutWrite, 0, 1);
+	sem_init(&mutRename, 0, 1);
+
+	while(1)
+	{
+		if( (socketRespuesta = (intptr_t)aceptarConexion(socketServidor) ) != -1)
+		{
+			loggearNuevaConexion(socketRespuesta);
+			int *p_socket = malloc(sizeof(int));
+			*p_socket = socketRespuesta;
+
+			if((hiloAtendedor = makeDetachableThread(recibirOperaciones,(void*)p_socket)) == 0)
+				loggearError("Error al crear un nuevo hilo");
+		}
+	}
+
+	/*socketRespuesta = (intptr_t) aceptarConexion(socketServidor);
+
+	loggearNuevaConexion(socketRespuesta);*/
+
+	close(socketRespuesta);
+}
 
 
-	socketRespuesta = (intptr_t) aceptarConexion(socketServidor);
 
-	loggearNuevaConexion(socketRespuesta);
+
+void recibirOperaciones(int* p_socket)
+{
+
+	int socketRespuesta = *p_socket;
+
+	pthread_t hiloAtendedor = 0;
 
 	t_mensajeFuse* mensajeRecibido = malloc(sizeof(t_mensajeFuse) + 500);
 
 	mensajeRecibido = recibirOperacionFuse(socketRespuesta);
 	mensajeRecibido->idHilo = hiloAtendedor;
 
-	sprintf(info,"La operacion recibida es %d", mensajeRecibido->tipoOperacion);
-	loggearInfo(info);
+
 
 	while(mensajeRecibido != NULL)
 	{
 
-		//if(mensajeRecibido != NULL)
-		//{
-			int err = pthread_create(&hiloAtendedor, NULL, (void*) rutinaServidor, (void*) mensajeRecibido);
+			rutinaServidor(mensajeRecibido, socketRespuesta);
+		/*int err = pthread_create(&hiloAtendedor, NULL, (void*) rutinaServidor, (void*) mensajeRecibido);
 
 			if(err != 0)
 				loggearInfo("Error al crear un nuevo hilo");
@@ -751,17 +838,14 @@ void levantarServidorFUSE()
 				pthread_join(hiloAtendedor, NULL);
 				hiloAtendedor++;
 				mensajeRecibido->idHilo = hiloAtendedor;
-			}
+			}*/
 
-		//}
 		mensajeRecibido = recibirOperacionFuse(socketRespuesta);
 
 	}
 
-	free(info);
-	free(aux);
 	free(mensajeRecibido);
-	close(socketRespuesta);
+
 }
 
 void levantarConfig()
@@ -807,7 +891,7 @@ int main( int argc, char *argv[] )
 
 	/*			bitmap			*/
 
-	int tamBitmap = tamDisco/BLOCK_SIZE/8; //tamanio del bitmap
+	tamBitmap = tamDisco/BLOCK_SIZE/8; //tamanio del bitmap
 
 	bitmap = bitarray_create_with_mode( (char*) disco + BLOCK_SIZE, tamBitmap, LSB_FIRST);
 
