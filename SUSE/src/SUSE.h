@@ -39,16 +39,20 @@ int metricsTimer;
 int maxMultiprog;
 float alphaSJF;
 
+
 char ** semIds;
 char ** semInit;
 char ** semMax;
 
-t_queue* colaNews; //hilos que no pudieron entrar al ready
+t_log* metricas;
+
+t_list* colaNews; //hilos que no pudieron entrar al ready
 t_dictionary *readys; //diccionario con colas ready. KEY= processId VALUE= colaReady
 t_dictionary *execs; //diccionario de exec. Key = processId Value = procesoEjecutando(1 por programa según enunciado)
 t_list *exits; //exit estado comun para todos los procesos, indexamos por proceso por comodidad
 t_list *blockeds; //hilos bloqueados esperando para volver al ready
 t_list *semaforos; //lista de t_semaforoSuse
+t_list *procesos; //todos los procesos que administra SUSE.
 
 //
 int32_t suse_create_servidor(char* idProcString, int32_t idThread);

@@ -17,7 +17,8 @@
 /*Crea un molde de hilo y lo agrega a la cola de news (unica para todos los procesos) y al finalizar intenta mandarlo a la de readys*/
 int32_t suse_create_servidor(char* idProcString, int32_t idThread){
 
-	t_hiloPlanificado* hiloEntrante= malloc(sizeof(t_hiloPlanificado)+20);//(elemento planificable)
+	t_hiloPlanificado* hiloEntrante= malloc(sizeof(t_hiloPlanificado)+1);//(elemento planificable)
+
 
 
 	hiloEntrante->idProceso=strdup(idProcString);
@@ -25,11 +26,15 @@ int32_t suse_create_servidor(char* idProcString, int32_t idThread){
 	hiloEntrante->estadoHilo= CREATE;
 	hiloEntrante->timestampEntra= 0;
 	hiloEntrante->timestampSale= 0;
+	hiloEntrante->timestampCreacion=(int32_t)time(NULL);
+
+	hiloEntrante->tiempoEnReady= 0;
+	hiloEntrante->tiempoEnExec=0;
 
 
 
 
-	queue_push(colaNews,hiloEntrante);
+	list_add(colaNews,hiloEntrante);
 
 	char * msj = malloc(strlen("se crea el hilo 99999999999 del proceso 9999999999999") + 1);
 	sprintf(msj,"Se creo el hilo %d del proceso %s",idThread,idProcString);
@@ -46,9 +51,10 @@ int32_t suse_create_servidor(char* idProcString, int32_t idThread){
 void planificar_largoPlazo(){
 	t_hiloPlanificado* hiloEnNews;
 
-		if(!queue_is_empty(colaNews)){
+		if(!list_is_empty(colaNews)){
 
-				hiloEnNews=queue_peek(colaNews);
+			int tam= list_size(colaNews);
+			hiloEnNews=list_get(colaNews,tam-1);
 
 				if(dictionary_has_key(readys,hiloEnNews->idProceso))
 				{
@@ -56,8 +62,9 @@ void planificar_largoPlazo(){
 					int multiprogActual = obtenerMultiprogActual();
 					if(multiprogActual < maxMultiprog)
 					{
-						queue_pop(colaNews);
+						list_remove(colaNews, tam-1);
 						hiloEnNews->estadoHilo=READY;
+						hiloEnNews->timestampEntraEnReady= (int32_t)time(NULL);
 						list_add(colaReady, hiloEnNews);
 						//dictionary_put(readys, hiloEnNews->idProceso , colaReady);
 						loggearInfo("Agregamos 1 hilo de New a Ready");
@@ -71,8 +78,9 @@ void planificar_largoPlazo(){
 						{
 
 						t_list* nuevaColaReady= list_create();
-						queue_pop(colaNews);
+						list_remove(colaNews, tam-1);
 						hiloEnNews->estadoHilo=READY;
+						hiloEnNews->timestampEntraEnReady= (int32_t)time(NULL);
 						list_add(nuevaColaReady, hiloEnNews);
 
 						dictionary_put(readys, hiloEnNews->idProceso , nuevaColaReady);
@@ -114,13 +122,16 @@ if(!list_is_empty(colaReady)){
     hiloSiguiente= removerHiloConRafagaMasCorta(colaReady);
     hiloSiguiente->estadoHilo=EXEC;
     hiloSiguiente->timestampEntra = (int32_t)time(NULL);
+    hiloSiguiente->tiempoEnReady+=(int32_t)time(NULL)-hiloSiguiente->timestampEntraEnReady;
 
 
         if(hiloActual != NULL)
         {
         	hiloActual->estadoHilo = READY;
         	hiloActual->timestampSale = (int32_t)time(NULL);
-        	hiloActual->estimado = (hiloActual->estimado+(hiloActual->timestampSale-hiloActual->timestampEntra))/2;
+        	hiloActual->estimado = hiloActual->estimado*(1-alphaSJF)+(hiloActual->timestampSale-hiloActual->timestampEntra)*alphaSJF;
+        	hiloActual->timestampEntraEnReady= (int32_t)time(NULL);
+        	hiloActual->tiempoEnExec+=(int32_t)time(NULL)-hiloActual->timestampEntra;
         	list_add(colaReady,hiloActual);
 
         }
@@ -167,6 +178,7 @@ bool hiloFinalizo(char* idProcString, int32_t tid)
 
 	return list_any_satisfy(exits,(void*) encontroHilo);
 }
+
 int32_t suse_join_servidor(char* idProcString, int32_t tid)
 {
 
@@ -182,8 +194,8 @@ int32_t suse_join_servidor(char* idProcString, int32_t tid)
 	hiloABloquear->estadoHilo=BLOCK;
 	hiloABloquear->hiloBloqueante=tid;//lo bloqueo
 	hiloABloquear->timestampSale=(int32_t) time(NULL);
-	hiloABloquear->estimado = (hiloABloquear->estimado+(hiloABloquear->timestampSale-hiloABloquear->timestampEntra))/2;
-
+	hiloABloquear->estimado = hiloABloquear->estimado*(1-alphaSJF)+(hiloABloquear->timestampSale-hiloABloquear->timestampEntra)*alphaSJF;
+	hiloABloquear->tiempoEnExec+=(int32_t)time(NULL)-hiloABloquear->timestampEntra;
 	//hiloABloquear->idProceso=idProcString;//bug? sin esto guarda idprocstring "1924/002" o algo asi
 	list_add(blockeds,hiloABloquear);//lo meto en blockeds
 
@@ -231,8 +243,9 @@ int32_t suse_close_servidor(char *  idProcString, int32_t tid)
     {
     dictionary_remove(execs,idProcString);
     hiloParaExit->timestampSale = (int32_t) time(NULL);
-    hiloParaExit->estimado = (hiloParaExit->estimado+(hiloParaExit->timestampSale-hiloParaExit->timestampEntra))/2;
+    hiloParaExit->estimado = hiloParaExit->estimado*(1-alphaSJF)+(hiloParaExit->timestampSale-hiloParaExit->timestampEntra)*alphaSJF;
     hiloParaExit->estadoHilo=EXIT;
+    hiloParaExit->tiempoEnExec+=(int32_t)time(NULL)-hiloParaExit->timestampEntra;
     list_add(exits,hiloParaExit);
 
     char * msj = malloc(strlen("El hilo 99999999999 del proceso 9999999999999 finalizo") + 1);
@@ -251,7 +264,7 @@ int32_t suse_close_servidor(char *  idProcString, int32_t tid)
 }
 
 
-//////// WAIT Y SIGNAL //////////
+/////////////////////// WAIT Y SIGNAL ////////////////////////////////////////
 
 int32_t suse_wait_servidor(char *idProcString,int32_t idHilo,char *semId)
 {
@@ -310,6 +323,123 @@ int32_t suse_signal_servidor(char *idProcString,int32_t idHilo,char *semId)
 		return -1;
 }
 
+
+
+//----------------------------Metricas--------------------------------------------------
+
+void escribirMetricasSemaforos(){
+
+	int i;
+	t_semaforoSuse* sem;
+
+	for(i=0;i<list_size(semaforos);i++)
+		{
+		sem= list_get(semaforos, i);
+
+		char * msj = malloc(strlen("SEMAFORO= 99999999999, VALOR= 9999999999999") + 1);
+		    sprintf(msj,"SEMAFORO= %s, VALOR= %d",sem->idSem,sem->valorActual);
+		    log_info(metricas,msj);
+		    free(msj);
+		}
+}
+
+void escribirMetricasGrado(){
+
+		    char * msj = malloc(strlen("GRADO MULTIPROGRAMACION= 99999999999") + 1);
+		    sprintf(msj,"GRADO MULTIPROGRAMACION= %d",maxMultiprog);
+		    log_info(metricas,msj);
+		    free(msj);
+}
+
+void metricasUnPrograma(char *  idProcString){
+
+	bool hiloEsDePrograma(t_hiloPlanificado*  hiloNew){
+		return hiloNew->idProceso==idProcString;
+	}
+
+	int cantidadNew= list_size(list_filter(colaNews, (void*)hiloEsDePrograma));
+
+	int cantidadReady=list_size(dictionary_get(readys,idProcString));
+
+	int cantidadExec=((dictionary_get(execs,idProcString))!=NULL) ? 1 : 0;
+
+	int cantidadBlock= list_size(list_filter(blockeds,(void*)hiloEsDePrograma));
+
+	 char * msj = malloc(strlen("Proceso = 99999999999 \n Hilos en New=99999999999 \n Hilos en Ready=99999999999 \n Hilos en Exec=99999999999 \n Hilos en Blocked=99999999999\n") + 1);
+			    sprintf(msj,"Proceso = %s \n Hilos en New=%d \n Hilos en Ready=%d \n Hilos en Exec=%d \n Hilos en Blocked=%d\n",idProcString,cantidadNew,cantidadReady,cantidadExec,cantidadBlock);
+			    log_info(metricas,msj);
+			    free(msj);
+}
+
+void escribirMetricasProgramas(){
+
+	for(int i=0;i<list_size(procesos);i++){
+		metricasUnPrograma(list_get(procesos,i));
+	}
+}
+
+//---------------
+
+int32_t tiempoEjecucionProceso(char* idProcString){
+
+	int32_t tiempoEjecucionDelProceso=0;
+
+	bool hiloEsDePrograma(t_hiloPlanificado*  hiloNew){
+		return hiloNew->idProceso==idProcString;
+	}
+
+	void calcularEjecucion(t_hiloPlanificado* hilo){
+		tiempoEjecucionDelProceso+=(int32_t)time(NULL)-hilo->timestampCreacion;
+	}
+	list_iterate(list_filter(colaNews, (void*)hiloEsDePrograma),calcularEjecucion);
+
+	list_iterate((dictionary_get(readys,idProcString)),calcularEjecucion);
+
+	t_hiloPlanificado* hiloEjecutando= dictionary_get(execs,idProcString);
+	if(hiloEjecutando!=NULL)
+		tiempoEjecucionDelProceso+=(int32_t)time(NULL)-hiloEjecutando->timestampCreacion;
+
+	list_iterate(list_filter(blockeds,(void*)hiloEsDePrograma),calcularEjecucion);
+		return tiempoEjecucionDelProceso;
+}
+
+
+void metricasUnHilo(t_hiloPlanificado* hilo){
+
+	int32_t tiempoEjecucion= (int32_t)time(NULL)-hilo->timestampCreacion;
+	int32_t tiempoEspera=hilo->tiempoEnReady;
+	int32_t tiempoCPU=hilo->tiempoEnExec;
+	int32_t porcentajeTiempoEjecucion=tiempoEjecucion/tiempoEjecucionProceso(hilo->idProceso);
+
+
+}
+
+void escribirMetricasHilosTotales(){
+
+	void escribirMetricasLista(t_list* unaLista){
+		for(int i=0;i<list_size(unaLista);i++){
+				metricasUnHilo(list_get(unaLista,i));
+			}
+	}
+	void escribirMetricasDiccionario(char* key, t_list* value){
+			escribirMetricasLista(value);
+		}
+	void escribirMetricasExec(char* key, t_hiloPlanificado* value){
+				metricasUnHilo(value);
+			}
+	escribirMetricasLista(colaNews);
+	escribirMetricasLista(blockeds);
+	dictionary_iterator(readys,escribirMetricasDiccionario);
+	dictionary_iterator(execs,escribirMetricasExec);
+
+
+}
+
+
+
+
+
+
 void levantarServidorSUSE()
 {
 	int socketRespuesta;
@@ -350,10 +480,15 @@ void rutinaServidor(int * p_socket)
 	sprintf(idProcString,"%d",mensajeRecibido->idProceso);
 
 
+
 	switch(mensajeRecibido->tipoOperacion)
 		{
 		case CREATE:
 			loggearInfo("Se recibio una operacion CREATE");
+
+			if(mensajeRecibido->idHilo==0){ //Para las metricasXprograma
+				list_add(procesos,idProcString);
+			}
 			result= suse_create_servidor(idProcString, mensajeRecibido->idHilo);
 			enviarInt(socketRespuesta, result);
 			break;
@@ -422,7 +557,7 @@ void levantarConfig()
 }
 void levantarEstructuras()
 {
-	colaNews = queue_create();
+	colaNews = list_create();
 	readys = dictionary_create();
 	execs = dictionary_create();
 	exits = list_create();
@@ -451,6 +586,7 @@ void inicializarSemaforos(){
 int main(void) {
 	remove("Linuse.log");
 	iniciarLog("SUSE");
+	metricas= log_create("Metricas.log", "SUSE", 0, LOG_LEVEL_INFO);
 	loggearInfo("Se inicia el proceso SUSE...");
 	levantarConfig();
 	levantarEstructuras();

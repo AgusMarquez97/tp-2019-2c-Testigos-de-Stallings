@@ -73,7 +73,20 @@ typedef struct {
 	int32_t rafaga;
 	char * semBloqueante;
 	int32_t hiloBloqueante;
+
+	int32_t timestampCreacion; //time_t
+	int32_t timestampEntraEnReady;
+	int32_t tiempoEnReady;
+	int32_t tiempoEnExec;
+	int32_t timestampEntra;
+	int32_t timestampSale;
+	int32_t estimado;
+
+
 } t_hiloPlanificado;
+
+
+
 
 typedef struct {
 	char * idSem;
