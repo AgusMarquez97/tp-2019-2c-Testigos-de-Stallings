@@ -21,6 +21,9 @@ char puerto_muse[LONG_MAX_PUERTO];
 char ip_muse[LONG_MAX_IP];
 int id_muse;
 
+pthread_mutex_t mutex_malloc;
+
+
 /*
  * Inicializa la biblioteca de MUSE.
  * @param id El Process (o Thread) ID para identificar el caller en MUSE.

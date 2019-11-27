@@ -72,10 +72,10 @@ t_pagina * obtenerPagina(t_list * paginas, uint32_t posicionMemoria)
 
 t_heap_metadata * obtenerHeapMetadata(int base,int offset)
 {
-	t_heap_metadata * unHeapMetadata = malloc(sizeof(t_heap_metadata));
+	t_heap_metadata * unHeapMetadata = malloc(tam_heap_metadata);
 
 	pthread_mutex_lock(&mutex_memoria);
-	memcpy(unHeapMetadata,memoria + base + offset - sizeof(t_heap_metadata),sizeof(t_heap_metadata));
+	memcpy(unHeapMetadata,memoria + base + offset - tam_heap_metadata,tam_heap_metadata);
 	pthread_mutex_unlock(&mutex_memoria);
 
 	return unHeapMetadata;
@@ -93,7 +93,7 @@ int liberarHeapMetadata(int base,int offset)
 	unHeapMetadata->estaLibre = true;
 
 	pthread_mutex_lock(&mutex_memoria);
-	memcpy(memoria + base + offset - sizeof(t_heap_metadata),unHeapMetadata,sizeof(t_heap_metadata));
+	memcpy(memoria + base + offset - tam_heap_metadata,unHeapMetadata,tam_heap_metadata);
 	pthread_mutex_unlock(&mutex_memoria);
 
 	free(unHeapMetadata);
@@ -116,6 +116,11 @@ void * leerDeMemoria(int posicionInicial, int tamanio)
 	memcpy(buffer,memoria + posicionInicial,tamanio);
 	pthread_mutex_unlock(&mutex_memoria);
 	return buffer;
+}
+
+bool completaSegmento(int tamanio, int cantidadFrames)
+{
+	return ((tamanio + tam_heap_metadata) == (cantidadFrames*tamPagina));
 }
 
 /*

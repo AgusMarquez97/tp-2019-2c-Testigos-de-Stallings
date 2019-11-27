@@ -5,6 +5,8 @@ int muse_init(int id, char* ip, int puerto) {
 	remove("Linuse.log");
 	iniciarLog("Linuse");
 
+	pthread_mutex_init(&mutex_malloc, NULL);
+
 	id_muse = id;
 	strcpy(ip_muse, ip);
 	sprintf(puerto_muse, "%d", puerto);
@@ -39,7 +41,9 @@ uint32_t muse_alloc(uint32_t tam) {
 	int socketCliente = levantarCliente(ip_muse, puerto_muse);
 
 	if(socketCliente != -1) {
+		pthread_mutex_lock(&mutex_malloc);
 		enviarMalloc(socketCliente, id_muse, (int32_t)tam);
+		pthread_mutex_unlock(&mutex_malloc);
 		recibirUint(socketCliente, &direccionMemoria); //@return: error [0] / ok [dirección de memoria]
 		close(socketCliente);
 	}

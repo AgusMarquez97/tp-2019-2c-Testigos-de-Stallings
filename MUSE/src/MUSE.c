@@ -28,6 +28,8 @@ void levantarConfig() {
 
 	loggearInfoServidor(ip,puerto);
 
+
+
 }
 
 void levantarMemoria() {

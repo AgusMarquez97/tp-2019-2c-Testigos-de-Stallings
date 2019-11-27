@@ -24,6 +24,8 @@
 #include <commons/txt.h>
 
 #define pathConfig "/home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/MUSE/config/configuracion.txt"
+#define tam_heap_metadata sizeof(t_heap_metadata)
+
 
 char ip[46];
 char puerto[10];
@@ -56,7 +58,7 @@ typedef struct __attribute__((packed)) {
 	uint32_t offset; // Busca validar cual es la ultima posicion de la pagina escrita
 	bool estaLibre;
 } t_heap_metadata;
-//asdasd
+
 /*
  * Estructura de la memoria swap:
  * 1° Un tamanio de la memoria swap
@@ -314,8 +316,15 @@ int procesarUnmap(char * idProceso, uint32_t posicionMemoria);
 
 
 // AUXILIARES
+/*
+ * 1- Obtiene el ultimo segmento
+ * 2- Escribe la cantidad de paginas necesaria
+ *
+ * Por ahora, no valida:
+ * 			Que pasa si no hay mas lugar en la memoria principal => Esquema memoria virtual y algoritmo
+ */
+uint32_t analizarSegmento (char * idProceso, int tamanio, int cantidadFrames);
 
-uint32_t evaluarSegmento (char * idProceso, int tamanio, int cantidadFrames);
 bool poseeSegmentos(char * idProceso);
 
 void liberarMarcoBitarray(int nroMarco);
@@ -327,5 +336,8 @@ void liberarMarcos();
 void liberarMarco(int nroMarco);
 bool estaLibre(t_bitarray * unBitArray,int nroMarco);
 bool estaLlena(t_bitarray * unBitArray);
+
+// Retorna verdadero si con un tamanio se usan todos los bytes de un segmento (considera el tam del primer hm)
+bool completaSegmento(int tamanio, int cantidadFrames);
 
 #endif /* MUSE_H_ */
