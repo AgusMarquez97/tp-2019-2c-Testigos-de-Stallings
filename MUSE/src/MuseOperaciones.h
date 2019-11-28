@@ -306,7 +306,7 @@ uint32_t analizarSegmento (char * idProceso, int tamanio, int cantidadFrames, bo
 	else
 	{
 		// Agrando el ultimo segmento
-		int tamanioSobranteUltimoMarco = calcularSobrante(ultimoSegmento);
+		int tamanioSobranteUltimoMarco = completarSegmento(ultimoSegmento);
 		int nuevaCantidadFrames = obtenerCantidadMarcos(tamPagina, tamanio + tam_heap_metadata - tamanioSobranteUltimoMarco); // Frames necesarios para escribir en memoria
 		agrandarSegmento();
 	}
@@ -315,40 +315,162 @@ uint32_t analizarSegmento (char * idProceso, int tamanio, int cantidadFrames, bo
 }
 
 
-int calcularSobrante(t_segmento* segmento) {
+uint32_t completarSegmento(t_segmento* segmento, int tamanio) {
 
+	uint32_t posicionRetorno = 0;
 	int cantPaginas = list_size(segmento->paginas);
 	int tamMaximo = tamPagina * cantPaginas;
-	t_pagina* primeraPagina = list_get(segmento->paginas, 0);
-	int offset = primeraPagina->nroMarco * tamPagina;
+	t_pagina* unaPagina = list_get(segmento->paginas, 0);
+	int offset = unaPagina->nroMarco * tamPagina; // Empiezo por la pagina 1
 	int bytesLeidos = 0;
 	t_heap_metadata* heapMetadata = malloc(sizeof(t_heap_metadata));
 	bool ultimaPagina = false;
+
+	//auxliares
+	int contador = 0;
+	int bytesLeidosPagina = 0;
+	void * buffer = malloc(tam_heap_metadata);
 
 	pthread_mutex_lock(&mutex_memoria);
 	memcpy(heapMetadata, memoria + offset, sizeof(t_heap_metadata));
 	pthread_mutex_unlock(&mutex_memoria);
 
-	offset += sizeof(t_heap_metadata) + heapMetadata->offset;
 	bytesLeidos += sizeof(t_heap_metadata) + heapMetadata->offset;
+	bytesLeidosPagina = bytesLeidos; // Por ser la primera vez
+
+	offset += sizeof(t_heap_metadata) + heapMetadata->offset; // No siempre por lo de abajo!
 
 	//VALIDAR SI CAMBIO DE PAGINA
 
-	while(!heapMetadata->estaLibre && !ultimaPagina) {
+	while((!heapMetadata->estaLibre && !ultimaPagina) || (tamMaximo - bytesLeidos) > tam_heap_metadata)
+	{
 
-		// SI ENCONTRAMOS UNA PAGINA LIBRE CON EL TAMAÑO DESEADO, CORTAMOS
+			// Validacion de cambio de pagina:
 
-		pthread_mutex_lock(&mutex_memoria);
-		memcpy(heapMetadata, (memoria + offset), sizeof(t_heap_metadata));
-		pthread_mutex_unlock(&mutex_memoria);
+			if(bytesLeidosPagina > tamPagina) // tengo que cambiar de pagina!
+			{
+				contador++;
+				unaPagina = list_get(segmento->paginas, contador);
+				offset = unaPagina->nroMarco*tamPagina + (bytesLeidosPagina - tamPagina);
+				bytesLeidosPagina = (bytesLeidosPagina - tamPagina);
+			}
 
-		offset += sizeof(t_heap_metadata) + heapMetadata->offset;
-		bytesLeidos += sizeof(t_heap_metadata) + heapMetadata->offset;
 
-		if((int)(bytesLeidos / tamPagina) == cantPaginas) // REVISAR OPERACION
+			if((tamPagina - bytesLeidosPagina) > tam_heap_metadata)
+			{
+				// Se que el proximo heap esta en esta pagina => no necesito buffer
+
+				pthread_mutex_lock(&mutex_memoria);
+				memcpy(heapMetadata, (memoria + offset), sizeof(t_heap_metadata));
+				pthread_mutex_unlock(&mutex_memoria);
+
+				bytesLeidos += sizeof(t_heap_metadata) + heapMetadata->offset;
+				bytesLeidosPagina += sizeof(t_heap_metadata) + heapMetadata->offset;
+
+				if(!heapMetadata->estaLibre && heapMetadata->offset <= tamanio) // Si encuentra un hueco ideal => se guarda en ese hueco
+				{
+					bytesLeidos -= heapMetadata->offset;
+
+					heapMetadata->estaLibre = false;
+					heapMetadata->offset = tamanio;
+
+					pthread_mutex_lock(&mutex_memoria);
+					memcpy((memoria + offset),heapMetadata,tam_heap_metadata);
+					pthread_mutex_unlock(&mutex_memoria);
+
+					// retornar la direccion = bytesLeidos
+
+					posicionRetorno = bytesLeidos;
+
+					return posicionRetorno;
+				}
+
+				offset = 1; //validar
+			}
+			else // necesito un buffer
+			{
+				// 1 - Leo los bytes que me sobraron del marco donde estoy parado
+
+				pthread_mutex_lock(&mutex_memoria);
+				memcpy(buffer, (memoria + offset),(tamPagina - bytesLeidosPagina));
+				pthread_mutex_unlock(&mutex_memoria);
+
+				// Paso de marco ...
+				contador++;
+
+				//Leo la diferencia que me faltaba
+				unaPagina = list_get(segmento->paginas, contador);
+				offset = unaPagina->nroMarco*tamPagina;
+
+				pthread_mutex_lock(&mutex_memoria);
+				memcpy(buffer, (memoria + offset),tam_heap_metadata - (tamPagina - bytesLeidosPagina));
+				pthread_mutex_unlock(&mutex_memoria);
+
+				// Finalmente guardo el heap!
+				memcpy(heapMetadata,buffer,tam_heap_metadata);
+
+				bytesLeidos += sizeof(t_heap_metadata) + heapMetadata->offset;
+				bytesLeidosPagina += sizeof(t_heap_metadata) + heapMetadata->offset;
+
+						/* PENDIENTE RESOLVER CASO HM CON ESPACIO SUFICIENTE Y PARTIDO ENTRE PAGINAS
+				if(!heapMetadata->estaLibre && heapMetadata->offset <= tamanio) // Si encuentra un hueco ideal => se guarda en ese hueco
+				{
+					// Pateamos este caso:
+
+
+							 * 1~ Obtener la primera posicion donde comienza el hm de la pagina anterior = obtener offset
+							 * 		Para hacer esto; Ir al marco anterior y desplazarte tamPag - primerSobranteMArcoAnterior
+							 * 		Luego normal, me desplazo tam_hm - lei en el ultimo marco donde estoy parado
+							 * 		Reemplazo el heap
+
+
+					bytesLeidos -= heapMetadata->offset;
+
+					heapMetadata->estaLibre = false;
+					heapMetadata->offset = tamanio;
+
+					pthread_mutex_lock(&mutex_memoria);
+					memcpy(heapMetadata, (memoria + offset),tam_heap_metadata);
+					pthread_mutex_unlock(&mutex_memoria);
+
+					// retornar la direccion = bytesLeidos
+
+					posicionRetorno = bytesLeidos;
+
+					return posicionRetorno;
+				}
+				 	 */
+			}
+
+
+		offset += sizeof(t_heap_metadata) + heapMetadata->offset;// VALIDAR
+
+		if(contador == cantPaginas) // REVISAR OPERACION
 			ultimaPagina = true;
 
 	}
+
+	// SI SALGO DEL WHILE SE DOS COSAS:
+			// CASO 1: TENGO EL HM METADATA LIBRE CON TANTOS BYTES Y PUEDO USARLO O AGRANDARLO
+						//OPCION 1: USAR ULTIMO HM FINALMENTE RETORNAR PRIMERA DIRECCION LUEGO DEL HM QUE ESTABA FREE
+						//OPCION 2:
+						/*
+						ENTONCES:
+						AGRANDAR, OSEA PEDIR MARCOS (PEDIR MARCOS NECESARIA=OS EN BASE AL NUEVO TAMANIO NECESARIO) Y USAR LO QUE TENIA + LO NUEVO
+						TAM_NECESARIO = TAMANIO - TAM_HM - TAM_OFFSET_HM
+						CANTIDAD_FRAMES_NECESARIOS = obtenerCantidadMarcos(tamPagina,TAM_NECESARIO); // Frames necesarios para escribir en memoria
+						FINALMENTE: CREAR N PAGINAS NUEVAS CON N MARCOS PEDIDOS + AGRANDAR EL SEGMENTO=N*TAMPAG + RETORNAR PRIMER BYTE LUEGO DEL HM QUE ESTABA FREE
+						 */
+
+	// CASO 2: ME SOBRARON N BYTES < TAM HM
+						//PASO 1; PEDIR MARCOS NECESARIOS EN BASE AL NUEVO TAMANIO NECESARIO Y ESCRIBIR EL HM PARTIDO (USAR BUFFER)
+						// TAM_NECESARIO = TAMANIO - tamMaximo - bytesLeidos
+						/*
+						 *
+						TAM_NECESARIO = TAMANIO - TAM_SOBRANTE
+						CANTIDAD_FRAMES_NECESARIOS = obtenerCantidadMarcos(tamPagina,TAM_NECESARIO); // Frames necesarios para escribir en memoria
+						FINALMENTE: CREAR N PAGINAS NUEVAS CON N MARCOS PEDIDOS + AGRANDAR EL SEGMENTO=N*TAMPAG + RETORNAR PRIMER BYTE DEL PRIMER HM NUEVO
+						 */
 
 	return heapMetadata->offset;
 
