@@ -72,6 +72,16 @@ bool hiloFinalizo(char* idProcString,int32_t tid);
 int32_t suse_wait_servidor(char* idProcString,int32_t idHilo,char *semId);
 int32_t suse_signal_servidor(char* idProcString,int32_t idHilo,char *semId);
 
+//------METRICAS.....
+void escribirMetricasSemaforos();
+void escribirMetricasGrado();
+void metricasUnPrograma(char *  idProcString);
+void escribirMetricasProgramas();
+int32_t tiempoEjecucionProceso(char* idProcString);
+void metricasUnHilo(t_hiloPlanificado* hilo);
+void escribirMetricasHilosTotales();
+void escribirMetricasTotales();
+
 
 
 //

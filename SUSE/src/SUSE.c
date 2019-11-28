@@ -410,7 +410,10 @@ void metricasUnHilo(t_hiloPlanificado* hilo){
 	int32_t tiempoEspera=hilo->tiempoEnReady;
 	int32_t tiempoCPU=hilo->tiempoEnExec;
 	int32_t porcentajeTiempoEjecucion=tiempoEjecucion/tiempoEjecucionProceso(hilo->idProceso);
-
+	char * msj = malloc(strlen("Proceso=99999999999 \n Hilo = 99999999999 \n Tiempo de ejecucion=99999999999 \n Tiempo de espera=99999999999 \n Tiempo de cpu=99999999999 \n Porcentaje Tiempo ejecucion=99999999999\n") + 1);
+				    sprintf(msj,"Proceso = %s \n Hilo =%d \n Tiempo de ejecucion=%d \n Tiempo de espera=%d \n Tiempo de cpu=%d \n Porcentaje Tiempo ejecucion=%d\n",hilo->idProceso,hilo->idHilo,tiempoEjecucion,tiempoEspera,tiempoCPU,porcentajeTiempoEjecucion);
+				    log_info(metricas,msj);
+				    free(msj);
 
 }
 
@@ -436,7 +439,15 @@ void escribirMetricasHilosTotales(){
 }
 
 
+void escribirMetricasTotales()
+{
+	escribirMetricasSemaforos();
+	escribirMetricasGrado();
+	escribirMetricasProgramas();
+	escribirMetricasHilosTotales();
 
+
+}
 
 
 
@@ -505,6 +516,7 @@ void rutinaServidor(int * p_socket)
 		case CLOSE_SUSE:
 			loggearInfo("Se recibio una operacion CLOSE_SUSE");
 			result = suse_close_servidor(idProcString,mensajeRecibido->idHilo);
+			escribirMetricasTotales();
 			enviarInt(socketRespuesta, result);
 			break;
 		case WAIT:
@@ -557,6 +569,7 @@ void levantarConfig()
 }
 void levantarEstructuras()
 {
+	procesos = list_create();
 	colaNews = list_create();
 	readys = dictionary_create();
 	execs = dictionary_create();
