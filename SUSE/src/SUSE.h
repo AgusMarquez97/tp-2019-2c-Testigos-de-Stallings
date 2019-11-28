@@ -44,6 +44,9 @@ char ** semIds;
 char ** semInit;
 char ** semMax;
 
+pthread_mutex_t mutexNew, mutexReady, mutexExec, mutexBlocked;
+
+
 t_log* metricas;
 
 t_list* colaNews; //hilos que no pudieron entrar al ready
@@ -71,6 +74,8 @@ int32_t suse_join_servidor(char* idProcString, int32_t tid);
 bool hiloFinalizo(char* idProcString,int32_t tid);
 int32_t suse_wait_servidor(char* idProcString,int32_t idHilo,char *semId);
 int32_t suse_signal_servidor(char* idProcString,int32_t idHilo,char *semId);
+
+void inicializarSemaforosPthread();
 
 //------METRICAS.....
 void escribirMetricasSemaforos();

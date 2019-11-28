@@ -33,14 +33,18 @@ int32_t suse_create_servidor(char* idProcString, int32_t idThread){
 
 
 
-
+	pthread_mutex_lock(&mutexNew);
 	list_add(colaNews,hiloEntrante);
-
+	pthread_mutex_unlock(&mutexNew);
 	char * msj = malloc(strlen("se crea el hilo 99999999999 del proceso 9999999999999") + 1);
 	sprintf(msj,"Se creo el hilo %d del proceso %s",idThread,idProcString);
 	loggearInfo(msj);
 	free(msj);
+	pthread_mutex_lock(&mutexNew);
+	pthread_mutex_lock(&mutexReady);
 	planificar_largoPlazo();
+	pthread_mutex_unlock(&mutexNew);
+	pthread_mutex_unlock(&mutexReady);
 	return 0; //revisar
 
 }
@@ -99,8 +103,11 @@ int obtenerMultiprogActual()
 		{
 		multiprogActual += list_size(cola);
 		}
+	;
 	dictionary_iterator(readys,(void *)calculoMultiprog);
+
 	multiprogActual += dictionary_size(execs);
+
 
 	return multiprogActual;
 	}
@@ -346,7 +353,7 @@ void escribirMetricasSemaforos(){
 void escribirMetricasGrado(){
 
 		    char * msj = malloc(strlen("GRADO MULTIPROGRAMACION= 99999999999") + 1);
-		    sprintf(msj,"GRADO MULTIPROGRAMACION= %d",maxMultiprog);
+		    sprintf(msj,"GRADO MULTIPROGRAMACION= %d",obtenerMultiprogActual());
 		    log_info(metricas,msj);
 		    free(msj);
 }
@@ -391,16 +398,21 @@ int32_t tiempoEjecucionProceso(char* idProcString){
 	void calcularEjecucion(t_hiloPlanificado* hilo){
 		tiempoEjecucionDelProceso+=(int32_t)time(NULL)-hilo->timestampCreacion;
 	}
+	pthread_mutex_lock(&mutexNew);
 	list_iterate(list_filter(colaNews, (void*)hiloEsDePrograma),calcularEjecucion);
-
+	pthread_mutex_unlock(&mutexNew);
+	pthread_mutex_lock(&mutexReady);
 	list_iterate((dictionary_get(readys,idProcString)),calcularEjecucion);
-
+	pthread_mutex_unlock(&mutexReady);
+	pthread_mutex_lock(&mutexExec);
 	t_hiloPlanificado* hiloEjecutando= dictionary_get(execs,idProcString);
 	if(hiloEjecutando!=NULL)
 		tiempoEjecucionDelProceso+=(int32_t)time(NULL)-hiloEjecutando->timestampCreacion;
-
+	pthread_mutex_unlock(&mutexExec);
+	pthread_mutex_lock(&mutexBlocked);
 	list_iterate(list_filter(blockeds,(void*)hiloEsDePrograma),calcularEjecucion);
-		return tiempoEjecucionDelProceso;
+	pthread_mutex_unlock(&mutexBlocked);
+	return tiempoEjecucionDelProceso;
 }
 
 
@@ -430,10 +442,15 @@ void escribirMetricasHilosTotales(){
 	void escribirMetricasExec(char* key, t_hiloPlanificado* value){
 				metricasUnHilo(value);
 			}
+
 	escribirMetricasLista(colaNews);
+
 	escribirMetricasLista(blockeds);
+
 	dictionary_iterator(readys,escribirMetricasDiccionario);
+
 	dictionary_iterator(execs,escribirMetricasExec);
+
 
 
 }
@@ -441,6 +458,7 @@ void escribirMetricasHilosTotales(){
 
 void escribirMetricasTotales()
 {
+	log_info(metricas,":::::::::Metricas:::::::::");
 	escribirMetricasSemaforos();
 	escribirMetricasGrado();
 	escribirMetricasProgramas();
@@ -567,6 +585,7 @@ void levantarConfig()
 
 	loggearInfoServidor(ip,puerto);
 }
+
 void levantarEstructuras()
 {
 	procesos = list_create();
@@ -575,6 +594,7 @@ void levantarEstructuras()
 	execs = dictionary_create();
 	exits = list_create();
 	blockeds = list_create();
+	inicializarSemaforosPthread();
 	inicializarSemaforos();
 }
 void inicializarSemaforos(){
@@ -595,9 +615,18 @@ void inicializarSemaforos(){
 	}
 
 }
+void inicializarSemaforosPthread(){
+
+	pthread_mutex_init(&mutexReady, NULL);
+	pthread_mutex_init(&mutexExec, NULL);
+	pthread_mutex_init(&mutexExec, NULL);
+	pthread_mutex_init(&mutexBlocked, NULL);
+
+}
 
 int main(void) {
 	remove("Linuse.log");
+	remove("Metricas.log");
 	iniciarLog("SUSE");
 	metricas= log_create("Metricas.log", "SUSE", 0, LOG_LEVEL_INFO);
 	loggearInfo("Se inicia el proceso SUSE...");
