@@ -314,6 +314,49 @@ uint32_t analizarSegmento (char * idProceso, int tamanio, int cantidadFrames, bo
 	return direccionRetorno;
 }
 
+
+int calcularSobrante(t_segmento* segmento) {
+
+	int cantPaginas = list_size(segmento->paginas);
+	int tamMaximo = tamPagina * cantPaginas;
+	t_pagina* primeraPagina = list_get(segmento->paginas, 0);
+	int offset = primeraPagina->nroMarco * tamPagina;
+	int bytesLeidos = 0;
+	t_heap_metadata* heapMetadata = malloc(sizeof(t_heap_metadata));
+	bool ultimaPagina = false;
+
+	pthread_mutex_lock(&mutex_memoria);
+	memcpy(heapMetadata, memoria + offset, sizeof(t_heap_metadata));
+	pthread_mutex_unlock(&mutex_memoria);
+
+	offset += sizeof(t_heap_metadata) + heapMetadata->offset;
+	bytesLeidos += sizeof(t_heap_metadata) + heapMetadata->offset;
+
+	//VALIDAR SI CAMBIO DE PAGINA
+
+	while(!heapMetadata->estaLibre && !ultimaPagina) {
+
+		// SI ENCONTRAMOS UNA PAGINA LIBRE CON EL TAMAÑO DESEADO, CORTAMOS
+
+		pthread_mutex_lock(&mutex_memoria);
+		memcpy(heapMetadata, (memoria + offset), sizeof(t_heap_metadata));
+		pthread_mutex_unlock(&mutex_memoria);
+
+		offset += sizeof(t_heap_metadata) + heapMetadata->offset;
+		bytesLeidos += sizeof(t_heap_metadata) + heapMetadata->offset;
+
+		if((int)(bytesLeidos / tamPagina) == cantPaginas) // REVISAR OPERACION
+			ultimaPagina = true;
+
+	}
+
+	return heapMetadata->offset;
+
+}
+
+
+/*
+
 int calcularSobrante(t_segmento * unSegmento)
 {
 	t_list * paginas;
@@ -479,6 +522,7 @@ int calcularSobrante(t_segmento * unSegmento)
 		return sobrante;
 
 }
+*/
 
 int32_t procesarFree(char * idProceso, uint32_t posicionMemoria) {
 		char msj[120];
