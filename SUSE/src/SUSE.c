@@ -33,14 +33,18 @@ int32_t suse_create_servidor(char* idProcString, int32_t idThread){
 
 
 
-
+	pthread_mutex_lock(&mutexNew);
 	list_add(colaNews,hiloEntrante);
-
+	pthread_mutex_unlock(&mutexNew);
 	char * msj = malloc(strlen("se crea el hilo 99999999999 del proceso 9999999999999") + 1);
 	sprintf(msj,"Se creo el hilo %d del proceso %s",idThread,idProcString);
 	loggearInfo(msj);
 	free(msj);
+	pthread_mutex_lock(&mutexNew);
+	pthread_mutex_lock(&mutexReady);
 	planificar_largoPlazo();
+	pthread_mutex_unlock(&mutexNew);
+	pthread_mutex_unlock(&mutexReady);
 	return 0; //revisar
 
 }
@@ -99,8 +103,11 @@ int obtenerMultiprogActual()
 		{
 		multiprogActual += list_size(cola);
 		}
+	;
 	dictionary_iterator(readys,(void *)calculoMultiprog);
+
 	multiprogActual += dictionary_size(execs);
+
 
 	return multiprogActual;
 	}
@@ -346,7 +353,7 @@ void escribirMetricasSemaforos(){
 void escribirMetricasGrado(){
 
 		    char * msj = malloc(strlen("GRADO MULTIPROGRAMACION= 99999999999") + 1);
-		    sprintf(msj,"GRADO MULTIPROGRAMACION= %d",maxMultiprog);
+		    sprintf(msj,"GRADO MULTIPROGRAMACION= %d",obtenerMultiprogActual());
 		    log_info(metricas,msj);
 		    free(msj);
 }
@@ -391,16 +398,21 @@ int32_t tiempoEjecucionProceso(char* idProcString){
 	void calcularEjecucion(t_hiloPlanificado* hilo){
 		tiempoEjecucionDelProceso+=(int32_t)time(NULL)-hilo->timestampCreacion;
 	}
+	pthread_mutex_lock(&mutexNew);
 	list_iterate(list_filter(colaNews, (void*)hiloEsDePrograma),calcularEjecucion);
-
+	pthread_mutex_unlock(&mutexNew);
+	pthread_mutex_lock(&mutexReady);
 	list_iterate((dictionary_get(readys,idProcString)),calcularEjecucion);
-
+	pthread_mutex_unlock(&mutexReady);
+	pthread_mutex_lock(&mutexExec);
 	t_hiloPlanificado* hiloEjecutando= dictionary_get(execs,idProcString);
 	if(hiloEjecutando!=NULL)
 		tiempoEjecucionDelProceso+=(int32_t)time(NULL)-hiloEjecutando->timestampCreacion;
-
+	pthread_mutex_unlock(&mutexExec);
+	pthread_mutex_lock(&mutexBlocked);
 	list_iterate(list_filter(blockeds,(void*)hiloEsDePrograma),calcularEjecucion);
-		return tiempoEjecucionDelProceso;
+	pthread_mutex_unlock(&mutexBlocked);
+	return tiempoEjecucionDelProceso;
 }
 
 
@@ -410,7 +422,10 @@ void metricasUnHilo(t_hiloPlanificado* hilo){
 	int32_t tiempoEspera=hilo->tiempoEnReady;
 	int32_t tiempoCPU=hilo->tiempoEnExec;
 	int32_t porcentajeTiempoEjecucion=tiempoEjecucion/tiempoEjecucionProceso(hilo->idProceso);
-
+	char * msj = malloc(strlen("Proceso=99999999999 \n Hilo = 99999999999 \n Tiempo de ejecucion=99999999999 \n Tiempo de espera=99999999999 \n Tiempo de cpu=99999999999 \n Porcentaje Tiempo ejecucion=99999999999\n") + 1);
+				    sprintf(msj,"Proceso = %s \n Hilo =%d \n Tiempo de ejecucion=%d \n Tiempo de espera=%d \n Tiempo de cpu=%d \n Porcentaje Tiempo ejecucion=%d\n",hilo->idProceso,hilo->idHilo,tiempoEjecucion,tiempoEspera,tiempoCPU,porcentajeTiempoEjecucion);
+				    log_info(metricas,msj);
+				    free(msj);
 
 }
 
@@ -427,16 +442,30 @@ void escribirMetricasHilosTotales(){
 	void escribirMetricasExec(char* key, t_hiloPlanificado* value){
 				metricasUnHilo(value);
 			}
+
 	escribirMetricasLista(colaNews);
+
 	escribirMetricasLista(blockeds);
+
 	dictionary_iterator(readys,escribirMetricasDiccionario);
+
 	dictionary_iterator(execs,escribirMetricasExec);
+
 
 
 }
 
 
+void escribirMetricasTotales()
+{
+	log_info(metricas,":::::::::Metricas:::::::::");
+	escribirMetricasSemaforos();
+	escribirMetricasGrado();
+	escribirMetricasProgramas();
+	escribirMetricasHilosTotales();
 
+
+}
 
 
 
@@ -505,6 +534,7 @@ void rutinaServidor(int * p_socket)
 		case CLOSE_SUSE:
 			loggearInfo("Se recibio una operacion CLOSE_SUSE");
 			result = suse_close_servidor(idProcString,mensajeRecibido->idHilo);
+			escribirMetricasTotales();
 			enviarInt(socketRespuesta, result);
 			break;
 		case WAIT:
@@ -555,13 +585,16 @@ void levantarConfig()
 
 	loggearInfoServidor(ip,puerto);
 }
+
 void levantarEstructuras()
 {
+	procesos = list_create();
 	colaNews = list_create();
 	readys = dictionary_create();
 	execs = dictionary_create();
 	exits = list_create();
 	blockeds = list_create();
+	inicializarSemaforosPthread();
 	inicializarSemaforos();
 }
 void inicializarSemaforos(){
@@ -582,9 +615,18 @@ void inicializarSemaforos(){
 	}
 
 }
+void inicializarSemaforosPthread(){
+
+	pthread_mutex_init(&mutexReady, NULL);
+	pthread_mutex_init(&mutexExec, NULL);
+	pthread_mutex_init(&mutexExec, NULL);
+	pthread_mutex_init(&mutexBlocked, NULL);
+
+}
 
 int main(void) {
 	remove("Linuse.log");
+	remove("Metricas.log");
 	iniciarLog("SUSE");
 	metricas= log_create("Metricas.log", "SUSE", 0, LOG_LEVEL_INFO);
 	loggearInfo("Se inicia el proceso SUSE...");
