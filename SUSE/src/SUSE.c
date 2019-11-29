@@ -180,8 +180,9 @@ bool hiloFinalizo(char* idProcString, int32_t tid)
 {
 	bool encontroHilo(t_hiloPlanificado* unHilo)
 	{
-		return (unHilo->idProceso == idProcString && unHilo->idHilo == tid);
-	}
+		if(strcmp(unHilo->idProceso,idProcString)==0 && unHilo->idHilo == tid)
+		        return true;
+		        else return false;	}
 
 	return list_any_satisfy(exits,(void*) encontroHilo);
 }
@@ -265,6 +266,13 @@ int32_t suse_close_servidor(char *  idProcString, int32_t tid)
 
 
     desbloquearJoin(hiloParaExit); //revisa si dicho hilo estaba bloqueando a otro
+
+    pthread_mutex_lock(&mutexNew);
+    pthread_mutex_lock(&mutexReady);
+    planificar_largoPlazo();
+    pthread_mutex_unlock(&mutexReady);
+    pthread_mutex_unlock(&mutexNew);
+
     return 0;
 
 
@@ -535,10 +543,12 @@ void rutinaServidor(int * p_socket)
 		case CREATE:
 			loggearInfo("Se recibio una operacion CREATE");
 
-			if(mensajeRecibido->idHilo==0){ //Para las metricasXprograma
-				list_add(procesos,idProcString);
-			}
+
 			result= suse_create_servidor(idProcString, mensajeRecibido->idHilo);
+			if(mensajeRecibido->idHilo==0){ //Para las metricasXprograma, y para que que se ejecute de una el primer hilo¿qie pasaria con muchos programas?
+							list_add(procesos,idProcString);
+							suse_schedule_next_servidor(idProcString);
+						}
 			enviarInt(socketRespuesta, result);
 			break;
 		case NEXT:
