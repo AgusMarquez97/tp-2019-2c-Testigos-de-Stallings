@@ -123,6 +123,81 @@ bool completaSegmento(int tamanio, int cantidadFrames)
 	return ((tamanio + tam_heap_metadata) == (cantidadFrames*tamPagina));
 }
 
+void escribirHeapMetadata(t_heap_metadata ** heapMetadata,int *bytesLeidos,int *bytesLeidosPagina,t_segmento** segmento,int * offset,int * nroPagina,uint32_t * posicionRetorno)
+{
+	// = a abajo pero con escritura ... validar si escribir paginas se afecta
+}
+
+void leerHeapMetadata(t_heap_metadata ** heapMetadata,int *bytesLeidos,int *bytesLeidosPagina, int * offset,t_segmento** segmento,int * nroPagina)
+{
+
+	int bytesIniciales = *bytesLeidosPagina;
+	int incremento = 0; // lo que me paso cuando paso de pagina
+	int paginasSalteadas = 0;
+	t_pagina * paginaDummy = malloc(sizeof(*paginaDummy));
+	int sobrantePaginaInicial = tamPagina - (*bytesLeidosPagina);
+
+	if(sobrantePaginaInicial<tam_heap_metadata) // esta partido el proximo heap
+	{
+		leerHeapPartido(heapMetadata,offset,sobrantePaginaInicial,nroPagina,segmento,&paginaDummy);
+		incremento = (tam_heap_metadata - sobrantePaginaInicial) + (*heapMetadata)->offset;
+		*bytesLeidosPagina = incremento;
+		bytesIniciales = 0;
+	}
+	else
+	{
+		pthread_mutex_lock(&mutex_memoria);
+		memcpy(*heapMetadata, memoria + (*offset), sizeof(t_heap_metadata));
+		pthread_mutex_unlock(&mutex_memoria);
+		*bytesLeidosPagina += sizeof(t_heap_metadata) + (*heapMetadata)->offset;
+		incremento = *bytesLeidosPagina - bytesIniciales; // si paso de pagina => se va a recalcular
+	}
+
+	*bytesLeidos += sizeof(t_heap_metadata) + (*heapMetadata)->offset;
+
+	if(*bytesLeidosPagina > tamPagina) // se paso de la pagina en la que estaba
+	{
+		paginasSalteadas = cantidadPaginasSalteadas(*bytesLeidosPagina);
+		incremento = abs(tamPagina*paginasSalteadas - (*bytesLeidosPagina - bytesIniciales));// TESTEAR CON EXCEL. el abs es para cuando los bytes iniciales (hm partido) son 0, evita un if
+		(*nroPagina) += paginasSalteadas;
+		paginaDummy = list_get((*segmento)->paginas,(*nroPagina));
+		*offset = paginaDummy->nroMarco*tamPagina + incremento;
+		*bytesLeidosPagina = incremento;
+	}
+	else
+		*offset += incremento;
+
+	free(paginaDummy);
+}
+
+void leerHeapPartido(t_heap_metadata ** heapMetadata,int * offset,int sobrante,int * nroPagina,t_segmento** segmento,t_pagina ** paginaDummy)
+{
+		void * buffer = malloc(sizeof(tam_heap_metadata));
+
+		pthread_mutex_lock(&mutex_memoria);
+		memcpy(buffer, memoria + (*offset), sobrante);
+		pthread_mutex_unlock(&mutex_memoria);
+
+		(*nroPagina)++;
+
+		(*paginaDummy) = list_get((*segmento)->paginas,(*nroPagina));
+		*offset = (*paginaDummy)->nroMarco*tamPagina;
+
+		pthread_mutex_lock(&mutex_memoria);
+		memcpy(buffer, memoria + (*offset), tam_heap_metadata - sobrante);
+		pthread_mutex_unlock(&mutex_memoria);
+
+		memcpy(*heapMetadata,buffer,tam_heap_metadata);
+
+		free(buffer);
+}
+
+
+int cantidadPaginasSalteadas(int offset)
+{
+	return (int) offset / tamPagina; // redondea al menor numero para abajo
+}
+
 /*
 void liberarMarcos()
 {

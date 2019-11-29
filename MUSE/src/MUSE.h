@@ -257,10 +257,24 @@ int procesarHandshake(char * idProceso);
  *
  */
 uint32_t procesarMalloc(char * idProceso, int32_t tamanio);
+uint32_t analizarSegmento (char * idProceso, int tamanio, int cantidadFrames, bool esCompartido);
+void escribirPaginas(int cantidadPaginas, int tamanio, int primerMarco, int ultimoMarco);
+t_segmento * obtenerSegmento(t_list * segmentos, uint32_t posicionMemoria);
+void leerHeapMetadata(t_heap_metadata ** heapMetadata,int *bytesLeidos,int *bytesLeidosPagina, int * offset,t_segmento** segmento,int * nroPagina);
+void leerHeapPartido(t_heap_metadata ** heapMetadata,int * offset,int sobrante,int * nroPagina,t_segmento** segmento,t_pagina ** paginaDummy);
+void escribirHeapMetadata(t_heap_metadata ** heapMetadata,int *bytesLeidos,int *bytesLeidosPagina,t_segmento** segmento,int * offset,int * nroPagina,uint32_t * posicionRetorno);
+uint32_t estirarSegmento(char * idProceso,t_segmento * segmento,int tamanio,int nuevaCantidadFrames,int offset, int sobrante);
+uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio);
+int cantidadPaginasSalteadas(int offset);
+
+
+
+
 
 t_list * obtenerPaginas(int tamanio, int cantidadFrames);
-t_segmento * instanciarSegmento(int tamanio, int cantidadFrames);
-uint32_t crearSegmento (char * idProceso, int tamanio, int cantidadFrames); // podria ocurrir con mmap?
+void crearSegmento(char * idProceso, int tamanio, int cantidadFrames,t_list * listaSegmentos, int idSegmento, bool esCompartido, int posicionInicial);
+t_segmento * instanciarSegmento(int tamanio, int cantidadFrames, int idSegmento, bool esCompartido, int posicionInicial);
+
 
 /*
  * funcion para escribir el heap metadata en la memoria:
@@ -276,7 +290,6 @@ uint32_t crearSegmento (char * idProceso, int tamanio, int cantidadFrames); // p
  * 					=> Falso: No creo nada, asumo fragmentacion interna en la ultima pagina
  *
  */
-void escribirPaginas(int cantidadPaginas, int tamanio, int primerMarco, int ultimoMarco);
 
 
 
@@ -284,8 +297,7 @@ void escribirPaginas(int cantidadPaginas, int tamanio, int primerMarco, int ulti
 
 int32_t procesarFree(char * idProceso, uint32_t posicionMemoria);
 
-t_segmento * obtenerSegmento(t_list * segmentos, uint32_t posicionMemoria);
-t_pagina * obtenerPagina(t_list * paginas, uint32_t posicionMemoria);
+t_list * obtenerPaginas(int tamanio, int cantidadFrames);
 int liberarHeapMetadata(int base,int offset);
 t_heap_metadata * obtenerHeapMetadata(int base,int offset);
 
@@ -323,10 +335,7 @@ int procesarUnmap(char * idProceso, uint32_t posicionMemoria);
  * Por ahora, no valida:
  * 			Que pasa si no hay mas lugar en la memoria principal => Esquema memoria virtual y algoritmo
  */
-uint32_t analizarSegmento (char * idProceso, int tamanio, int cantidadFrames);
-
 bool poseeSegmentos(char * idProceso);
-
 void liberarMarcoBitarray(int nroMarco);
 
 
