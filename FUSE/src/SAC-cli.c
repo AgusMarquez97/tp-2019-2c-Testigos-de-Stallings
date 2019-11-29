@@ -324,7 +324,6 @@ static int hacer_read(const char *path, char *buffer, size_t size, off_t offset,
 	if(continuar == -1)//no existe en el FS
 		return -1;
 
-
 	recibirString(socketConexion,&cont);//recibo el contenido del archivo
 
 	memcpy(buffer, cont, size );
@@ -366,12 +365,6 @@ static int hacer_mknod(const char *path, mode_t modo, dev_t dispositivo)
 //va a ser llamada para escribir contenido en un archivo
 static int hacer_write(const char *path, const char *buffer, size_t size, off_t offset, struct fuse_file_info *info)
 {
-
-	/*ver offset
-	 *
-	 *
-	 * */
-
 	enviarInt(socketConexion, WRITE);
 
 	char* contenido = strdup(buffer);
