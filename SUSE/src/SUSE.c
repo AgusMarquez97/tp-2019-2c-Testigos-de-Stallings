@@ -230,10 +230,12 @@ void desbloquearJoin(t_hiloPlanificado* hilo)
 					hiloBloqueadoPorJoin= list_remove_by_condition(blockeds, (void *) existeHiloBloqueado);
 					if(hiloBloqueadoPorJoin!=NULL)
 					{
+						pthread_mutex_lock(&mutexReady);
 						hiloBloqueadoPorJoin->estadoHilo=READY;
 						hiloBloqueadoPorJoin->hiloBloqueante = NULL;
 						t_list* colaReadyDelProc = dictionary_get(readys,hilo->idProceso);
 						list_add(colaReadyDelProc,hiloBloqueadoPorJoin);
+						pthread_mutex_unlock(&mutexReady);
 					}
 
 }
@@ -243,6 +245,7 @@ int32_t suse_close_servidor(char *  idProcString, int32_t tid)
 {
 
     t_hiloPlanificado* hiloParaExit;
+
     hiloParaExit = dictionary_get(execs,idProcString);
 
     if(hiloParaExit->idHilo==tid)//y que onda si no es el id que me pidieron?
@@ -361,8 +364,10 @@ void escribirMetricasGrado(){
 void metricasUnPrograma(char *  idProcString){
 
 	bool hiloEsDePrograma(t_hiloPlanificado*  hiloNew){
-		return hiloNew->idProceso==idProcString;
-	}
+			if(strcmp(hiloNew->idProceso,idProcString)==0)
+				return true;
+				else return false;
+	    }
 
 	int cantidadNew= list_size(list_filter(colaNews, (void*)hiloEsDePrograma));
 
@@ -381,7 +386,15 @@ void metricasUnPrograma(char *  idProcString){
 void escribirMetricasProgramas(){
 
 	for(int i=0;i<list_size(procesos);i++){
+		pthread_mutex_lock(&mutexNew);
+		pthread_mutex_lock(&mutexReady);
+		pthread_mutex_lock(&mutexExec);
+		pthread_mutex_lock(&mutexBlocked);
 		metricasUnPrograma(list_get(procesos,i));
+		pthread_mutex_unlock(&mutexBlocked);
+		pthread_mutex_unlock(&mutexExec);
+		pthread_mutex_unlock(&mutexReady);
+		pthread_mutex_unlock(&mutexNew);
 	}
 }
 
@@ -398,21 +411,20 @@ int32_t tiempoEjecucionProceso(char* idProcString){
 	void calcularEjecucion(t_hiloPlanificado* hilo){
 		tiempoEjecucionDelProceso+=(int32_t)time(NULL)-hilo->timestampCreacion;
 	}
-	pthread_mutex_lock(&mutexNew);
+
 	list_iterate(list_filter(colaNews, (void*)hiloEsDePrograma),calcularEjecucion);
-	pthread_mutex_unlock(&mutexNew);
-	pthread_mutex_lock(&mutexReady);
+
+
 	list_iterate((dictionary_get(readys,idProcString)),calcularEjecucion);
-	pthread_mutex_unlock(&mutexReady);
-	pthread_mutex_lock(&mutexExec);
+
 	t_hiloPlanificado* hiloEjecutando= dictionary_get(execs,idProcString);
 	if(hiloEjecutando!=NULL)
 		tiempoEjecucionDelProceso+=(int32_t)time(NULL)-hiloEjecutando->timestampCreacion;
-	pthread_mutex_unlock(&mutexExec);
-	pthread_mutex_lock(&mutexBlocked);
+
 	list_iterate(list_filter(blockeds,(void*)hiloEsDePrograma),calcularEjecucion);
-	pthread_mutex_unlock(&mutexBlocked);
-	return tiempoEjecucionDelProceso;
+
+	//return tiempoEjecucionDelProceso;
+	return tiempoEjecucionDelProceso+1;
 }
 
 
@@ -462,7 +474,15 @@ void escribirMetricasTotales()
 	escribirMetricasSemaforos();
 	escribirMetricasGrado();
 	escribirMetricasProgramas();
+	pthread_mutex_lock(&mutexNew);
+	pthread_mutex_lock(&mutexReady);
+	pthread_mutex_lock(&mutexExec);
+	pthread_mutex_lock(&mutexBlocked);
 	escribirMetricasHilosTotales();
+	pthread_mutex_unlock(&mutexBlocked);
+	pthread_mutex_unlock(&mutexExec);
+	pthread_mutex_unlock(&mutexReady);
+	pthread_mutex_unlock(&mutexNew);
 
 
 }
@@ -523,17 +543,27 @@ void rutinaServidor(int * p_socket)
 			break;
 		case NEXT:
 			loggearInfo("Se recibio una operacion NEXT");
+			pthread_mutex_lock(&mutexReady);
+			pthread_mutex_lock(&mutexExec);
 			result=suse_schedule_next_servidor(idProcString);
+			pthread_mutex_unlock(&mutexReady);
+			pthread_mutex_unlock(&mutexExec);
 			enviarInt(socketRespuesta, result);
 			break;
 		case JOIN:
 			loggearInfo("Se recibio una operacion JOIN");
+			pthread_mutex_lock(&mutexBlocked);
+			pthread_mutex_lock(&mutexExec);
 			result= suse_join_servidor(idProcString, mensajeRecibido->idHilo);
+			pthread_mutex_unlock(&mutexBlocked);
+			pthread_mutex_unlock(&mutexExec);
 			enviarInt(socketRespuesta, result);
 			break;
 		case CLOSE_SUSE:
 			loggearInfo("Se recibio una operacion CLOSE_SUSE");
+			pthread_mutex_lock(&mutexExec);
 			result = suse_close_servidor(idProcString,mensajeRecibido->idHilo);
+			pthread_mutex_unlock(&mutexExec);
 			escribirMetricasTotales();
 			enviarInt(socketRespuesta, result);
 			break;
