@@ -18,53 +18,52 @@ void levantarConfig() {
 
 	t_config * unConfig = retornarConfig(pathConfig);
 
-	strcpy(ip,config_get_string_value(unConfig,"IP"));
-	strcpy(puerto,config_get_string_value(unConfig,"LISTEN_PORT"));
-	tamMemoria = config_get_int_value(unConfig,"MEMORY_SIZE");
-	tamPagina = config_get_int_value(unConfig,"PAGE_SIZE");
-	tamSwap = config_get_int_value(unConfig,"SWAP_SIZE");
+	strcpy(ip,config_get_string_value(unConfig, "IP"));
+	strcpy(puerto,config_get_string_value(unConfig, "LISTEN_PORT"));
+	tamMemoria = config_get_int_value(unConfig, "MEMORY_SIZE");
+	tamPagina = config_get_int_value(unConfig, "PAGE_SIZE");
+	tamSwap = config_get_int_value(unConfig, "SWAP_SIZE");
 
 	config_destroy(unConfig);
 
-	loggearInfoServidor(ip,puerto);
-
-
+	loggearInfoServidor(ip, puerto);
 
 }
 
 void levantarMemoria() {
+
 	diccionarioProcesos = dictionary_create();
 	memoria = malloc(tamMemoria);
 	crearMemoriaSwap();
 
-	levantarMarcos(&marcosMemoriaPrincipal,tamMemoria,&cantidadMarcosMemoriaPrincipal);
-	levantarMarcos(&marcosMemoriaSwap,tamSwap,&cantidadMarcosMemoriaVirtual);
-
+	levantarMarcos(&marcosMemoriaPrincipal, tamMemoria, &cantidadMarcosMemoriaPrincipal);
+	levantarMarcos(&marcosMemoriaSwap, tamSwap, &cantidadMarcosMemoriaVirtual);
 
 }
 
-void levantarMarcos(t_bitarray ** unBitArray, int tamanio, int * cantidadMarcos)
-{
-		*cantidadMarcos = obtenerCantidadMarcos(tamPagina,tamanio);
-		char * bitmap = calloc(1,*cantidadMarcos); // Cuando se libera??
+void levantarMarcos(t_bitarray** unBitArray, int tamanio, int* cantidadMarcos) {
 
-		*unBitArray = bitarray_create_with_mode(bitmap, (*cantidadMarcos)/8, LSB_FIRST); // Array de bits para consultar marcos libres
+	*cantidadMarcos = obtenerCantidadMarcos(tamPagina, tamanio);
+	char* bitmap = calloc(1, *cantidadMarcos); // Cuando se libera??
+	// Array de bits para consultar marcos libres
+	*unBitArray = bitarray_create_with_mode(bitmap, (*cantidadMarcos)/8, LSB_FIRST);
 
-		for(int i = 0; i<(*cantidadMarcos);i++)
-		{
-		bitarray_clean_bit(*unBitArray,i); //seteo todos los bits en 0 (al principio todos los marcos están libres)
-		}
+	for(int i = 0; i<(*cantidadMarcos); i++) {
+		bitarray_clean_bit(*unBitArray, i);
+	}
+
 }
 
-void crearMemoriaSwap()
-{
+void crearMemoriaSwap() {
+
 	remove("Memoria Swap"); // Analizar si la MS debe ser persistida
-	FILE * f_MS =  txt_open_for_append("Memoria Swap");
+	FILE* f_MS =  txt_open_for_append("Memoria Swap");
 	txt_close_file(f_MS);
+
 }
 
-void inicializarSemaforos()
-{
+void inicializarSemaforos() {
+
 	pthread_mutex_init(&mutex_marcos_libres, NULL);
 	pthread_mutex_init(&mutex_diccionario, NULL);
 	pthread_mutex_init(&mutex_memoria, NULL);
@@ -74,9 +73,7 @@ void inicializarSemaforos()
 void levantarServidorMUSE() {
 
 	int socketRespuesta;
-
 	pthread_t hiloAtendedor = 0;
-
 	int socketServidor = levantarServidor(ip,puerto);
 
 	while(1) {
@@ -84,9 +81,9 @@ void levantarServidorMUSE() {
 			loggearNuevaConexion(socketRespuesta);
 			int* p_socket = malloc(sizeof(int));
 			*p_socket = socketRespuesta;
-			if((hiloAtendedor = makeDetachableThread(rutinaServidor,(void*)p_socket)) != 0) {
-			}
-			else {
+			if((hiloAtendedor = makeDetachableThread(rutinaServidor, (void*)p_socket)) != 0) {
+			// REVISAR! (si no va nada por el lado del true, invertir la condición y quitar el else)
+			} else {
 				loggearError("Error al crear un nuevo hilo");
 			}
 		}
@@ -95,6 +92,7 @@ void levantarServidorMUSE() {
 }
 
 void rutinaServidor(int* p_socket) {
+
 	char* info;
 	int valorRetorno;
 	int socketRespuesta = *p_socket;
@@ -102,12 +100,11 @@ void rutinaServidor(int* p_socket) {
 	free(p_socket);
 	t_mensajeMuse* mensajeRecibido = recibirOperacion(socketRespuesta);
 
-	sprintf(id_proceso,"%d",mensajeRecibido->idProceso);
+	sprintf(id_proceso,"%d", mensajeRecibido->idProceso);
 
 	if(mensajeRecibido == NULL) {
 		loggearInfo("Mensaje no reconocido");
-	}
-	else {
+	} else {
 		switch(mensajeRecibido->tipoOperacion) {
 			case HANDSHAKE:
 			valorRetorno = procesarHandshake(id_proceso);
@@ -183,12 +180,10 @@ void rutinaServidor(int* p_socket) {
 
 				enviarInt(socketRespuesta, retornoUnmap);
 				break;
-
 			case CLOSE:
 			loggearInfo("Se recibio una operacion CLOSE");
 
 			int retornoClose = procesarClose(id_proceso); //funcion que debe liberar la memoria reservada tanto principal como swap y debe eliminar la entrada del diccionario
-
 			enviarInt(socketRespuesta, retornoClose);
 			break;
 		default:
@@ -196,23 +191,13 @@ void rutinaServidor(int* p_socket) {
 		}
 		free(mensajeRecibido);
 	}
-
 	close(socketRespuesta);
 
 }
 
-
-
 void liberarVariablesGlobales() {
+
 	destruirLog();
 	free(memoria);
+
 }
-
-
-
-
-
-
-
-
-
