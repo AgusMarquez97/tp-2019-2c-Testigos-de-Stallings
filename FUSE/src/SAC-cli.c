@@ -504,6 +504,31 @@ int hacer_utimens(const char* path, const struct timespec tv[2])
 
 }
 
+int hacer_truncate(const char* path, off_t tamanioNuevo, struct fuse_file_info* fi)
+{
+	enviarInt(socketConexion, TRUNCATE);
+
+	int resultado;
+
+	int tamanioPath = strlen(path) + 1;
+	int tamEnviar = sizeof(int) + tamanioPath + sizeof(off_t);
+	void* bufferEnviar = malloc( sizeof(int) + tamEnviar);
+
+	memcpy(bufferEnviar, &tamEnviar, sizeof(int) );
+	memcpy(bufferEnviar + sizeof(int), &tamanioPath, sizeof(int) );
+	memcpy(bufferEnviar + sizeof(int) + sizeof(int), path, tamanioPath );
+	memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamanioPath, &tamanioNuevo, sizeof(off_t) );
+	enviar(socketConexion, bufferEnviar, sizeof(int) + tamEnviar);
+
+	recibirInt(socketConexion,&resultado);
+
+	if(resultado == -1)
+		return -1;
+
+	return 0;
+
+}
+
 
 void levantarClienteFUSE()
 {
@@ -543,6 +568,7 @@ static struct fuse_operations operaciones = {
 	.unlink		= hacer_unlink,
 	.rmdir		= hacer_rmdir,
 	.utimens	= hacer_utimens,
+	.truncate   = hacer_truncate,
 };
 
 enum {

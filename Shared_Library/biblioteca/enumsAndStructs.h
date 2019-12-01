@@ -111,6 +111,7 @@ typedef enum {
 	UNLINK,
 	RENAME,
 	UTIMENS,
+	TRUNCATE,
 } t_operacionFuse;
 
 
