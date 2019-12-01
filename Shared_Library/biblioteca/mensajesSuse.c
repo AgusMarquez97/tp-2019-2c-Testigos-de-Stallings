@@ -44,6 +44,8 @@ void enviarOperacionSuse(int socket, int32_t proceso, int32_t operacion, int32_t
 		tamanioBuffer += sizeof(int32_t);
 	if(rafaga != 0)
 		tamanioBuffer += sizeof(int32_t);
+	if(semId != NULL)
+		tamanioBuffer += strlen(semId)*sizeof(semId); //si le doy solo strlen(semId) no alcanza, pero tampoco le puedo dar algo como +1 xq queda feo
 
 
 	void* buffer = malloc(tamanioBuffer);
@@ -66,11 +68,11 @@ void enviarOperacionSuse(int socket, int32_t proceso, int32_t operacion, int32_t
 			break;
 		case WAIT:
 			serializarInt(buffer, tid, &desplazamiento);
-			serializarString(buffer,semId,&desplazamiento);
+			serializarVoid(buffer,semId,strlen(semId)+1,&desplazamiento); //aca si el tamanio es strlen
 			break;
 		case SIGNAL:
 			serializarInt(buffer, tid, &desplazamiento);
-			serializarString(buffer,semId,&desplazamiento);
+			serializarVoid(buffer,semId,strlen(semId)+1,&desplazamiento); //aca si el tamanio es strlen
 			break;
 		default: // la funcion no es void???
 			; //return NULL;  //Comento esto para que compile
@@ -86,7 +88,9 @@ t_mensajeSuse* recibirOperacionSuse(int socketEmisor) {
 	t_mensajeSuse* mensajeRecibido;
 	int cantidadRecibida = 0;
 	int32_t  proceso, operacion;
-
+	int tam=0;
+	int desplazamiento=0;
+	void* buffer;
 	cantidadRecibida = recibirInt(socketEmisor, &proceso);
 	cantidadRecibida += recibirInt(socketEmisor, &operacion);
 
@@ -113,12 +117,18 @@ t_mensajeSuse* recibirOperacionSuse(int socketEmisor) {
 			break;
 		case WAIT:
 			recibirInt(socketEmisor, &mensajeRecibido->idHilo);
-			recibirString(socketEmisor, &mensajeRecibido->semId);
+			recibirInt(socketEmisor, &tam);
+			buffer = malloc(tam);
+			recibir(socketEmisor, buffer, tam);
+			deserializarVoid((char*)buffer, &mensajeRecibido->semId, tam, &desplazamiento);
 
 			break;
 		case SIGNAL:
 			recibirInt(socketEmisor, &mensajeRecibido->idHilo);
-			recibirString(socketEmisor, &mensajeRecibido->semId);
+			recibirInt(socketEmisor, &tam);
+			buffer = malloc(tam);
+			recibir(socketEmisor, buffer, tam);
+			deserializarVoid((char*)buffer, &mensajeRecibido->semId, tam, &desplazamiento);
 			break;
 		default:
 			return NULL;

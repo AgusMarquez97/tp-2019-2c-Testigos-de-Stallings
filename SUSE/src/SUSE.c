@@ -288,7 +288,7 @@ int32_t suse_wait_servidor(char *idProcString,int32_t idHilo,char *semId)
 {
 	bool semEncontrado(t_semaforoSuse* sem)
 	{
-		return sem->idSem == semId; //retorna true si idSem(el id del sem en la lista) es igual a semId (al que te piden)
+		return strcmp(sem->idSem,semId)==0; //retorna true si idSem(el id del sem en la lista) es igual a semId (al que te piden)
 	}
 	t_semaforoSuse* semaforo= list_find(semaforos, (void*) semEncontrado);
 	if(semaforo != NULL)//si encontro el semaforo en la lista...
@@ -314,7 +314,7 @@ int32_t suse_signal_servidor(char *idProcString,int32_t idHilo,char *semId)
 {
 	bool semEncontrado(t_semaforoSuse* sem)
 		{
-			return sem->idSem == semId; //retorna true si idSem(el id del sem en la lista) es igual a semId (al que te piden)
+			return strcmp(sem->idSem, semId)==0; //retorna true si idSem(el id del sem en la lista) es igual a semId (al que te piden)
 		}
 		t_semaforoSuse* semaforo= list_find(semaforos, (void*) semEncontrado);
 		if(semaforo != NULL && (semaforo->valorActual < semaforo->valorMax))//si encontro el semaforo en la lista...
