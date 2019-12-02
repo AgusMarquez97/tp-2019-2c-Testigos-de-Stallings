@@ -306,6 +306,3 @@ uint32_t crearSegmento (char * idProceso, int tamanio, int cantidadFrames) // po
 		return direccionarInicial;
 }
 */
-
-
-

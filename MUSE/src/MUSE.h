@@ -99,6 +99,56 @@ typedef struct {
 	//bit modificado
 } t_pagina;
 
+// MUSE
+int main();
+void levantarConfig();
+void levantarMemoria();
+void levantarMarcos(t_bitarray** unBitArray, int tamanio, int* cantidadMarcos);
+void crearMemoriaSwap();
+void inicializarSemaforos();
+void levantarServidorMUSE();
+void rutinaServidor(int* socketRespuesta);
+void liberarVariablesGlobales();
+
+// MuseOperaciones
+bool existeEnElDiccionario(char* idProceso);
+int procesarHandshake(char* idProceso);
+uint32_t procesarMalloc(char* idProceso, int32_t tamanio);
+bool obtenerDireccionMemoria(char* idProceso, uint32_t posicionMemoria, int* base, int* offset);
+int32_t procesarFree(char* idProceso, uint32_t posicionMemoria);
+void* procesarGet(char* idProceso, uint32_t posicionMemoria, int32_t tamanio);
+int procesarCpy(char* idProceso, uint32_t posicionMemoria, int32_t tamanio, void* contenido);
+uint32_t procesarMap(char* idProceso, void* contenido, int32_t tamanio, int32_t flag);
+int procesarSync(char* idProceso, uint32_t posicionMemoria, int32_t tamanio);
+int procesarUnmap(char* idProceso, uint32_t posicionMemoria);
+int procesarClose(char* idProceso);
+
+// MuseAuxiliares
+void estirarSegmento(char * idProceso,t_segmento * segmento,int tamanio,int nuevaCantidadFrames,int offset, int sobrante);
+int obtenerCantidadMarcos(int tamanioPagina, int tamanioMemoria);
+t_segmento* obtenerSegmento(t_list* segmentos, uint32_t posicionMemoria);
+t_pagina* obtenerPagina(t_list* paginas, uint32_t posicionMemoria);
+bool poseeSegmentos(char* idProceso);
+void escribirPaginas(int cantidadMarcos, int tamanio, int primerMarco, int ultimoMarco);
+t_list* obtenerPaginas(int tamanio, int cantidadMarcos);
+t_segmento* instanciarSegmento(int tamanio, int cantidadFrames, int idSegmento, bool esCompartido, int posicionInicial);
+void crearSegmento(char* idProceso, int tamanio, int cantidadFrames, t_list* listaSegmentos, int idSegmento, bool esCompartido, int posicionInicial);
+void crearSegmentoNuevo(int tamanio, int idSegmento);
+uint32_t completarSegmento(char* idProceso, t_segmento* ultimoSegmento, int tamanio);
+uint32_t analizarSegmento (char * idProceso, int tamanio, int cantidadFrames, bool esCompartido);
+t_heap_metadata* obtenerHeapMetadata(int base, int offset);
+uint32_t liberarBytesMemoria(int base, int offset);
+void* leerDeMemoria(int posicionInicial, int tamanio);
+void escribirEnMemoria(void* contenido, int posicionInicial, int tamanio);
+void liberarMarcoBitarray(int nroMarco);
+int asignarMarcoLibre();
+void leerHeapMetadata(t_heap_metadata ** heapMetadata,int *bytesLeidos,int *bytesLeidosPagina, int * offset,t_segmento** segmento,int * nroPagina);
+void leerHeapPartido(t_heap_metadata ** heapMetadata,int * offset,int sobrante,int * nroPagina,t_segmento** segmento,t_pagina ** paginaDummy);
+void escribirHeapMetadata(t_heap_metadata ** heapMetadata,int *bytesLeidos,int *bytesLeidosPagina,t_segmento** segmento,int * offset,int * nroPagina,uint32_t * posicionRetorno);
+int cantidadPaginasSalteadas(int offset);
+
+#endif /* MUSE_H_ */
+
 /*
  * Consideraciones
  * Se retornar direcciones virtuales, esto quiere decir que no retorno la direccion real de la MP, si no una abstraccion:
@@ -222,70 +272,6 @@ typedef struct {
 					Me paro en la posicion indicada y realizo un memcpy a una variable char * la cantidad de bytes que se quieran leer, por ultimo retorno dicha variable
  */
 
-// MUSE
-int main();
-void levantarConfig();
-void levantarMemoria();
-void levantarMarcos(t_bitarray** unBitArray, int tamanio, int* cantidadMarcos);
-void crearMemoriaSwap();
-void inicializarSemaforos();
-void levantarServidorMUSE();
-void rutinaServidor(int* socketRespuesta);
-void liberarVariablesGlobales();
-
-// MuseOperaciones
-bool existeEnElDiccionario(char* idProceso);
-int procesarHandshake(char* idProceso);
-uint32_t procesarMalloc(char* idProceso, int32_t tamanio);
-bool obtenerDireccionMemoria(char* idProceso, uint32_t posicionMemoria, int* base, int* offset);
-int32_t procesarFree(char* idProceso, uint32_t posicionMemoria);
-void* procesarGet(char* idProceso, uint32_t posicionMemoria, int32_t tamanio);
-int procesarCpy(char* idProceso, uint32_t posicionMemoria, int32_t tamanio, void* contenido);
-uint32_t procesarMap(char* idProceso, void* contenido, int32_t tamanio, int32_t flag);
-int procesarSync(char* idProceso, uint32_t posicionMemoria, int32_t tamanio);
-int procesarUnmap(char* idProceso, uint32_t posicionMemoria);
-int procesarClose(char* idProceso);
-
-// MuseAuxiliares
-void estirarSegmento(char * idProceso,t_segmento * segmento,int tamanio,int nuevaCantidadFrames,int offset, int sobrante);
-int obtenerCantidadMarcos(int tamanioPagina, int tamanioMemoria);
-t_segmento* obtenerSegmento(t_list* segmentos, uint32_t posicionMemoria);
-t_pagina* obtenerPagina(t_list* paginas, uint32_t posicionMemoria);
-bool poseeSegmentos(char* idProceso);
-void escribirPaginas(int cantidadMarcos, int tamanio, int primerMarco, int ultimoMarco);
-t_list* obtenerPaginas(int tamanio, int cantidadMarcos);
-t_segmento* instanciarSegmento(int tamanio, int cantidadFrames, int idSegmento, bool esCompartido, int posicionInicial);
-void crearSegmento(char* idProceso, int tamanio, int cantidadFrames, t_list* listaSegmentos, int idSegmento, bool esCompartido, int posicionInicial);
-void crearSegmentoNuevo(int tamanio, int idSegmento);
-uint32_t completarSegmento(char* idProceso, t_segmento* ultimoSegmento, int tamanio);
-uint32_t analizarSegmento (char * idProceso, int tamanio, int cantidadFrames, bool esCompartido);
-t_heap_metadata* obtenerHeapMetadata(int base, int offset);
-uint32_t liberarBytesMemoria(int base, int offset);
-void* leerDeMemoria(int posicionInicial, int tamanio);
-void escribirEnMemoria(void* contenido, int posicionInicial, int tamanio);
-void liberarMarcoBitarray(int nroMarco);
-int asignarMarcoLibre();
-void leerHeapMetadata(t_heap_metadata ** heapMetadata,int *bytesLeidos,int *bytesLeidosPagina, int * offset,t_segmento** segmento,int * nroPagina);
-void leerHeapPartido(t_heap_metadata ** heapMetadata,int * offset,int sobrante,int * nroPagina,t_segmento** segmento,t_pagina ** paginaDummy);
-void escribirHeapMetadata(t_heap_metadata ** heapMetadata,int *bytesLeidos,int *bytesLeidosPagina,t_segmento** segmento,int * offset,int * nroPagina,uint32_t * posicionRetorno);
-int cantidadPaginasSalteadas(int offset);
-#endif /* MUSE_H_ */
-
-
-
-
-/*
-bool estaLibreMarco(int nroMarco);
-
-t_segmento* obtenerSegmento(t_list* segmentos, uint32_t posicionMemoria);
-t_pagina* obtenerPagina(t_list* paginas, uint32_t posicionMemoria);
-
-int asignarMarcoLibre();
-void escribirPaginas(int cantidadMarcos, int tamanio, int primerMarco, int ultimoMarco);
-t_list* obtenerPaginas(int tamanio, int cantidadFrames);
-t_segmento* instanciarSegmento(int tamanio, int cantidadFrames, int idSegmento, bool esCompartido, int posicionInicial);
-
-*/
 /*
  * MALLOC: Pasos a seguir
  * 1° Buscar en el diccionario el proceso correspondiente
@@ -295,16 +281,7 @@ t_segmento* instanciarSegmento(int tamanio, int cantidadFrames, int idSegmento, 
  *  	3B) No puedo agrandar mas el segmento por un mmap => Creo un nuevo segmento en la lista de segmentos (Por ahora no va a pasar)
  *
  */
-/*
-uint32_t analizarSegmento (char* idProceso, int tamanio, int cantidadFrames, bool esCompartido);
-t_segmento* obtenerSegmento(t_list* segmentos, uint32_t posicionMemoria);
-void leerHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* bytesLeidosPagina, int* offset, t_segmento** segmento, int* nroPagina);
-void leerHeapPartido(t_heap_metadata** heapMetadata, int* offset, int sobrante, int* nroPagina, t_segmento** segmento, t_pagina** paginaDummy);
-void escribirHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* bytesLeidosPagina, t_segmento** segmento, int* offset, int* nroPagina, uint32_t* posicionRetorno);
-uint32_t estirarSegmento(char* idProceso, t_segmento* segmento, int tamanio, int nuevaCantidadFrames, int offset, int sobrante);
-uint32_t completarSegmento(char* idProceso, t_segmento* segmento, int tamanio);
-int cantidadPaginasSalteadas(int offset);
-*/
+
 /*
  * funcion para escribir el heap metadata en la memoria:
  * 			0 - Creo un heap metadata con el tamanio a escribir (tam del malloc) y el estado en ocupado
@@ -318,23 +295,11 @@ int cantidadPaginasSalteadas(int offset);
  * 					=> Verdadero: entonces creo un nuevo heap metadata en la posicion: (tamanio total - C)
  * 					=> Falso: No creo nada, asumo fragmentacion interna en la ultima pagina
  */
-/*
-int liberarHeapMetadata(int base, int offset);
-t_heap_metadata* obtenerHeapMetadata(int base, int offset);
-*/
+
 /*
  * 1- Obtiene el ultimo segmento
  * 2- Escribe la cantidad de paginas necesaria
  *
  * Por ahora, no valida:
  * 			Que pasa si no hay mas lugar en la memoria principal => Esquema memoria virtual y algoritmo
-*/
-/*
-bool poseeSegmentos(char* idProceso);
-void liberarMarcos();
-void liberarMarco(int nroMarco);
-bool estaLibre(t_bitarray* unBitArray,int nroMarco);
-bool estaLlena(t_bitarray* unBitArray);
-// Retorna verdadero si con un tamanio se usan todos los bytes de un segmento (considera el tam del primer hm)
-bool completaSegmento(int tamanio, int cantidadFrames);
 */
