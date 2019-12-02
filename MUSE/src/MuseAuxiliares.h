@@ -80,19 +80,19 @@ void escribirPaginas(int cantidadMarcos, int tamanio, int primerMarco, int ultim
 
 }
 
-void agregarPaginas(t_list ** listaPaginas,int cantidadMarcos, int nroUltimaPagina)
-{
+void agregarPaginas(t_list** listaPaginas, int cantidadMarcos, int nroUltimaPagina) {
+
 	t_pagina * pagina;
 
 	for(int i = 0; i < cantidadMarcos; i++) {
+		pagina = malloc(sizeof(pagina));
 
-			pagina = malloc(sizeof(pagina));
+		pagina->nroMarco = asignarMarcoLibre(); // Agregar logica del algoritmo de reemplazo de pags
+		pagina->nroPagina = i = nroUltimaPagina;
 
-			pagina->nroMarco = asignarMarcoLibre(); // Agregar logica del algoritmo de reemplazo de pags
-			pagina->nroPagina = i = nroUltimaPagina;
+		list_add(*listaPaginas, pagina);
+	}
 
-			list_add(*listaPaginas, pagina);
-		}
 }
 
 t_list* obtenerPaginas(int tamanio, int cantidadMarcos) {
@@ -139,12 +139,12 @@ void crearSegmento(char* idProceso, int tamanio, int cantidadMarcos, t_list* lis
 
 }
 
-void estirarSegmento(char * idProceso, t_segmento * segmento, int tamanio, int nuevaCantidadFrames, int offset, int sobrante) {
+void estirarSegmento(char* idProceso, t_segmento* segmento, int tamanio, int nuevaCantidadFrames, int offset, int sobrante) {
 
 	t_list* listaPaginas = segmento->paginas;
 	int nroUltimaPagina = list_size(listaPaginas);
 
-	if(sobrante==0)
+	if(sobrante == 0)
 		nroUltimaPagina = list_size(listaPaginas) + 1;
 
 	agregarPaginas(&listaPaginas, nuevaCantidadFrames, nroUltimaPagina);
@@ -163,15 +163,14 @@ uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 	t_pagina* unaPagina = list_get(segmento->paginas, 0);
 	int offset = unaPagina->nroMarco * tamPagina;
 	int bytesLeidos = 0;
-	t_heap_metadata* heapMetadata = malloc(sizeof(t_heap_metadata)); // liberar
+	t_heap_metadata* heapMetadata = malloc(tam_heap_metadata); // liberar
 
 	int sobrante = 0;
 
-	//auxiliares
 	int contador = 0;
 	int bytesLeidosPagina = 0;
 
-	leerHeapMetadata(&heapMetadata,&bytesLeidos,&bytesLeidosPagina, &offset,&segmento,&contador);
+	leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset, &segmento, &contador);
 
 	while(tamMaximo - bytesLeidos > tam_heap_metadata) {
 		if(heapMetadata->estaLibre && heapMetadata->offset >= tamanio) {
@@ -237,7 +236,7 @@ void leerHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* byt
 
 void leerHeapPartido(t_heap_metadata** heapMetadata, int* offset, int sobrante, int* nroPagina, t_segmento** segmento, t_pagina** paginaDummy) {
 
-	void * buffer = malloc(sizeof(tam_heap_metadata));
+	void* buffer = malloc(tam_heap_metadata);
 	pthread_mutex_lock(&mutex_memoria);
 	memcpy(buffer, memoria + (*offset), sobrante);
 	pthread_mutex_unlock(&mutex_memoria);
@@ -262,7 +261,9 @@ void escribirHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int*
 }
 
 int cantidadPaginasSalteadas(int offset) {
+
 	return (int) offset / tamPagina; // redondea al menor numero para abajo
+
 }
 
 uint32_t analizarSegmento (char* idProceso, int tamanio, int cantidadFrames, bool esCompartido) {
@@ -328,6 +329,50 @@ uint32_t liberarBytesMemoria(int base, int offset) {
 
 }
 
+void defragmentarSegmento(t_segmento* segmento) {
+
+	t_list* listaPaginas = segmento->paginas;
+	int cantPaginas = list_size(listaPaginas);
+	int tamMaximo = tamPagina * cantPaginas;
+	int bytesLeidos = 0;
+	t_heap_metadata* heapMetadata = malloc(tam_heap_metadata);
+
+	int offset = 0;
+	int bytesLeidosPagina = 0;
+	int contador = 0;
+	int primerHeapMetadataLibre = 0;
+	int fragmentacion = 0;
+
+	while(tamMaximo - bytesLeidos > tam_heap_metadata) {
+		leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset, &segmento, &contador);
+
+		if(heapMetadata->estaLibre) {
+			primerHeapMetadataLibre = offset - tam_heap_metadata;
+			fragmentacion += bytesLeidos;
+			leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset, &segmento, &contador);
+
+			while(heapMetadata->estaLibre) {
+				fragmentacion += bytesLeidos;
+				leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset, &segmento, &contador);
+			}
+
+			heapMetadata->estaLibre = 1;
+			heapMetadata->offset = fragmentacion;
+
+			pthread_mutex_lock(&mutex_memoria);
+			memcpy(memoria + primerHeapMetadataLibre, heapMetadata, tam_heap_metadata);
+			pthread_mutex_unlock(&mutex_memoria);
+
+			fragmentacion = 0;
+		} else {
+			leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset, &segmento, &contador);
+		}
+	}
+
+	free(heapMetadata);
+
+}
+
 void* leerDeMemoria(int posicionInicial, int tamanio) {
 
 	void* buffer = malloc(tamanio);
@@ -386,7 +431,7 @@ int buscarPosicionHeapCandidato(t_segmento* segmento, int bytesPedidos) {
 	int cantPaginas = list_size(segmento->paginas);
 	int tamMaximo = tamPagina * cantPaginas;
 	t_pagina* pagina = list_get(segmento->paginas, 0);
-	t_heap_metadata* heapMetadata = malloc(sizeof(t_heap_metadata));
+	t_heap_metadata* heapMetadata = malloc(tam_heap_metadata));
 	int bytesLeidos = 0;
 	int bytesLeidosPagina = 0;
 	int offset = pagina->nroMarco * tamPagina;
