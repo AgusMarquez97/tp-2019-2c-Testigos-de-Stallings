@@ -247,6 +247,7 @@ int procesarUnmap(char* idProceso, uint32_t posicionMemoria);
 int procesarClose(char* idProceso);
 
 // MuseAuxiliares
+void estirarSegmento(char * idProceso,t_segmento * segmento,int tamanio,int nuevaCantidadFrames,int offset, int sobrante);
 int obtenerCantidadMarcos(int tamanioPagina, int tamanioMemoria);
 t_segmento* obtenerSegmento(t_list* segmentos, uint32_t posicionMemoria);
 t_pagina* obtenerPagina(t_list* paginas, uint32_t posicionMemoria);
@@ -263,7 +264,11 @@ uint32_t liberarBytesMemoria(int base, int offset);
 void* leerDeMemoria(int posicionInicial, int tamanio);
 void escribirEnMemoria(void* contenido, int posicionInicial, int tamanio);
 void liberarMarcoBitarray(int nroMarco);
-
+int asignarMarcoLibre();
+void leerHeapMetadata(t_heap_metadata ** heapMetadata,int *bytesLeidos,int *bytesLeidosPagina, int * offset,t_segmento** segmento,int * nroPagina);
+void leerHeapPartido(t_heap_metadata ** heapMetadata,int * offset,int sobrante,int * nroPagina,t_segmento** segmento,t_pagina ** paginaDummy);
+void escribirHeapMetadata(t_heap_metadata ** heapMetadata,int *bytesLeidos,int *bytesLeidosPagina,t_segmento** segmento,int * offset,int * nroPagina,uint32_t * posicionRetorno);
+int cantidadPaginasSalteadas(int offset);
 #endif /* MUSE_H_ */
 
 

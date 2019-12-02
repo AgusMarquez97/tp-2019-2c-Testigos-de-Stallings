@@ -199,20 +199,7 @@ int procesarClose(char* idProceso) {
 #endif /* MUSEOPERACIONES_H_ */
 
 /*
-uint32_t estirarSegmento(char * idProceso,t_segmento * segmento,int tamanio,int nuevaCantidadFrames,int offset, int sobrante)
-{
 
-	for(int i = 0;i<nuevaCantidadFrames;i++)
-	{
-		;
-		//crear paginas nuevas 1 por 1
-		//Agregar las paginas a la lista de paginas del segmento
-	}
-	//Actualizar el tamanio del segmento
-	//Actualizar el/los hm correspondiente/s (max = 2, min =1)
-
-	return 0;
-}
 
 void escribirPaginas(int cantidadPaginas, int tamanio, int primerMarco, int ultimoMarco)
 {
