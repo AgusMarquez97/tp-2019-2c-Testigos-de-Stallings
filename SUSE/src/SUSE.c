@@ -39,7 +39,7 @@ int32_t suse_create_servidor(char* idProcString, int32_t idThread){
 	list_add(colaNews,hiloEntrante);
 	pthread_mutex_unlock(&mutexNew);
 	char * msj = malloc(strlen("se crea el hilo 99999999999 del proceso 9999999999999") + 1);
-	sprintf(msj,"Se creo el hilo %d del proceso %s",idThread,idProcString);
+	sprintf(msj,"Se creo el hilo %d del proceso %s",hiloEntrante->idHilo,hiloEntrante->idProceso);
 	loggearInfo(msj);
 	free(msj);
 	pthread_mutex_lock(&mutexNew);
@@ -207,7 +207,7 @@ int32_t suse_join_servidor(char* idProcString, int32_t tid)
 	hiloABloquear->timestampSale=(int32_t) time(NULL);
 	hiloABloquear->estimado = hiloABloquear->estimado*(1-alphaSJF)+(hiloABloquear->timestampSale-hiloABloquear->timestampEntra)*alphaSJF;
 	hiloABloquear->tiempoEnExec+=(int32_t)time(NULL)-hiloABloquear->timestampEntra;
-	//hiloABloquear->idProceso=idProcString;//bug? sin esto guarda idprocstring "1924/002" o algo asi
+	hiloABloquear->idProceso=idProcString;//bug? sin esto guarda idprocstring "1924/002" o algo asi
 	list_add(blockeds,hiloABloquear);//lo meto en blockeds
 
 
@@ -560,8 +560,9 @@ void rutinaServidor(int * p_socket)
 			pthread_mutex_lock(&mutexReady);
 			pthread_mutex_lock(&mutexExec);
 			result=suse_schedule_next_servidor(idProcString);
-			pthread_mutex_unlock(&mutexReady);
 			pthread_mutex_unlock(&mutexExec);
+			pthread_mutex_unlock(&mutexReady);
+
 			enviarInt(socketRespuesta, result);
 			break;
 		case JOIN:
@@ -569,8 +570,9 @@ void rutinaServidor(int * p_socket)
 			pthread_mutex_lock(&mutexBlocked);
 			pthread_mutex_lock(&mutexExec);
 			result= suse_join_servidor(idProcString, mensajeRecibido->idHilo);
-			pthread_mutex_unlock(&mutexBlocked);
 			pthread_mutex_unlock(&mutexExec);
+			pthread_mutex_unlock(&mutexBlocked);
+
 			enviarInt(socketRespuesta, result);
 			break;
 		case CLOSE_SUSE:
@@ -583,13 +585,19 @@ void rutinaServidor(int * p_socket)
 			break;
 		case WAIT:
 			loggearInfo("Se recibio una operacion WAIT");
+			pthread_mutex_lock(&mutexWaitSig);
 			result = suse_wait_servidor(idProcString,mensajeRecibido->idHilo,mensajeRecibido->semId);
+
 			enviarInt(socketRespuesta, result);
+			pthread_mutex_unlock(&mutexWaitSig);
 			break;
 		case SIGNAL:
 			loggearInfo("Se recibio una operacion SIGNAL");
+			pthread_mutex_lock(&mutexWaitSig);
 			result = suse_signal_servidor(idProcString,mensajeRecibido->idHilo,mensajeRecibido->semId);
+
 			enviarInt(socketRespuesta, result);
+			pthread_mutex_unlock(&mutexWaitSig);
 			break;
 		default: //incluye el handshake
 			break;
@@ -665,6 +673,7 @@ void inicializarSemaforosPthread(){
 	pthread_mutex_init(&mutexExec, NULL);
 	pthread_mutex_init(&mutexExec, NULL);
 	pthread_mutex_init(&mutexBlocked, NULL);
+	pthread_mutex_init(&mutexWaitSig, NULL);
 
 }
 
