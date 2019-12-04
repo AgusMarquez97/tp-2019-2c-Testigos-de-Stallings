@@ -31,7 +31,9 @@ int32_t suse_create_servidor(char* idProcString, int32_t idThread){
 	hiloEntrante->tiempoEnReady= 0;
 	hiloEntrante->tiempoEnExec=0;
 
-
+	char* auxiliarSemBloqueante = malloc(1);
+	sprintf(auxiliarSemBloqueante,"");
+	hiloEntrante->semBloqueante = auxiliarSemBloqueante;
 
 	pthread_mutex_lock(&mutexNew);
 	list_add(colaNews,hiloEntrante);
@@ -152,8 +154,9 @@ if(!list_is_empty(colaReady)){
 
     return hiloSiguiente->idHilo;
 }
-return hiloActual->idHilo;
-
+if(hiloActual!=NULL)
+	return hiloActual->idHilo;
+return -1;
 }
 
 t_hiloPlanificado * removerHiloConRafagaMasCorta(t_list* colaReady)
@@ -326,7 +329,8 @@ int32_t suse_signal_servidor(char *idProcString,int32_t idHilo,char *semId)
 
 				bool hiloBloqueadoPorSem(t_hiloPlanificado* unHilo)
 						{
-							return unHilo->semBloqueante == semId; //busca el primer hilo que esta bloqueado por este semaforo en particular
+
+							return strcmp(unHilo->semBloqueante,semId) == 0; //busca el primer hilo que esta bloqueado por este semaforo en particular
 						}
 				hiloADesbloquear= list_remove_by_condition(blockeds, (void *) hiloBloqueadoPorSem);
 				hiloADesbloquear->estadoHilo=READY;
@@ -574,7 +578,7 @@ void rutinaServidor(int * p_socket)
 			pthread_mutex_lock(&mutexExec);
 			result = suse_close_servidor(idProcString,mensajeRecibido->idHilo);
 			pthread_mutex_unlock(&mutexExec);
-			escribirMetricasTotales();
+			//escribirMetricasTotales();
 			enviarInt(socketRespuesta, result);
 			break;
 		case WAIT:

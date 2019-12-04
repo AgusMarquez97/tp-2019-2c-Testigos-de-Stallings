@@ -46,7 +46,7 @@ int suse_schedule_next(void){
 
 		if(proxTid == -1) {
 			loggearError("Error: No se ha podido obtener el siguiente hilo");
-			return 0;
+			return -1;
 		}
 
 		loggearInfo("Proximo hilo a ejecutar recibido exitosamente!");

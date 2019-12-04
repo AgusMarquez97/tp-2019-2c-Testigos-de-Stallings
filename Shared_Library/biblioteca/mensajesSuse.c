@@ -45,7 +45,11 @@ void enviarOperacionSuse(int socket, int32_t proceso, int32_t operacion, int32_t
 	if(rafaga != 0)
 		tamanioBuffer += sizeof(int32_t);
 	if(semId != NULL)
-		tamanioBuffer += strlen(semId)*sizeof(semId); //si le doy solo strlen(semId) no alcanza, pero tampoco le puedo dar algo como +1 xq queda feo
+	{
+		tamanioBuffer += sizeof(int32_t);
+		tamanioBuffer += strlen(semId) + 1; //si le doy solo strlen(semId) no alcanza, pero tampoco le puedo dar algo como +1 xq queda feo
+
+	}
 
 
 	void* buffer = malloc(tamanioBuffer);
@@ -120,7 +124,7 @@ t_mensajeSuse* recibirOperacionSuse(int socketEmisor) {
 			recibirInt(socketEmisor, &tam);
 			buffer = malloc(tam);
 			recibir(socketEmisor, buffer, tam);
-			deserializarVoid((char*)buffer, &mensajeRecibido->semId, tam, &desplazamiento);
+			deserializarVoid(buffer, &mensajeRecibido->semId, tam, &desplazamiento);
 
 			break;
 		case SIGNAL:
@@ -128,7 +132,7 @@ t_mensajeSuse* recibirOperacionSuse(int socketEmisor) {
 			recibirInt(socketEmisor, &tam);
 			buffer = malloc(tam);
 			recibir(socketEmisor, buffer, tam);
-			deserializarVoid((char*)buffer, &mensajeRecibido->semId, tam, &desplazamiento);
+			deserializarVoid(buffer, &mensajeRecibido->semId, tam, &desplazamiento);
 			break;
 		default:
 			return NULL;

@@ -1,60 +1,53 @@
-#include "hilolayExample.h"
-
+#include <stdlib.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <hilolay/hilolay.h>
 
-void recursiva(int cant) {
-    if(cant > 0) recursiva(cant - 1);
+#define CANT_NOTAS 12
+
+struct hilolay_sem_t *solo_hiper_mega_piola;
+struct hilolay_sem_t *afinado;
+
+void *tocar_solo(void* num)
+{
+	int cont = 0;
+
+	for(int i = 0; i < CANT_NOTAS/4; i++)
+	{
+		//hilolay_wait(afinado);
+		///
+		hilolay_wait(solo_hiper_mega_piola);
+		cont++;
+		printf("%d: PARAPAPAM! Nota %d\n", num, cont);
+		hilolay_signal(solo_hiper_mega_piola);
+
+	}
+
+	printf("\nPude tocar %d notas bien\n", cont);
+	return 0;
 }
 
-void *test1(void *arg) {
-    int i, tid;
+int main(void)
+{
+	struct hilolay_t guitarrista[4];
 
-    for (i = 0; i < 10; i++) {
-        tid = hilolay_get_tid();
-        printf("Soy el ult %d mostrando el numero %d \n", tid, i);
-        usleep(5000 * i * tid); /* Randomizes the sleep, so it gets larger after a few iterations */
+	hilolay_init();
 
-        recursiva(i);
+	solo_hiper_mega_piola = hilolay_sem_open("solo_hiper_mega_piola");
+	afinado = hilolay_sem_open("afinado");
 
-        // Round Robin will yield the CPU
-        hilolay_yield();
-    }
+	hilolay_create(&guitarrista[0], NULL, &tocar_solo, (void*)0);
+	hilolay_create(&guitarrista[1], NULL, &tocar_solo, (void*)1);
+	hilolay_create(&guitarrista[2], NULL, &tocar_solo, (void*)2);
+	hilolay_create(&guitarrista[3], NULL, &tocar_solo, (void*)3);
 
-    return 0;
+	hilolay_join(&guitarrista[0]);
+	hilolay_join(&guitarrista[1]);
+	hilolay_join(&guitarrista[2]);
+	hilolay_join(&guitarrista[3]);
+
+	hilolay_sem_close(solo_hiper_mega_piola);
+	hilolay_sem_close(afinado);
+
+	return hilolay_return(0);
 }
 
-void *test2(void *arg) {
-    int i, tid;
-
-    for (i = 0; i < 5; i++) {
-        tid = hilolay_get_tid();
-        printf("Soy el ult %d mostrando el numero %d \n", tid, i);
-        usleep(2000 * i * tid); /* Randomizes the sleep, so it gets larger after a few iterations */
-        recursiva(i);
-        hilolay_yield();
-    }
-
-    return 0;
-}
-
-
-/* Main program */
-int main() {
-    int i;
-
-    hilolay_init();
-    struct hilolay_t th1;
-    struct hilolay_t th2;
-
-    suse_schedule_next();
-
-	hilolay_create(&th1, NULL, &test1, NULL);
-	hilolay_create(&th2, NULL, &test2, NULL);
-
-	hilolay_join(&th2);
-	hilolay_join(&th1);
-    return 1;
-	//return hilolay_return(0);
-}
