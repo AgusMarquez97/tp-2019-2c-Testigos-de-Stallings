@@ -44,7 +44,7 @@ char ** semIds;
 char ** semInit;
 char ** semMax;
 
-pthread_mutex_t mutexNew, mutexReady, mutexExec, mutexBlocked;
+pthread_mutex_t mutexNew, mutexReady, mutexExec, mutexBlocked, mutexWaitSig;
 
 
 t_log* metricas;
