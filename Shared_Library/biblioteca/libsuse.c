@@ -13,7 +13,7 @@ int suse_create(int tid){
 			int socketCliente = levantarCliente(ip_suse, puerto_suse);
 
 			if(socketCliente != -1) {
-				enviarCreate(socketCliente, id_proceso, tid);
+				enviarCreate(socketCliente, getpid(), tid);
 				recibirInt(socketCliente, &estado);
 			}
 			close(socketCliente);
@@ -39,7 +39,7 @@ int suse_schedule_next(void){
 		int socketCliente = levantarCliente(ip_suse, puerto_suse);
 
 		if(socketCliente != -1) {
-			enviarNext(socketCliente, id_proceso);
+			enviarNext(socketCliente, getpid());
 			recibirInt(socketCliente, &proxTid);
 		}
 		close(socketCliente);
@@ -61,7 +61,7 @@ int suse_join(int tid){
 				int socketCliente = levantarCliente(ip_suse, puerto_suse);
 
 				if(socketCliente != -1) {
-					enviarJoin(socketCliente, id_proceso, tid);
+					enviarJoin(socketCliente, getpid(), tid);
 					recibirInt(socketCliente, &estado);
 				}
 				close(socketCliente);
@@ -84,7 +84,7 @@ int suse_close(int tid){
 				int socketCliente = levantarCliente(ip_suse, puerto_suse);
 
 				if(socketCliente != -1) {
-					enviarCloseSuse(socketCliente, id_proceso, tid);
+					enviarCloseSuse(socketCliente, getpid(), tid);
 					recibirInt(socketCliente, &estado);
 				}
 				close(socketCliente);
@@ -105,7 +105,7 @@ int suse_wait(int tid, char *sem_name){
 	int socketCliente = levantarCliente(ip_suse, puerto_suse);
 
 	if(socketCliente != -1) {
-		enviarWait(socketCliente, id_proceso, tid, sem_name);
+		enviarWait(socketCliente, getpid(), tid, sem_name);
 		recibirInt(socketCliente, &estado);
 	}
 	close(socketCliente);
@@ -124,7 +124,7 @@ int suse_signal(int tid, char *sem_name){
 		int socketCliente = levantarCliente(ip_suse, puerto_suse);
 
 		if(socketCliente != -1) {
-			enviarSignal(socketCliente, id_proceso, tid, sem_name);
+			enviarSignal(socketCliente, getpid(), tid, sem_name);
 			recibirInt(socketCliente, &estado);
 		}
 		close(socketCliente);
@@ -153,7 +153,7 @@ void hilolay_init(void) {
 		iniciarLog("Linuse");
 		loggearInfo("Iniciando la Biblioteca libsuse...");
 
-		id_proceso = getpid();//id del proceso
+		//id_proceso = getpid();//id del proceso
 
 		t_config * unConfig = retornarConfig(pathConfig);
 

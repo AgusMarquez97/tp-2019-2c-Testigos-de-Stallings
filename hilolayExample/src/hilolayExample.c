@@ -11,8 +11,7 @@ void *tocar_solo(void* num)
 {
 	int cont = 0;
 
-	for(int i = 0; i < CANT_NOTAS/4; i++)
-	{
+
 		//hilolay_wait(afinado);
 		///
 
@@ -21,7 +20,7 @@ void *tocar_solo(void* num)
 		printf("%d: PARAPAPAM! Nota %d\n", num, cont);
 		hilolay_signal(solo_hiper_mega_piola);
 
-	}
+
 
 	printf("\nPude tocar %d notas bien\n", cont);
 	return 0;
