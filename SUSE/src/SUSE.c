@@ -212,7 +212,7 @@ int32_t suse_join_servidor(char* idProcString, int32_t tid)
 	hiloABloquear->timestampSale=(int32_t) time(NULL);
 	hiloABloquear->estimado = hiloABloquear->estimado*(1-alphaSJF)+(hiloABloquear->timestampSale-hiloABloquear->timestampEntra)*alphaSJF;
 	hiloABloquear->tiempoEnExec+=(int32_t)time(NULL)-hiloABloquear->timestampEntra;
-	hiloABloquear->idProceso=idProcString;//bug? sin esto guarda idprocstring "1924/002" o algo asi
+	//hiloABloquear->idProceso=idProcString;//bug? sin esto guarda idprocstring "1924/002" o algo asi
 	list_add(blockeds,hiloABloquear);//lo meto en blockeds
 
 
@@ -430,7 +430,7 @@ int32_t tiempoEjecucionProceso(char* idProcString){
 	int32_t tiempoEjecucionDelProceso=0;
 
 	bool hiloEsDePrograma(t_hiloPlanificado*  hiloNew){
-		return hiloNew->idProceso==idProcString;
+		return strcmp(hiloNew->idProceso,idProcString)==0;
 	}
 
 	void calcularEjecucion(t_hiloPlanificado* hilo){
