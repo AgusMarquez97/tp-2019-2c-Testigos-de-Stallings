@@ -26,6 +26,13 @@
 #define pathConfig "/home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/MUSE/config/configuracion.txt"
 #define tam_heap_metadata sizeof(t_heap_metadata)
 
+typedef enum {
+	HM_NO_EXISTENTE = -1,
+	TAMANIO_SOBREPASADO = - 2, // = SEG FAULT
+	HM_YA_LIBERADO = -3,
+	MEMORIA_COMPLETA = -4
+} t_errores;
+
 char ip[46];
 char puerto[10];
 
@@ -114,10 +121,10 @@ void liberarVariablesGlobales();
 bool existeEnElDiccionario(char* idProceso);
 int procesarHandshake(char* idProceso);
 uint32_t procesarMalloc(char* idProceso, int32_t tamanio);
-bool obtenerDireccionMemoria(char* idProceso, uint32_t posicionMemoria, int* base, int* offset);
-int32_t procesarFree(char* idProceso, uint32_t posicionMemoria);
-void* procesarGet(char* idProceso, uint32_t posicionMemoria, int32_t tamanio);
-int procesarCpy(char* idProceso, uint32_t posicionMemoria, int32_t tamanio, void* contenido);
+uint32_t obtenerDireccionMemoria(t_list* listaPaginas,uint32_t posicionSegmento);
+int32_t procesarFree(char* idProceso, uint32_t posicionSegmento);
+void* procesarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio);
+int procesarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, void* contenido);
 uint32_t procesarMap(char* idProceso, void* contenido, int32_t tamanio, int32_t flag);
 int procesarSync(char* idProceso, uint32_t posicionMemoria, int32_t tamanio);
 int procesarUnmap(char* idProceso, uint32_t posicionMemoria);
@@ -136,16 +143,23 @@ void crearSegmento(char* idProceso, int tamanio, int cantidadFrames, t_list* lis
 void crearSegmentoNuevo(int tamanio, int idSegmento);
 uint32_t completarSegmento(char* idProceso, t_segmento* ultimoSegmento, int tamanio);
 uint32_t analizarSegmento (char * idProceso, int tamanio, int cantidadFrames, bool esCompartido);
-t_heap_metadata* obtenerHeapMetadata(int base, int offset);
+
+t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offsetDespuesHM);
+void leerDatosHeap(t_list * paginas, int offset, void ** buffer, int tamanio);
+
 uint32_t liberarBytesMemoria(int base, int offset);
 void* leerDeMemoria(int posicionInicial, int tamanio);
 void escribirEnMemoria(void* contenido, int posicionInicial, int tamanio);
 void liberarMarcoBitarray(int nroMarco);
 int asignarMarcoLibre();
-void leerHeapMetadata(t_heap_metadata ** heapMetadata,int *bytesLeidos,int *bytesLeidosPagina, int * offset,t_segmento** segmento,int * nroPagina);
-void leerHeapPartido(t_heap_metadata ** heapMetadata,int * offset,int sobrante,int * nroPagina,t_segmento** segmento,t_pagina ** paginaDummy);
+void leerHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* bytesLeidosPagina, int* offset, t_list * paginas, int* nroPagina);
+void leerHeapPartido(t_heap_metadata** heapMetadata, int* offset, int sobrante, int* nroPagina, t_list* paginas, t_pagina** paginaDummy);
 int cantidadPaginasPedidas(int offset);
-void escribirHeapMetadata(t_list * listaPaginas, int paginaActual, int offset, int tamanio, void * datosAEscribir);
+int escribirHeapMetadata(t_list * listaPaginas, int offset, int tamanio);
+int escribirUnHeapMetadata(t_list * paginas, int offset, void ** buffer, int tamanio);
+bool ExisteHM(t_list * paginas, int offsetBuscado);
+int obtenerPosicionPreviaHeap(t_list * paginas, int offset);
+void escribirDatosHeap(t_list * paginas, int offset, void ** buffer, int tamanio);
 
 #endif /* MUSE_H_ */
 

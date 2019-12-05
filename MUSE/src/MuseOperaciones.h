@@ -1,7 +1,7 @@
 #ifndef MUSEOPERACIONES_H_
 #define MUSEOPERACIONES_H_
 
-#include "MuseAuxiliares.h"
+#include "MuseHeapMetadata.h"
 
 bool existeEnElDiccionario(char* idProceso) {
 
@@ -51,79 +51,148 @@ uint32_t procesarMalloc(char* idProceso, int32_t tamanio) {
 
 }
 
-bool obtenerDireccionMemoria(char* idProceso, uint32_t posicionMemoria, int* base, int* offset) {
+int32_t procesarFree(char* idProceso, uint32_t posicionSegmento) {
 
-	int i = 0;
-	char msj[120];
+	char msj[200];
+	int retorno = -1;
 
-	if(existeEnElDiccionario(idProceso)) {
-		t_segmento* segmentoBuscado = obtenerSegmento((t_list*)dictionary_get(diccionarioProcesos, idProceso), posicionMemoria);
-		t_pagina* paginaBuscada = obtenerPagina(segmentoBuscado->paginas, posicionMemoria);
+	if(poseeSegmentos(idProceso)) {
 
-		while(tamPagina * i <= posicionMemoria) {
-			*offset = posicionMemoria - tamPagina * i;
-			i++;
+	int bytesLiberados = 0;
+	t_list * paginas;
+
+	pthread_mutex_lock(&mutex_diccionario);
+	paginas = dictionary_get(diccionarioProcesos,idProceso);
+	pthread_mutex_unlock(&mutex_diccionario);
+
+	uint32_t posicionMemoria = obtenerDireccionMemoria(paginas,posicionSegmento);
+
+	bytesLiberados = liberarUnHeapMetadata(paginas, posicionMemoria);
+
+	if(bytesLiberados > 0)
+	{
+		sprintf(msj, "El Proceso %s libero %d bytes en la posicion %d", idProceso,bytesLiberados,posicionSegmento);
+		retorno = 1;
+	}
+
+	switch(bytesLiberados)
+	{
+	case HM_NO_EXISTENTE:
+		sprintf(msj, "El Proceso %s intento liberar un HM no existente en la posicion %d", idProceso, posicionSegmento);
+		break;
+	case HM_YA_LIBERADO:
+		sprintf(msj, "El Proceso %s intento liberar un HM que ya estaba libre en la posicion %d", idProceso, posicionSegmento);
+		break;
+	default: // nunca deberia llegar
+		sprintf(msj, "El Proceso %s tuvo un error inesperado al intentar liberar la posicion %d (ver escribirHM)", idProceso, posicionSegmento);
+	}
+
+	loggearInfo(msj);
+
+	return retorno;
+	}
+
+	sprintf(msj, "El Proceso %s no ah realizado el init correspondiente", idProceso);
+	loggearInfo(msj);
+	return retorno;
+
+}
+
+void* procesarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio) {
+
+	char msj[200];
+
+	if(poseeSegmentos(idProceso))
+	{
+		int bytesLiberados = 0;
+		t_list * paginas;
+
+		pthread_mutex_lock(&mutex_diccionario);
+		paginas = dictionary_get(diccionarioProcesos,idProceso);
+		pthread_mutex_unlock(&mutex_diccionario);
+
+		uint32_t posicionMemoria = obtenerDireccionMemoria(paginas,posicionSegmento);
+
+		void * buffer = malloc(tamanio);
+
+		int bytesLeidos = leerUnHeapMetadata(paginas, posicionMemoria, &buffer, tamanio);
+
+		if(bytesLeidos > 0)
+		{
+			sprintf(msj, "El Proceso %s leyo %d bytes de la posicion %d", idProceso,bytesLeidos,posicionSegmento);
 		}
 
-		*base = paginaBuscada->nroMarco * tamPagina;
-		return true;
+		switch(bytesLiberados)
+		{
+		case HM_NO_EXISTENTE:
+			sprintf(msj, "El Proceso %s intento leer de un HM no existente en la posicion %d", idProceso, posicionSegmento);
+			break;
+		case HM_YA_LIBERADO:
+			sprintf(msj, "El Proceso %s intento leer de un HM que estaba libre en la posicion %d", idProceso, posicionSegmento);
+			break;
+		case TAMANIO_SOBREPASADO:
+			sprintf(msj, "El Proceso %s intento leer mas bytes (%d) de los permitidos en la posicion %d", idProceso,tamanio,posicionSegmento);
+			break;
+		default: // nunca deberia llegar
+			sprintf(msj, "El Proceso %s tuvo un error inesperado al intentar leer la posicion %d (ver escribirHM)", idProceso, posicionSegmento);
+		}
+
+		return buffer;
+
 	}
-
-	sprintf(msj, "El proceso %s no realizo el init correspondiente", idProceso);
-	loggearWarning(msj);
-	return false;
-
-}
-
-int32_t procesarFree(char* idProceso, uint32_t posicionMemoria) {
-
-	char msj[120];
-	int base = 0;
-	int offset = 0;
-
-	if(obtenerDireccionMemoria(idProceso, posicionMemoria, &base, &offset)) {
-		uint32_t bytesLiberados = liberarBytesMemoria(base, offset);
-		sprintf(msj, "El Proceso %s ha liberado %d bytes de memoria", idProceso, bytesLiberados);
-		loggearInfo(msj);
-
-		return 1;
-	}
-
-	return -1;
-
-}
-
-void* procesarGet(char* idProceso, uint32_t posicionMemoria, int32_t tamanio) {
-
-	int base = 0;
-	int offset = 0;
-
-	if(obtenerDireccionMemoria(idProceso, posicionMemoria, &base, &offset)) {
-		t_heap_metadata* heapMetadata = obtenerHeapMetadata(base, offset);
-
-		if(!heapMetadata->estaLibre && heapMetadata->offset >= tamanio)
-			return leerDeMemoria(base + offset, tamanio);
-	}
+	sprintf(msj, "El Proceso %s no ah realizado el init correspondiente", idProceso);
+	loggearInfo(msj);
 
 	return NULL;
 
 }
 
-int procesarCpy(char* idProceso, uint32_t posicionMemoria, int32_t tamanio, void* contenido) {
+int procesarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, void* contenido) {
 
-	int base = 0;
-	int offset = 0;
+	char msj[200];
+	int retorno = -1;
 
-	if(obtenerDireccionMemoria(idProceso, posicionMemoria, &base, &offset)) {
-		t_heap_metadata* heapMetadata = obtenerHeapMetadata(base, offset);
+	if(poseeSegmentos(idProceso))
+		{
+			int bytesLiberados = 0;
+			t_list * paginas;
 
-		if(!heapMetadata->estaLibre && heapMetadata->offset >= tamanio) {
-			escribirEnMemoria(contenido, base + offset, tamanio);
-			return 0;
+			pthread_mutex_lock(&mutex_diccionario);
+			paginas = dictionary_get(diccionarioProcesos,idProceso);
+			pthread_mutex_unlock(&mutex_diccionario);
+
+			uint32_t posicionMemoria = obtenerDireccionMemoria(paginas,posicionSegmento);
+
+			void * buffer = malloc(tamanio);
+
+			int bytesEscritos = escribirUnHeapMetadata(paginas, posicionMemoria, &buffer, tamanio);
+
+			if(bytesEscritos > 0)
+			{
+				sprintf(msj, "El Proceso %s escribio %d bytes en la posicion %d", idProceso,bytesEscritos,posicionSegmento);
+				retorno = 0;
+			}
+
+			switch(bytesLiberados)
+			{
+			case HM_NO_EXISTENTE:
+				sprintf(msj, "El Proceso %s intento escribir en un HM no existente en la posicion %d", idProceso, posicionSegmento);
+				break;
+			case HM_YA_LIBERADO:
+				sprintf(msj, "El Proceso %s intento escribir en un HM que estaba libre en la posicion %d", idProceso, posicionSegmento);
+				break;
+			case TAMANIO_SOBREPASADO:
+				sprintf(msj, "El Proceso %s intento escribir mas bytes (%d) de los permitidos en la posicion %d", idProceso,tamanio,posicionSegmento);
+				break;
+			default: // nunca deberia llegar
+				sprintf(msj, "El Proceso %s tuvo un error inesperado al intentar escribir la posicion %d (ver escribirHM)", idProceso, posicionSegmento);
+			}
+
 		}
-	}
+	sprintf(msj, "El Proceso %s no ah realizado el init correspondiente", idProceso);
+	loggearInfo(msj);
 
-	return -1;
+	return retorno;
 
 }
 
@@ -142,17 +211,19 @@ uint32_t procesarMap(char* idProceso, void* contenido, int32_t tamanio, int32_t 
 
 int procesarSync(char* idProceso, uint32_t posicionMemoria, int32_t tamanio) {
 
-	int base = 0;
-	int offset = 0;
+	//int base = 0;
+	//int offset = 0;
 
-	if(obtenerDireccionMemoria(idProceso, posicionMemoria, &base, &offset)) {
-		t_heap_metadata* heapMetadata = obtenerHeapMetadata(base, offset);
 
-		if(!heapMetadata->estaLibre && heapMetadata->offset >= tamanio) {
+//	if(obtenerDireccionMemoria(idProceso, posicionMemoria, &base, &offset)) {
+//		t_heap_metadata* heapMetadata = obtenerHeapMetadata(base, offset);
+//
+//		if(!heapMetadata->estaLibre && heapMetadata->offset >= tamanio) {
+//
+//			return 0;
+//		}
+//	}
 
-			return 0;
-		}
-	}
 
 	return -1;
 
@@ -174,12 +245,15 @@ int procesarClose(char* idProceso) {
 	if(segmentos != NULL) {
 		if(!list_is_empty(segmentos)) {
 			void liberarSegmento(t_segmento* unSegmento) {
+
 				void liberarPaginas(t_pagina* unaPagina) {
 					liberarMarcoBitarray(unaPagina->nroMarco);
 					free(unaPagina);
 				}
+
 				list_iterate(unSegmento->paginas, (void*)liberarPaginas);
 				list_destroy(unSegmento->paginas);
+
 				free(unSegmento);
 			}
 			list_iterate(segmentos, (void*)liberarSegmento);
@@ -195,6 +269,62 @@ int procesarClose(char* idProceso) {
 	return 0;
 
 }
+
+/*
+ * FUNCIONES MACRO DE OPERACIONES
+ */
+
+// MACRO DE MALLOC
+
+uint32_t analizarSegmento (char* idProceso, int tamanio, int cantidadFrames, bool esCompartido) {
+	//Que pasa si en el medio de esta operacion el mismo proceso mediante otro hilo me inserta otro segmento al mismo tiempo = PROBLEMAS
+	char aux[140];
+	uint32_t direccionRetorno = 0;
+	t_list* listaSegmentos;
+	int nroSegmento = 0;
+
+	if(poseeSegmentos(idProceso)) // => Es el primer malloc
+	{
+		listaSegmentos = list_create();
+		crearSegmento(idProceso, tamanio, cantidadFrames, listaSegmentos, 0, esCompartido, 0);
+		direccionRetorno =  tam_heap_metadata;
+	}
+	else
+	{
+		t_segmento* ultimoSegmento;
+		uint32_t ultimaPosicionSegmento;
+
+		pthread_mutex_lock(&mutex_diccionario);
+		listaSegmentos = dictionary_get(diccionarioProcesos, idProceso);
+		pthread_mutex_unlock(&mutex_diccionario);
+
+		ultimoSegmento = list_get(listaSegmentos, list_size(listaSegmentos) - 1);
+		ultimaPosicionSegmento = ultimoSegmento->posicionInicial + ultimoSegmento->tamanio;
+		nroSegmento = ultimoSegmento->id_segmento;
+
+		if(ultimoSegmento->esCompartido) {
+			nroSegmento = ultimoSegmento->id_segmento + 1;
+			ultimaPosicionSegmento = ultimoSegmento->posicionInicial + ultimoSegmento->tamanio;
+			crearSegmento(idProceso, tamanio, cantidadFrames, listaSegmentos,nroSegmento, esCompartido, ultimaPosicionSegmento); // HACER
+			direccionRetorno = ultimaPosicionSegmento + tam_heap_metadata;
+		} else {
+			direccionRetorno = completarSegmento(idProceso, ultimoSegmento, tamanio);
+
+		}
+	}
+
+	sprintf(aux,"Malloc para el proceso %s retorna la posicion %ud del segmento %d",idProceso,direccionRetorno,nroSegmento);
+
+	if(direccionRetorno == 0)
+		sprintf(aux,"Error en el malloc del proceso %s: memoria llena",idProceso);
+
+
+	loggearInfo(aux);
+
+	return direccionRetorno;
+
+}
+
 
 #endif /* MUSEOPERACIONES_H_ */
 
