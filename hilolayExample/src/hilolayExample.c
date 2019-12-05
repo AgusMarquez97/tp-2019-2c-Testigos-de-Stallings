@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <hilolay/hilolay.h>
 
-#define CANT_NOTAS 12
+#define CANT_NOTAS 420
 
 struct hilolay_sem_t *solo_hiper_mega_piola;
 struct hilolay_sem_t *afinado;
@@ -15,6 +15,7 @@ void *tocar_solo(void* num)
 	{
 		//hilolay_wait(afinado);
 		///
+
 		hilolay_wait(solo_hiper_mega_piola);
 		cont++;
 		printf("%d: PARAPAPAM! Nota %d\n", num, cont);

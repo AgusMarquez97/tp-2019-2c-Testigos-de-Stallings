@@ -27,7 +27,7 @@ int32_t suse_create_servidor(char* idProcString, int32_t idThread){
 	hiloEntrante->timestampEntra= 0;
 	hiloEntrante->timestampSale= 0;
 	hiloEntrante->timestampCreacion=(int32_t)time(NULL);
-
+	hiloEntrante->estimado = 0;
 	hiloEntrante->tiempoEnReady= 0;
 	hiloEntrante->tiempoEnExec=0;
 
@@ -45,8 +45,8 @@ int32_t suse_create_servidor(char* idProcString, int32_t idThread){
 	pthread_mutex_lock(&mutexNew);
 	pthread_mutex_lock(&mutexReady);
 	planificar_largoPlazo();
-	pthread_mutex_unlock(&mutexNew);
 	pthread_mutex_unlock(&mutexReady);
+	pthread_mutex_unlock(&mutexNew);
 	return 0; //revisar
 
 }
@@ -147,7 +147,7 @@ if(!list_is_empty(colaReady)){
         dictionary_put(execs,idProcString,hiloSiguiente);
 
     char * msj = malloc(strlen("El hilo 99999999999 del proceso 9999999999999 entro en EXEC " ) + 1);
-    sprintf(msj,"El hilo %d del proceso %s entro en EXEC ",hiloSiguiente->idHilo,idProcString);
+    sprintf(msj,"El hilo %d del proceso %s entro en EXEC ",hiloSiguiente->idHilo,hiloSiguiente->idProceso);
     loggearInfo(msj);
     free(msj);
 
@@ -155,7 +155,12 @@ if(!list_is_empty(colaReady)){
     return hiloSiguiente->idHilo;
 }
 if(hiloActual!=NULL)
+	{
+
 	return hiloActual->idHilo;
+	}
+
+
 return -1;
 }
 
@@ -300,11 +305,14 @@ int32_t suse_wait_servidor(char *idProcString,int32_t idHilo,char *semId)
 		if(semaforo->valorActual < 0)// si queda el valor neg el hilo se bloquea
 		{
 			t_hiloPlanificado* hiloABloquear;
-
+			pthread_mutex_lock(&mutexExec);
+			pthread_mutex_lock(&mutexBlocked);
 			hiloABloquear= dictionary_remove(execs, idProcString);
 			hiloABloquear->estadoHilo=BLOCK;
 			hiloABloquear->semBloqueante = semaforo->idSem;
 			list_add(blockeds,hiloABloquear);
+			pthread_mutex_unlock(&mutexExec);
+			pthread_mutex_unlock(&mutexBlocked);
 		}
 
 
@@ -332,11 +340,16 @@ int32_t suse_signal_servidor(char *idProcString,int32_t idHilo,char *semId)
 
 							return strcmp(unHilo->semBloqueante,semId) == 0; //busca el primer hilo que esta bloqueado por este semaforo en particular
 						}
+				pthread_mutex_lock(&mutexReady);
+				pthread_mutex_lock(&mutexBlocked);
 				hiloADesbloquear= list_remove_by_condition(blockeds, (void *) hiloBloqueadoPorSem);
 				hiloADesbloquear->estadoHilo=READY;
 				hiloADesbloquear->semBloqueante = NULL;
 				t_list* colaReadyDelProc = dictionary_get(readys,idProcString);
 				list_add(colaReadyDelProc,hiloADesbloquear);
+				pthread_mutex_unlock(&mutexBlocked);
+				pthread_mutex_unlock(&mutexReady);
+
 			}
 
 
@@ -512,7 +525,9 @@ void levantarServidorSUSE()
 	{
 		if((socketRespuesta = (intptr_t)aceptarConexion(socketServidor)) != -1)
 		{
+
 			loggearNuevaConexion(socketRespuesta);
+
 			int * p_socket = malloc(sizeof(int));
 			*p_socket = socketRespuesta;
 
@@ -533,6 +548,7 @@ void levantarServidorSUSE()
 
 void rutinaServidor(int * p_socket)
 {
+
 	int32_t result;
 	int socketRespuesta = *p_socket;
 	free(p_socket);
@@ -587,7 +603,7 @@ void rutinaServidor(int * p_socket)
 			loggearInfo("Se recibio una operacion WAIT");
 			pthread_mutex_lock(&mutexWaitSig);
 			result = suse_wait_servidor(idProcString,mensajeRecibido->idHilo,mensajeRecibido->semId);
-
+			free(mensajeRecibido->semId);
 			enviarInt(socketRespuesta, result);
 			pthread_mutex_unlock(&mutexWaitSig);
 			break;
@@ -595,7 +611,7 @@ void rutinaServidor(int * p_socket)
 			loggearInfo("Se recibio una operacion SIGNAL");
 			pthread_mutex_lock(&mutexWaitSig);
 			result = suse_signal_servidor(idProcString,mensajeRecibido->idHilo,mensajeRecibido->semId);
-
+			free(mensajeRecibido->semId);
 			enviarInt(socketRespuesta, result);
 			pthread_mutex_unlock(&mutexWaitSig);
 			break;
@@ -603,9 +619,12 @@ void rutinaServidor(int * p_socket)
 			break;
 		}
 	free(mensajeRecibido);
+	free(idProcString);
 
 
 	close(socketRespuesta);
+
+
 }
 
 void liberarVariablesGlobales()
