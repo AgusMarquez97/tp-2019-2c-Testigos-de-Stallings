@@ -144,8 +144,8 @@ void liberarMarcoBitarray(int nroMarco);
 int asignarMarcoLibre();
 void leerHeapMetadata(t_heap_metadata ** heapMetadata,int *bytesLeidos,int *bytesLeidosPagina, int * offset,t_segmento** segmento,int * nroPagina);
 void leerHeapPartido(t_heap_metadata ** heapMetadata,int * offset,int sobrante,int * nroPagina,t_segmento** segmento,t_pagina ** paginaDummy);
-void escribirHeapMetadata(t_heap_metadata ** heapMetadata,int *bytesLeidos,int *bytesLeidosPagina,t_segmento** segmento,int * offset,int * nroPagina,uint32_t * posicionRetorno);
-int cantidadPaginasSalteadas(int offset);
+int cantidadPaginasPedidas(int offset);
+void escribirHeapMetadata(t_list * listaPaginas, int paginaActual, int offset, int tamanio, void * datosAEscribir);
 
 #endif /* MUSE_H_ */
 
@@ -262,7 +262,7 @@ int cantidadPaginasSalteadas(int offset);
  *
  * 			f) Obtengo los valores del heap_metadata que estan justo antes de la direccion obtenida en e), esto lo necesito para validar que el free/cpy/get sea valido
  * 			g) Una vez accedi a la primera posicion fisica donde estan los datos:
- * 			 *Realizo lo que corresponda en cada caso y retorno un valor:
+ * 			 Realizo lo que corresponda en cada caso y retorno un valor:
  * 				caso free:
  * 					Me paro en la posicion indicada y realizo un memset del offset del heap_metadata(HM) (desde donde esto parado resto sizeof(HM) y libero sizeof(HM)
  * 					Por ultimo valido si toda la pagina esta libre => actualizo el bitmap de frames
