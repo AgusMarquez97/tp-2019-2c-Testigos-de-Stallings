@@ -101,7 +101,7 @@ t_mensajeSuse* recibirOperacionSuse(int socketEmisor) {
 	if(cantidadRecibida != (sizeof(int32_t)*2) )
 		return NULL;
 
-	mensajeRecibido = malloc(sizeof(mensajeRecibido));
+	mensajeRecibido = malloc(sizeof(t_mensajeSuse));
 
 	mensajeRecibido->idProceso = proceso;
 	mensajeRecibido->tipoOperacion = operacion;
@@ -125,6 +125,7 @@ t_mensajeSuse* recibirOperacionSuse(int socketEmisor) {
 			buffer = malloc(tam);
 			recibir(socketEmisor, buffer, tam);
 			deserializarVoid(buffer, &mensajeRecibido->semId, tam, &desplazamiento);
+			free(buffer);
 
 			break;
 		case SIGNAL:
@@ -133,6 +134,7 @@ t_mensajeSuse* recibirOperacionSuse(int socketEmisor) {
 			buffer = malloc(tam);
 			recibir(socketEmisor, buffer, tam);
 			deserializarVoid(buffer, &mensajeRecibido->semId, tam, &desplazamiento);
+			free(buffer);
 			break;
 		default:
 			return NULL;

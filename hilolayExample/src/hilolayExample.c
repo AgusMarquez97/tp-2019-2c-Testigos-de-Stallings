@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <hilolay/hilolay.h>
 
-#define CANT_NOTAS 12
+#define CANT_NOTAS 420
 
 struct hilolay_sem_t *solo_hiper_mega_piola;
 struct hilolay_sem_t *afinado;
@@ -11,16 +11,16 @@ void *tocar_solo(void* num)
 {
 	int cont = 0;
 
-	for(int i = 0; i < CANT_NOTAS/4; i++)
-	{
+
 		//hilolay_wait(afinado);
 		///
+
 		hilolay_wait(solo_hiper_mega_piola);
 		cont++;
 		printf("%d: PARAPAPAM! Nota %d\n", num, cont);
 		hilolay_signal(solo_hiper_mega_piola);
 
-	}
+
 
 	printf("\nPude tocar %d notas bien\n", cont);
 	return 0;
