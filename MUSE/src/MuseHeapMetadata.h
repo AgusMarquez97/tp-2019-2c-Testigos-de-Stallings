@@ -17,7 +17,7 @@
 // La funcion que deberia llamar copy. Offset = primera posicion luego del HM en memoria!
 int leerUnHeapMetadata(t_list * paginas, int offset, void ** buffer, int tamanio)
 {
-	if(ExisteHM(paginas, offset))
+	if(existeHM(paginas, offset))
 	{
 		t_heap_metadata * unHeap = obtenerHeapMetadata(paginas, offset);
 		if(unHeap->estaLibre)
@@ -34,7 +34,7 @@ int leerUnHeapMetadata(t_list * paginas, int offset, void ** buffer, int tamanio
 
 int liberarUnHeapMetadata(t_list * paginas, int offset)
 {
-	if(ExisteHM(paginas, offset))
+	if(existeHM(paginas, offset))
 	{
 		t_heap_metadata * unHeap = obtenerHeapMetadata(paginas, offset);
 
@@ -237,7 +237,7 @@ int escribirHeapMetadata(t_list * listaPaginas, int offset, int tamanio)
 
 int escribirUnHeapMetadata(t_list * paginas, int offset, void ** buffer, int tamanio)
 {
-	if(ExisteHM(paginas, offset))
+	if(existeHM(paginas, offset))
 	{
 		t_heap_metadata * unHeap = obtenerHeapMetadata(paginas, offset);
 		if(unHeap->estaLibre)
@@ -348,7 +348,7 @@ int obtenerPosicionPreviaHeap(t_list * paginas, int offset) // agarra la ultima 
 }
 
 // offset previo al HM !!
-bool ExisteHM(t_list * paginas, int offsetBuscado)
+bool existeHM(t_list * paginas, int offsetBuscado)
 {
 	char msj[200];
 	sprintf(msj,"cantidad de paginas %d",list_size(paginas));
