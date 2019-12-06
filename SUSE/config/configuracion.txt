@@ -4,5 +4,5 @@ METRICS_TIMER=50
 MAX_MULTIPROG=10
 SEM_IDS=[afinado, solo_hiper_mega_piola]
 SEM_INIT=[4, 1]
-SEM_MAX=[1, 5]
+SEM_MAX=[10, 10]
 ALPHA_SJF=0.5
