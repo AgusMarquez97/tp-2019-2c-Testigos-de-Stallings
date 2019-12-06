@@ -20,6 +20,10 @@ size_t tamDisco;
 GFile* tablaNodos[MAX_FILE_NUMBER];
 int indiceTabla=-1;
 int32_t socketConexion;
+int tamanioTotal = 0;
+char* bufferWrite;
+int offsetWrite = 0;
+int contadorWrite = 0;
 
 struct t_runtime_options {
 	char* disco;
@@ -229,7 +233,7 @@ static int hacer_getattr(const char *path, struct stat *st)
 
 	st->st_uid = getuid();		//el duenio del archivo
 	st->st_gid = getgid();
-	st->st_mtime = time(NULL);
+	st->st_mtime = time(NULL);//cambiar estos dos
 	st->st_atime = time(NULL);
 
 	recibirInt(socketConexion, &estadoNodo);
@@ -249,9 +253,9 @@ static int hacer_getattr(const char *path, struct stat *st)
 		}
 		else//archivo
 		{
-			st->st_mode = S_IFREG | 0644;
+			st->st_mode = S_IFREG | 0777;//0644;
 			st->st_nlink = 1;
-			st->st_size = 1024;		//tamanio de los archivos
+			st->st_size = 1024;	//cambiar despues
 		}
 	}
 	else //no existe en el filesystem
@@ -300,7 +304,7 @@ static int hacer_read(const char *path, char *buffer, size_t size, off_t offset,
 {
 
 	int continuar;		//si llega un 0 continua, -1 sale
-	char* cont = malloc(size);
+
 	char* nombre = nombreObjeto(path);
 	int tamNombre = strlen(nombre) + 1;
 
@@ -324,12 +328,22 @@ static int hacer_read(const char *path, char *buffer, size_t size, off_t offset,
 	if(continuar == -1)//no existe en el FS
 		return -1;
 
-	recibirString(socketConexion,&cont);//recibo el contenido del archivo
+	//recibirString(socketConexion,&cont);
+	int tamContenido;
+	recibirInt(socketConexion, &tamContenido);
 
-	memcpy(buffer, cont, size );
+	char* contenido = malloc(tamContenido);
+	recibir(socketConexion, contenido, tamContenido);
 
+	memcpy(buffer, contenido, size );
+	buffer[size] = '\0';
+
+
+	int tamBuffer = strlen(buffer);
+
+	free(contenido);
 	free(bufferEnviar);
-	return strlen(cont);
+	return tamBuffer;
 }
 
 //va a ser llamada para crear un nuevo directorio. "modo" son los bits de permiso, ver documentacion de mkdir
@@ -363,31 +377,70 @@ static int hacer_mknod(const char *path, mode_t modo, dev_t dispositivo)
 }
 
 //va a ser llamada para escribir contenido en un archivo
-static int hacer_write(const char *path, const char *buffer, size_t size, off_t offset, struct fuse_file_info *info)
+static int hacer_write(const char* path, const char* buffer, size_t size, off_t offset, struct fuse_file_info* info)
 {
-	enviarInt(socketConexion, WRITE);
 
-	char* contenido = strdup(buffer);
-	string_trim_right(&contenido);
-	size_t tamCont = strlen(contenido) + 1;
+	size_t tamBufferLocal;
+	 off_t offsetPrimero = 0;
 
-	char* nombre = nombreObjeto(path);
-	int tamNombre = strlen(nombre) + 1;
 
-	void* bufferEnviar = malloc(sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + size + sizeof(off_t) );
+	if(bufferWrite == NULL)
+	{
+		bufferWrite = malloc(size + 1);
+		tamBufferLocal = 0;
+		offsetPrimero = offset;
+	}
+	else
+		tamBufferLocal = strlen(bufferWrite);
 
-	int tamEnviar = sizeof(int) + tamNombre + sizeof(size_t) + size + sizeof(off_t);
+	size_t tamACopiar = strlen(buffer) + 1;
+	//if(tamACopiar == 0)
+		//tamACopiar++;
 
-	memcpy(bufferEnviar, &tamEnviar, sizeof(int) );
-	memcpy(bufferEnviar + sizeof(int), &tamNombre, sizeof(int) );
-	memcpy(bufferEnviar + sizeof(int) + sizeof(int), nombre, tamNombre );
-	memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre, &tamCont, sizeof(size_t) );
-	memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t), contenido, tamCont);
-	memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + tamCont, &offset, sizeof(off_t) );
-	enviar(socketConexion, bufferEnviar, sizeof(int) + tamEnviar );
+	if(size > tamACopiar)
+	{
+		memcpy(bufferWrite + offsetWrite, buffer, tamACopiar);
+		tamBufferLocal = strlen(bufferWrite) + 1;
+		offsetWrite = offsetWrite + tamACopiar - 1;
+	}
+	else
+	{
+		memcpy(bufferWrite + offsetWrite, buffer, size);
+		bufferWrite[offsetWrite+size] = '\0';
+		tamBufferLocal = strlen(bufferWrite) + 1;
+		offsetWrite = offsetWrite + size;
+		tamACopiar = size;
 
-	free(bufferEnviar);
-	return size;
+		enviarInt(socketConexion, WRITE);
+
+
+		char* nombre = nombreObjeto(path);
+		int tamNombre = strlen(nombre) + 1;
+
+		void* bufferEnviar = malloc(sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + tamBufferLocal + sizeof(off_t) );
+		//void* bufferEnviar = malloc(sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + tamBufferLocal);
+
+		int tamEnviar = sizeof(int) + tamNombre + sizeof(size_t) + tamBufferLocal + sizeof(off_t);
+		//int tamEnviar = sizeof(int) + tamNombre + sizeof(size_t) + tamBufferLocal;
+
+		memcpy(bufferEnviar, &tamEnviar, sizeof(int) );
+		memcpy(bufferEnviar + sizeof(int), &tamNombre, sizeof(int) );
+		memcpy(bufferEnviar + sizeof(int) + sizeof(int), nombre, tamNombre );
+		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre, &tamBufferLocal, sizeof(size_t) );
+		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t), bufferWrite, tamBufferLocal);
+		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + tamBufferLocal, &offsetPrimero, sizeof(off_t) );//offset
+		enviar(socketConexion, bufferEnviar, sizeof(int) + tamEnviar );
+
+		free(bufferEnviar);
+
+		free(bufferWrite);
+		bufferWrite = NULL;
+		offsetWrite = 0;
+
+	}
+
+	return tamACopiar;
+
 }
 
 
@@ -438,11 +491,14 @@ static int hacer_unlink(const char *path)
 
 	enviarInt(socketConexion, UNLINK);
 
-	char* nombre = nombreObjeto(path);
+	//char* nombre = nombreObjeto(path);
 
 	int error;
 
-	enviarString(socketConexion, nombre);
+	char* pathAEnviar = malloc(strlen(path) + 1);
+	strcpy(pathAEnviar, path);
+
+	enviarString(socketConexion, pathAEnviar);
 
 	/*			*/
 
@@ -479,16 +535,24 @@ int hacer_rename(const char *oldpath, const char *newpath)
 
 	enviarInt(socketConexion, RENAME);
 
-	char* pathsAEnviar = malloc( sizeof(oldpath) + sizeof(newpath) + 1 );
+	int tamOld = strlen(oldpath) + 1;
+	int tamNew = strlen(newpath) + 1;
+	int tamEnviar = sizeof(int) + tamOld + sizeof(int) + tamNew;
 
+	void* pathsAEnviar = malloc(sizeof(int) + sizeof(int) + tamOld + sizeof(int) + tamNew);
 
-	strcpy(pathsAEnviar, oldpath);
-	strcat(pathsAEnviar, ",");
-	strcat(pathsAEnviar, newpath);
+	memcpy(pathsAEnviar, &tamEnviar, sizeof(int) );
+	memcpy(pathsAEnviar + sizeof(int), &tamOld, sizeof(int) );
+	memcpy(pathsAEnviar + sizeof(int) + sizeof(int), oldpath, tamOld );
+	memcpy(pathsAEnviar + sizeof(int) + sizeof(int) + tamOld, &tamNew, sizeof(int) );
+	memcpy(pathsAEnviar + sizeof(int) + sizeof(int) + tamOld + sizeof(int), newpath, tamNew);
 
-	enviarString(socketConexion, pathsAEnviar);
+	enviar(socketConexion, pathsAEnviar, sizeof(int) + tamEnviar );
+
+	free(pathsAEnviar);
 
 	recibirInt(socketConexion, &error);
+
 
 	return error;
 
@@ -599,6 +663,7 @@ size_t tamArchivo(char* archivo)
 
 int main( int argc, char *argv[] )
 {
+
 
 	remove("Linuse.log");
 	iniciarLog("FUSE");

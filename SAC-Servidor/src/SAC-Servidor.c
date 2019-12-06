@@ -18,6 +18,35 @@ int cantBloqueDatos;
 sem_t mutWrite;
 sem_t mutRename;
 int tamBitmap;
+int tamanioTotal = 0;
+off_t offsetWrite = 0;
+
+void padreEHijo(char* path, char* nombre, char* padre)
+{
+	int contador = 0;
+	char** pathCortado = malloc(10*sizeof(char*));
+
+	for(int i=0;i<=9;i++)
+		pathCortado[i] = malloc(sizeof(char*));
+
+	pathCortado = string_n_split(path, 10, "/");
+
+	if(pathCortado[1]==NULL) //estamos en punto de montaje
+	{
+		strcpy(nombre,pathCortado[0]);
+		padre[0]='\0';
+	}
+	else // "/dir/algo" minimo
+	{
+		contador++;
+		while(pathCortado[contador]!=NULL)
+		{
+			strcpy(padre,pathCortado[contador-1]);
+			strcpy(nombre,pathCortado[contador]);
+			contador++;
+		}
+	}
+}
 
 void rellenarArchivo(int indiceArch, int tamanioNuevo)
 {
@@ -105,14 +134,26 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 	else
 	{
 		//busco cuantos bloques tiene este archivo
-		while(tablaNodos[indiceArch].bloques_ind[bloqInd] != NULL)
+		/*while(tablaNodos[indiceArch].bloques_ind[bloqInd] != NULL)
 		{
 			while(tablaNodos[indiceArch].bloques_ind[bloqInd]->bloquesDatos[bloqDatos] != NULL)
 				bloqDatos++;
 			bloqInd++;
 		}
 		bloqDatos--;
-		bloqInd--;
+		bloqInd--;*/
+
+		if(tamActual > (BLOCK_SIZE-1) )
+		{
+			bloqDatos = tamActual / BLOCK_SIZE;
+			if(bloqDatos >= BLOQUES_DATOS)
+			{
+				bloqInd = bloqDatos/BLOQUES_DATOS;
+				bloqDatos = bloqDatos % BLOQUES_DATOS;
+			}
+
+			offset = tamActual % BLOCK_SIZE;
+		}
 
 		while(aRecortar > 0 && bloqInd >= 0)
 		{
@@ -123,37 +164,35 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 					offset = BLOCK_SIZE - aRecortar;
 				memset(tablaNodos[indiceArch].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes + offset, 0, BLOCK_SIZE - offset);
 				aRecortar = aRecortar - BLOCK_SIZE;
-
-				if(bloqDatos != 0)//hacer como funcion aparte despues
-				{
-					//recorre el bitmap y pone en 0 los bloques que estan vacios
-					GBlock* bloqueActual;
-					IndBlock* bloqueIndActual;
-					for(int indiceBloque = ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER; indiceBloque < (ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER + cantBloqueDatos); indiceBloque++)
-					{
-						int valorBit = bitarray_test_bit(bitmap, indiceBloque);
-						bloqueActual = (GBlock*)(tablaNodos + indiceBloque - ESTRUCTURAS_ADMIN);
-						if( valorBit == 1)
-						{
-							if( bloqueActual->bytes[0] == 0 )
-								bitarray_clean_bit(bitmap, indiceBloque);
-							else
-							{
-								bloqueIndActual = (IndBlock*)(tablaNodos + indiceBloque - ESTRUCTURAS_ADMIN);
-								if(bloqueIndActual->bloquesDatos == NULL)
-									bitarray_clean_bit(bitmap, indiceBloque);
-							}
-						}
-
-					}
-
-				}
+				offset = 0;
 				bloqDatos--;
 			}
 			bloqInd--;
 		}
 	}
 
+/*
+	//recorre el bitmap y pone en 0 los bloques que estan vacios
+	GBlock* bloqueActual;
+	IndBlock* bloqueIndActual;
+	for(int indiceBloque = ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER; indiceBloque < (ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER + cantBloqueDatos); indiceBloque++)
+	{
+		int valorBit = bitarray_test_bit(bitmap, indiceBloque);
+		bloqueActual = (GBlock*)(tablaNodos + indiceBloque - ESTRUCTURAS_ADMIN);
+		if( valorBit == 1)
+		{
+			if( bloqueActual->bytes[0] == 0 )
+				bitarray_clean_bit(bitmap, indiceBloque);
+			else
+			{
+				bloqueIndActual = (IndBlock*)(tablaNodos + indiceBloque - ESTRUCTURAS_ADMIN);
+				if(bloqueIndActual->bloquesDatos == NULL)
+					bitarray_clean_bit(bitmap, indiceBloque);
+			}
+		}
+
+	}
+*/
 	tablaNodos[indiceArch].file_size = tamanioNuevo;
 
 }
@@ -163,7 +202,10 @@ void escribir(int indArchivo, char* contenido, size_t tamanio, off_t offset)
 	int cantidadEscrita = 0;
 	int bloqInd = 0;
 	int bloqDatos = 0;
-	int cantAEscribir = BLOCK_SIZE - offset;
+	int cantAEscribir;
+
+	if(offset == 0)
+		offset = tablaNodos[indArchivo].file_size;
 
 	sem_wait(&mutWrite);
 
@@ -192,29 +234,41 @@ void escribir(int indArchivo, char* contenido, size_t tamanio, off_t offset)
 		bitarray_set_bit(bitmap, indBloque);
 
 		tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[0] = (GBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN;
+
+		memset(tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[0]->bytes, 0, BLOCK_SIZE);
+
+		tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[1] = NULL;
+		tablaNodos[indArchivo].bloques_ind[1] = NULL;
+
 	}
 
 	if(tamanio + offset < BLOCK_SIZE)
 	{
-		strcpy(tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[0]->bytes, contenido);
+		strcpy(tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[0]->bytes + offset, contenido);
 	}
 	else
 	{
 
+		if(offset > (BLOCK_SIZE-1) )
+		{
+			bloqDatos = offset / BLOCK_SIZE;
+			if(bloqDatos >= BLOQUES_DATOS)
+			{
+				bloqInd = bloqDatos/BLOQUES_DATOS;
+				bloqDatos = bloqDatos % BLOQUES_DATOS;
+			}
+
+			offset = offset % BLOCK_SIZE;
+		}
+
+		cantAEscribir = BLOCK_SIZE - offset;
+
 		while(cantidadEscrita < tamanio && bloqInd < BLOQUES_INDIRECTOS)
 		{
 
-			while( cantidadEscrita < tamanio && bloqDatos < BLOQUES_DATOS)
+			if(tablaNodos[indArchivo].bloques_ind[bloqInd] == NULL)
 			{
-
-				strncpy(tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes + offset, contenido+cantidadEscrita, cantAEscribir);
-				cantidadEscrita = cantidadEscrita + BLOCK_SIZE;
-				cantAEscribir = BLOCK_SIZE;
-				if( (tamanio-cantidadEscrita) < BLOCK_SIZE)
-					cantAEscribir = tamanio-cantidadEscrita;
-				bloqDatos++;
-				offset = 0;
-				int indBloque = ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER;//el indice en el bitmap arranca despues de eso
+				int indBloque = ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER;
 				int valorBit = bitarray_test_bit(bitmap, indBloque);
 				while(valorBit != 0 && indBloque < (ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER + cantBloqueDatos) )
 				{
@@ -222,15 +276,56 @@ void escribir(int indArchivo, char* contenido, size_t tamanio, off_t offset)
 					valorBit = bitarray_test_bit(bitmap, indBloque);
 				}
 				bitarray_set_bit(bitmap, indBloque);
-				tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[bloqDatos] = (GBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN + bloqDatos;
+				valorBit = bitarray_test_bit(bitmap, indBloque);
+
+				tablaNodos[indArchivo].bloques_ind[bloqInd] = (IndBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN;
+				int i = 0;
+				while(i < BLOQUES_DATOS)
+				{
+					tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[i] = NULL;
+					i++;
+				}
+
+				if(bloqInd < (BLOQUES_INDIRECTOS - 1) )
+					tablaNodos[indArchivo].bloques_ind[bloqInd + 1] = NULL;
+			}
+
+			while( cantidadEscrita < tamanio && bloqDatos < BLOQUES_DATOS)
+			{
+				if(tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos] == NULL || tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes == NULL)
+				{
+					int indBloque = ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER;
+					int valorBit = bitarray_test_bit(bitmap, indBloque);
+					while(valorBit != 0 && indBloque < (ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER + cantBloqueDatos) )
+					{
+						indBloque++;
+						valorBit = bitarray_test_bit(bitmap, indBloque);
+					}
+					bitarray_set_bit(bitmap, indBloque);
+
+					tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos] = (GBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN + bloqDatos;
+					memset(tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes, 0, BLOCK_SIZE);
+					if(bloqDatos < (BLOQUES_DATOS - 1) )
+						tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos + 1] = NULL;
+				}
+
+				strncpy(tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes + offset, contenido+cantidadEscrita, cantAEscribir);
+				cantidadEscrita = cantidadEscrita + cantAEscribir;
+				cantAEscribir = BLOCK_SIZE;
+				if( (tamanio-cantidadEscrita) < BLOCK_SIZE)
+					cantAEscribir = tamanio-cantidadEscrita;
+				bloqDatos++;
+				offset = 0;
+
 			}
 			bloqInd++;
+			bloqDatos = 0;
 		}
 	}
 
-	tablaNodos[indArchivo].file_size = tamanio;
+	tablaNodos[indArchivo].file_size = tablaNodos[indArchivo].file_size + tamanio;
 
-	//msync(disco, tamDisco, MS_SYNC);
+	msync(disco - 1 - BITMAP_SIZE_IN_BLOCKS, tamDisco, MS_SYNC);
 
 	sem_post(&mutWrite);
 
@@ -248,17 +343,19 @@ void setearTiempo(char* path)
 void renombrar(char* oldpath, char* newpath)
 {
 
-	char nombreViejo[MAX_FILENAME_LENGTH];
-	char nombreNuevo[MAX_FILENAME_LENGTH];
+	char* nombreViejo = malloc(MAX_FILENAME_LENGTH);
+	char* padreViejo = malloc(MAX_FILENAME_LENGTH);
+	char* nombreNuevo = malloc(MAX_FILENAME_LENGTH);
+	char* padreNuevo = malloc(MAX_FILENAME_LENGTH);
+
+	padreEHijo(oldpath, nombreViejo, padreViejo);
+	padreEHijo(newpath, nombreNuevo, padreNuevo);
 
 	sem_wait(&mutRename);
 
-	strcpy(nombreViejo, nombreObjeto(oldpath) );
-	strcpy(nombreNuevo, nombreObjeto(newpath) );
-
 	int indiceViejo = indiceObjeto(nombreViejo);
 
-	if( existeObjeto(nombreNuevo) == 1 ) //si el nuevo ya existe, se renombra el viejo y se borra el nuevo
+	if( esArchivo(newpath) == 1) //si el nuevo ya existe, se renombra el viejo y se borra el nuevo
 	{
 
 		eliminarObjeto(nombreNuevo);
@@ -275,9 +372,14 @@ void renombrar(char* oldpath, char* newpath)
 
 		strcpy(tablaNodos[indiceViejo].nombre, nombreNuevo);
 
+		if(padreNuevo[0] != '\0')
+			tablaNodos[indiceViejo].padre = indiceObjeto(padreNuevo);
+		else
+			tablaNodos[indiceViejo].padre = 0;
+
 	}
 
-	msync(disco, tamDisco, MS_SYNC);
+	msync(disco - 1 - BITMAP_SIZE_IN_BLOCKS, tamDisco, MS_SYNC);
 
 	sem_post(&mutRename);
 }
@@ -343,13 +445,19 @@ int esDirectorio(char* nombre)
 }
 
 //devuelve 1 si existe y es un archivo, 0 si no
-int esArchivo(char* nombre)
+int esArchivo(char* path)
 {
 
+	char* nombre = malloc(MAX_FILENAME_LENGTH);
+	char* padre = malloc(MAX_FILENAME_LENGTH);
+	padreEHijo(path, nombre, padre);
+
+	int indicePadre = indiceObjeto(padre);
 	int indiceArch = indiceObjeto(nombre);
+
 	if(indiceArch>=0 && indiceArch<=MAX_FILE_NUMBER)
 	{
-		if (tablaNodos[indiceArch].estado == ARCHIVO)
+		if (tablaNodos[indiceArch].estado == ARCHIVO && tablaNodos[indiceArch].padre == indicePadre)
 			return 1;
 	}
 
@@ -470,6 +578,16 @@ void agregarObjeto(char* nombre, char* padre, int estado)
 	else
 		nodoNuevo->padre = 0;
 
+	/*for(int bloqInd = 0; bloqInd < BLOQUES_INDIRECTOS; bloqInd++)
+	{
+		for(int bloqDatos = 0; bloqDatos < BLOQUES_DATOS; bloqDatos++)
+		{
+			nodoNuevo->bloques_ind[bloqInd]->bloquesDatos[bloqDatos] = NULL;
+		}
+
+		nodoNuevo->bloques_ind[bloqInd] = NULL;
+	}*/
+
 }
 
 void crearObjeto(char *path, int estado)
@@ -503,7 +621,7 @@ void crearObjeto(char *path, int estado)
 
 	agregarObjeto(nombre, padre, estado);
 
-	msync(disco, tamDisco, MS_SYNC);
+	msync(disco - 1 - BITMAP_SIZE_IN_BLOCKS, tamDisco, MS_SYNC);
 
 	free(pathCortado);
 
@@ -588,13 +706,13 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 		case GETATTR:
 		{//hago los cases con llaves para declarar variables sin problemas
 
-			char* pathGetattr = malloc(200);
-			recibirString(socketRespuesta, &pathGetattr);//recibe nombre
+			char* nombre = malloc(200);
+			recibirString(socketRespuesta, &nombre);//recibe nombre
 
-			if(existeObjeto(pathGetattr) == 1)//si existe envia su estado y ultima modificacion
+			if(existeObjeto(nombre) == 1)//si existe envia su estado y ultima modificacion
 			{
 
-				int indice = indiceObjeto(pathGetattr);
+				int indice = indiceObjeto(nombre);
 				uint8_t estado = tablaNodos[indice].estado;
 				time_t ultimaMod = tablaNodos[indice].fecha_modif;
 				void* buffer = malloc( sizeof(time_t) );
@@ -612,7 +730,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 				enviarInt(socketRespuesta, BORRADO);
 			}
 
-			free(pathGetattr);
+			free(nombre);
 
 			break;
 		}
@@ -648,7 +766,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 			memcpy(&size, buffer + sizeof(int) + tamNombre , sizeof(size_t) );
 			memcpy(&offset, buffer + sizeof(int) + tamNombre + sizeof(size_t), sizeof(off_t) );
 
-			void* enviar = malloc(size);
+			char* contAEnviar = malloc(size + 1);
 			indArch = indiceObjeto(nombreRead);
 
 			enviarInt(socketRespuesta, indArch);
@@ -656,35 +774,66 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 			if (indArch == -1)// si no existe
 				break;
 
-			int cont = 0;
-			int contDatos = 0;
+			int bloqInd = 0;
+			int bloqDatos = 0;
 			char* contenido = malloc(BLOCK_SIZE);
 
-			if(tablaNodos[indArch].file_size != 0)
+			int cantALeer;
+			int cantidadLeida = 0;
+
+			if(size > tablaNodos[indArch].file_size)//esto es una mierda, ver de donde sale el error
+				size = tablaNodos[indArch].file_size;
+
+			if(size + offset < BLOCK_SIZE)
 			{
-				while(tablaNodos[indArch].bloques_ind[cont] != NULL && cont < BLOQUES_INDIRECTOS)
-				{
-
-					while(tablaNodos[indArch].bloques_ind[cont]->bloquesDatos[contDatos] != NULL && contDatos < BLOQUES_DATOS)
-					{
-
-						if(tablaNodos[indArch].bloques_ind[cont]->bloquesDatos[contDatos]->bytes[0] != 0)
-							strcpy(contenido,tablaNodos[indArch].bloques_ind[cont]->bloquesDatos[contDatos]->bytes);
-
-						contDatos++;
-					}
-					cont++;
-				}
-				memcpy(enviar, contenido + offset, size);
+				strncpy(contAEnviar, tablaNodos[indArch].bloques_ind[0]->bloquesDatos[0]->bytes + offset, size);
+				contAEnviar[size] = '\0';
 			}
 			else
-				memset(enviar, 0, size);
+			{
 
-			enviarString(socketRespuesta, enviar);
+				if(offset > (BLOCK_SIZE-1) )
+				{
+					bloqDatos = offset / BLOCK_SIZE;
+					if(bloqDatos >= BLOQUES_DATOS)
+					{
+						bloqInd = bloqDatos/BLOQUES_DATOS;
+						bloqDatos = bloqDatos % BLOQUES_DATOS;
+					}
+
+					offset = offset % BLOCK_SIZE;
+				}
+
+				cantALeer = BLOCK_SIZE - offset;
+
+				while(cantidadLeida < size && bloqInd < BLOQUES_INDIRECTOS)
+				{
+
+					while( cantidadLeida < size && bloqDatos < BLOQUES_DATOS)
+					{
+						strncpy(contAEnviar, tablaNodos[indArch].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes + offset, cantALeer);
+						cantidadLeida = cantidadLeida + BLOCK_SIZE;
+						cantALeer = BLOCK_SIZE;
+						if( (size-cantidadLeida) < BLOCK_SIZE)
+							cantALeer = size-cantidadLeida;
+						bloqDatos++;
+						offset = 0;
+
+					}
+					bloqInd++;
+					bloqDatos = 0;
+				}
+			}
+
+			int tamAEnviar = strlen(contAEnviar);
+
+			//enviarString(socketRespuesta, contAEnviar);
+			enviarInt(socketRespuesta, tamAEnviar);//esto esta mal, mandar todo junto
+			enviar(socketRespuesta, contAEnviar, tamAEnviar);
 
 			free(nombreRead);
 			free(buffer);
-			//free(enviar);
+			//free(contAEnviar);
 			free(contenido);
 
 			break;
@@ -724,21 +873,26 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 			char* nombre = malloc(MAX_FILENAME_LENGTH);
 			int tamNom;
 			size_t tamContenido;
+
 			off_t offset;
 
+
 			memcpy(&tamNom, bufferWrite, sizeof(int));
-			memcpy(nombre, (char*) (bufferWrite + sizeof(int) ), tamNom);
+			memcpy(nombre, bufferWrite + sizeof(int), tamNom);
 			memcpy(&tamContenido,bufferWrite + sizeof(int) + tamNom, sizeof(size_t) );
 
 			char* contenido = malloc(tamContenido);
-			memcpy(contenido, (char*) (bufferWrite + sizeof(int) + tamNom + sizeof(size_t) ), tamContenido);
-			memcpy(&offset, (char*) (bufferWrite + sizeof(int) + tamNom + sizeof(size_t) + tamContenido ), sizeof(off_t) );
+			memcpy(contenido, bufferWrite + sizeof(int) + tamNom + sizeof(size_t), tamContenido);
+			memcpy(&offset, bufferWrite + sizeof(int) + tamNom + sizeof(size_t) + tamContenido, sizeof(off_t) );
+
 
 			indArch = indiceObjeto(nombre);
 			if (indArch == -1)//ver
 				break;
 
-			escribir(indArch, contenido, tamContenido, offset);
+			escribir(indArch, contenido, tamContenido, offset);//offsetWrite);
+
+			//offsetWrite = offsetWrite + tamContenido;
 
 			free(contenido);
 			free(nombre);
@@ -749,26 +903,29 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 
 		case RENAME:
 		{
-			char* oldpath = malloc(100);
-			char* newpath = malloc(100);
-			char* nombreNuevo = malloc(MAX_FILENAME_LENGTH);
-			char* nombreViejo = malloc(MAX_FILENAME_LENGTH);
 
-			char* pathRename = malloc(200);
-			recibirString(socketRespuesta, &pathRename);
+			int tamARecibir;
+			recibir(socketRespuesta,&tamARecibir, sizeof(int) );
 
-			char** pathsRecibidos = string_split(pathRename, ",");//[0] es oldpath, [1] es newpath
+			void* pathsRecibidos = malloc(tamARecibir);
+			recibir(socketRespuesta, pathsRecibidos, tamARecibir);
 
-			strcpy(oldpath, pathsRecibidos[0]);
-			strcpy(newpath, pathsRecibidos[1]);
+			int tamOld;
+			int tamNew;
 
+			memcpy(&tamOld, pathsRecibidos, sizeof(int));
+			char* oldpath = malloc(tamOld);
 
-			nombreNuevo = nombreObjeto(newpath);
-			nombreViejo = nombreObjeto(oldpath);
+			memcpy(oldpath, pathsRecibidos + sizeof(int), tamOld);
+
+			memcpy(&tamNew,pathsRecibidos + sizeof(int) + tamOld, sizeof(int) );
+			char* newpath = malloc(tamNew);
+
+			memcpy(newpath, pathsRecibidos + sizeof(int) + tamOld + sizeof(int), tamNew);
 
 
 			//ERRORES
-
+/*
 			if (esDirectorio(nombreViejo) == 1)
 			{
 
@@ -785,11 +942,6 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 					enviarInt(socketRespuesta, EBUSY);
 					break;
 				}
-
-				/*ver como hacer esto
-				 EINVAL The new pathname contained a path prefix of the old, or, more
-				 generally, an attempt was made to make a directory a
-				 subdirectory of itself.*/
 
 				if( (existeObjeto(nombreNuevo) == 1 ) && (esDirectorio(nombreNuevo) == 0) )//newpath existe pero no es directorio
 				{
@@ -811,7 +963,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 				enviarInt(socketRespuesta, ENOENT);
 				break;
 			}
-
+*/
 			//FUNCIONALIDAD
 
 			if(strcmp(oldpath,newpath) == 0)//si son iguales no se hace nada y se devuelve 0
@@ -826,37 +978,41 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 
 			free(oldpath);
 			free(newpath);
-			free(nombreNuevo);
-			free(nombreViejo);
-			free(pathRename);
+			free(pathsRecibidos);
 
 			break;
 		}
 		case UNLINK:
 		{
 			int error;
-			char* nombreUnlink = malloc(200);
-			recibirString(socketRespuesta, &nombreUnlink);//recibe el nombre del directorio
+			char* pathUnlink = malloc(200);
+			char* nombre = malloc(MAX_FILENAME_LENGTH);
+			char* padre = malloc(MAX_FILENAME_LENGTH);
 
-			if(esDirectorio(nombreUnlink) == 1)//si no es directorio tira error
+
+			recibirString(socketRespuesta, &pathUnlink);//recibe el path
+
+			padreEHijo(pathUnlink, nombre, padre);
+
+			if(esDirectorio(nombre) == 1)//si no es directorio tira error
 			{
 				error = EISDIR;
 				enviarInt(socketRespuesta, error);
 				break;
 			}
 
-			if(esArchivo(nombreUnlink) == 0)//si no esta vacio tira error
+			if(esArchivo(pathUnlink) == 0)//si no esta vacio tira error
 			{
 				error = ENOENT;
 				enviarInt(socketRespuesta, error);
 				break;
 			}
 
-			eliminarObjeto(nombreUnlink);
+			eliminarObjeto(nombre);
 
 
 			enviarInt(socketRespuesta, 0);//avisa que esta todo piola
-			free(nombreUnlink);
+			free(pathUnlink);
 
 			break;
 		}
@@ -992,11 +1148,12 @@ void levantarServidorFUSE()
 
 
 
-
 void recibirOperaciones(int* p_socket)
 {
 
+
 	int socketRespuesta = *p_socket;
+
 
 	pthread_t hiloAtendedor = 0;
 
@@ -1006,21 +1163,9 @@ void recibirOperaciones(int* p_socket)
 	mensajeRecibido->idHilo = hiloAtendedor;
 
 
-
 	while(mensajeRecibido != NULL)
 	{
-
-			rutinaServidor(mensajeRecibido, socketRespuesta);
-		/*int err = pthread_create(&hiloAtendedor, NULL, (void*) rutinaServidor, (void*) mensajeRecibido);
-
-			if(err != 0)
-				loggearInfo("Error al crear un nuevo hilo");
-			else
-			{
-				pthread_join(hiloAtendedor, NULL);
-				hiloAtendedor++;
-				mensajeRecibido->idHilo = hiloAtendedor;
-			}*/
+		rutinaServidor(mensajeRecibido, socketRespuesta);
 
 		mensajeRecibido = recibirOperacionFuse(socketRespuesta);
 
