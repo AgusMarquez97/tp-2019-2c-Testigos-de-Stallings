@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <semaphore.h>
 
 #include <biblioteca/sockets.h>
 #include <biblioteca/serializacion.h>
@@ -27,6 +28,8 @@
 #include <commons/collections/queue.h>
 #include <commons/collections/dictionary.h>
 #include <commons/bitarray.h>
+#include <fcntl.h>           /* For O_* constants */
+#include <sys/stat.h>        /* For mode constants */
 
 #include "biblioteca/mensajesSuse.h"
 
@@ -44,8 +47,8 @@ char ** semIds;
 char ** semInit;
 char ** semMax;
 
-pthread_mutex_t mutexNew, mutexReady, mutexExec, mutexBlocked, mutexWaitSig, mutexExit, mutexProc;
-
+pthread_mutex_t mutexNew, mutexReady, mutexExec, mutexBlocked, mutexWaitSig, mutexExit, mutexProc,mutexSemHilosDisp;
+sem_t semPruebas;
 
 t_log* metricas;
 
@@ -56,7 +59,7 @@ t_list *exits; //exit estado comun para todos los procesos, indexamos por proces
 t_list *blockeds; //hilos bloqueados esperando para volver al ready
 t_list *semaforos; //lista de t_semaforoSuse
 t_list *procesos; //todos los procesos que administra SUSE.
-
+t_dictionary *semHilosDisp;//Diccionario que tiene un semContador por proceso, el contador nos dice cuantos hay en ready + 1 o 0 en exec, si esta en 0 el contador se bloquea y no hace el schedule next
 //
 int32_t suse_create_servidor(char* idProcString, int32_t idThread);
 

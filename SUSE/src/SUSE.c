@@ -73,6 +73,10 @@ void planificar_largoPlazo(){
 						hiloEnNews->timestampEntraEnReady= (int32_t)time(NULL);
 						list_add(colaReady, hiloEnNews);
 						//dictionary_put(readys, hiloEnNews->idProceso , colaReady);
+						pthread_mutex_lock(&mutexSemHilosDisp);
+						sem_t* semDisp = dictionary_get(semHilosDisp,hiloEnNews->idProceso);
+						sem_post(semDisp);
+						pthread_mutex_unlock(&mutexSemHilosDisp);
 						loggearInfo("Agregamos 1 hilo de New a Ready");
 					}
 					else loggearWarning("grado de máxima multiprogramación alcanzado");
@@ -90,7 +94,10 @@ void planificar_largoPlazo(){
 						list_add(nuevaColaReady, hiloEnNews);
 
 						dictionary_put(readys, hiloEnNews->idProceso , nuevaColaReady);
-
+						pthread_mutex_lock(&mutexSemHilosDisp);
+						sem_t* semDisp = dictionary_get(semHilosDisp,hiloEnNews->idProceso);
+						sem_post(semDisp);
+						pthread_mutex_unlock(&mutexSemHilosDisp);
 						loggearInfo("Se crea cola ready para el proceso nuevo y agregamos el hilo a esta");
 						}
 					}
@@ -125,6 +132,10 @@ int32_t suse_schedule_next_servidor(char* idProcString){
     t_hiloPlanificado* hiloSiguiente;
     t_hiloPlanificado* hiloActual;//este hilo estaba ejecutando, como llega un next debe volver a ready para dejarlo ejecutar al siguiente
     hiloActual = dictionary_get(execs,idProcString);
+	pthread_mutex_lock(&mutexSemHilosDisp);
+	sem_t *semDisp = dictionary_get(semHilosDisp,idProcString);
+	pthread_mutex_unlock(&mutexSemHilosDisp);
+	sem_wait(semDisp);
 
 if(!list_is_empty(colaReady)){
     //FIFO, (Pasar después a SJF)
@@ -152,21 +163,22 @@ if(!list_is_empty(colaReady)){
     loggearInfo(msj);
     free(msj);
 
-
+    sem_post(semDisp);
     return hiloSiguiente->idHilo;
 }
 if(hiloActual!=NULL)
 	{
-
+	char * msj1 = malloc(strlen("El hilo 99999999999 del proceso 9999999999999 continua en EXEC " ) + 1);
+	sprintf(msj1,"El hilo %d del proceso %s continua en EXEC ",hiloActual->idHilo,hiloActual->idProceso);
+	loggearInfo(msj1);
+	free(msj1);
+	sem_post(semDisp);
 	return hiloActual->idHilo;
-	 char * msj1 = malloc(strlen("El hilo 99999999999 del proceso 9999999999999 continua en EXEC " ) + 1);
-	    sprintf(msj1,"El hilo %d del proceso %s continua en EXEC ",hiloActual->idHilo,hiloActual->idProceso);
-	    loggearInfo(msj1);
-	    free(msj1);
+
 	}
 
 loggearInfo("/////FALLO EL NEXT///////////");
-return -1;
+return -1;//aca no debería llegar nunca...
 }
 
 t_hiloPlanificado * removerHiloConRafagaMasCorta(t_list* colaReady)
@@ -209,6 +221,10 @@ int32_t suse_join_servidor(char* idProcString, int32_t tid)
 	}
 
 
+	pthread_mutex_lock(&mutexSemHilosDisp);
+	sem_t * semDisp = dictionary_get(semHilosDisp,idProcString);
+	sem_wait(semDisp);
+	pthread_mutex_unlock(&mutexSemHilosDisp);
 	t_hiloPlanificado* hiloABloquear;
 
 	hiloABloquear= dictionary_remove(execs, idProcString);//lo quito
@@ -217,6 +233,7 @@ int32_t suse_join_servidor(char* idProcString, int32_t tid)
 	hiloABloquear->timestampSale=(int32_t) time(NULL);
 	hiloABloquear->estimado = hiloABloquear->estimado*(1-alphaSJF)+(hiloABloquear->timestampSale-hiloABloquear->timestampEntra)*alphaSJF;
 	hiloABloquear->tiempoEnExec+=(int32_t)time(NULL)-hiloABloquear->timestampEntra;
+
 
 	list_add(blockeds,hiloABloquear);//lo meto en blockeds
 
@@ -246,11 +263,16 @@ void desbloquearJoin(t_hiloPlanificado* hilo)
 					pthread_mutex_unlock(&mutexBlocked);
 					if(hiloBloqueadoPorJoin!=NULL)
 					{
+						pthread_mutex_lock(&mutexSemHilosDisp);
+						sem_t *semDisp = dictionary_get(semHilosDisp,hilo->idProceso);
+						sem_post(semDisp);
+						pthread_mutex_unlock(&mutexSemHilosDisp);
 						pthread_mutex_lock(&mutexReady);
 						hiloBloqueadoPorJoin->estadoHilo=READY;
 						hiloBloqueadoPorJoin->hiloBloqueante = NULL;
 						t_list* colaReadyDelProc = dictionary_get(readys,hilo->idProceso);
 						list_add(colaReadyDelProc,hiloBloqueadoPorJoin);
+
 						pthread_mutex_unlock(&mutexReady);
 					}
 
@@ -274,6 +296,10 @@ int32_t suse_close_servidor(char *  idProcString, int32_t tid)
     hiloParaExit->tiempoEnExec+=(int32_t)time(NULL)-hiloParaExit->timestampEntra;
     pthread_mutex_lock(&mutexExit);
     list_add(exits,hiloParaExit);
+	pthread_mutex_lock(&mutexSemHilosDisp);
+	sem_t* semDisp = dictionary_get(semHilosDisp,idProcString);
+	sem_wait(semDisp);
+	pthread_mutex_unlock(&mutexSemHilosDisp);
     pthread_mutex_unlock(&mutexExit);
 
     char * msj = malloc(strlen("El hilo 99999999999 del proceso 9999999999999 finalizo") + 1);
@@ -313,6 +339,10 @@ int32_t suse_wait_servidor(char *idProcString,int32_t idHilo,char *semId)
 		semaforo->valorActual--;
 		if(semaforo->valorActual < 0)// si queda el valor neg el hilo se bloquea
 		{
+			pthread_mutex_lock(&mutexSemHilosDisp);
+			sem_t *semDisp = dictionary_get(semHilosDisp,idProcString);
+			sem_wait(semDisp);
+			pthread_mutex_unlock(&mutexSemHilosDisp);
 			t_hiloPlanificado* hiloABloquear;
 			pthread_mutex_lock(&mutexExec);
 			hiloABloquear= dictionary_remove(execs, idProcString);
@@ -322,6 +352,7 @@ int32_t suse_wait_servidor(char *idProcString,int32_t idHilo,char *semId)
 			pthread_mutex_lock(&mutexBlocked);
 			list_add(blockeds,hiloABloquear);
 			pthread_mutex_unlock(&mutexBlocked);
+
 		}
 
 
@@ -354,6 +385,10 @@ int32_t suse_signal_servidor(char *idProcString,int32_t idHilo,char *semId)
 				hiloADesbloquear= list_remove_by_condition(blockeds, (void *) hiloBloqueadoPorSem);
 
 				if(hiloADesbloquear!=NULL){
+				pthread_mutex_lock(&mutexSemHilosDisp);
+				sem_t *semDisp = dictionary_get(semHilosDisp,hiloADesbloquear->idProceso);
+				sem_post(semDisp);
+				pthread_mutex_unlock(&mutexSemHilosDisp);
 				hiloADesbloquear->estadoHilo=READY;
 				hiloADesbloquear->semBloqueante = NULL;
 
@@ -363,6 +398,7 @@ int32_t suse_signal_servidor(char *idProcString,int32_t idHilo,char *semId)
 				pthread_mutex_lock(&mutexBlocked);
 				list_add(colaReadyDelProc,hiloADesbloquear);
 				pthread_mutex_unlock(&mutexBlocked);
+
 
 				}
 
@@ -573,20 +609,34 @@ void rutinaServidor(int * p_socket)
 	sprintf(idProcString,"%d",mensajeRecibido->idProceso);
 
 
-
 	switch(mensajeRecibido->tipoOperacion)
 		{
 		case CREATE:
 			loggearInfo("Se recibio una operacion CREATE");
 
 
-			result= suse_create_servidor(idProcString, mensajeRecibido->idHilo);
-			if(mensajeRecibido->idHilo==0){ //Para las metricasXprograma, y para que que se ejecute de una el primer hilo¿qie pasaria con muchos programas?
+
+			if(mensajeRecibido->idHilo==0)
+			{ //Para las metricasXprograma, y para que que se ejecute de una el primer hilo¿qie pasaria con muchos programas?
+
 				pthread_mutex_lock(&mutexProc);
-				list_add(procesos,idProcString);
+				char * procStringAux = strdup(idProcString);
+				list_add(procesos,procStringAux);
 				pthread_mutex_unlock(&mutexProc);
-							suse_schedule_next_servidor(idProcString);
-						}
+				pthread_mutex_lock(&mutexSemHilosDisp);
+				printf("proceso %s\n",idProcString);
+				char * nombreSem = strdup(idProcString);//el nombre del semaforo de un proceso será el mismo id del proceso
+				sem_t * semProceso;
+				semProceso=sem_open("mysem", O_CREAT, 0600, 0);
+
+				printf("proceso %s inicio su sem\n",idProcString);
+				dictionary_put(semHilosDisp,procStringAux,semProceso);
+				pthread_mutex_unlock(&mutexSemHilosDisp);
+				result= suse_create_servidor(idProcString, mensajeRecibido->idHilo);
+				suse_schedule_next_servidor(idProcString);
+			}
+			else
+				result= suse_create_servidor(idProcString, mensajeRecibido->idHilo);
 			enviarInt(socketRespuesta, result);
 			break;
 		case NEXT:
@@ -638,9 +688,12 @@ void rutinaServidor(int * p_socket)
 		default: //incluye el handshake
 			break;
 		}
+
+	int32_t valorActualSem;
+	sem_getvalue(dictionary_get(semHilosDisp,idProcString),&valorActualSem);
+	printf("ValorSem = %d (Proceso %s)\n",valorActualSem,idProcString);
 	free(mensajeRecibido);
 	free(idProcString);
-
 
 	close(socketRespuesta);
 
@@ -685,6 +738,7 @@ void levantarEstructuras()
 	execs = dictionary_create();
 	exits = list_create();
 	blockeds = list_create();
+	semHilosDisp = dictionary_create();
 	inicializarSemaforosPthread();
 	inicializarSemaforos();
 }
@@ -715,7 +769,8 @@ void inicializarSemaforosPthread(){
 	pthread_mutex_init(&mutexWaitSig, NULL);
 	pthread_mutex_init(&mutexProc, NULL);
 	pthread_mutex_init(&mutexExit, NULL);
-
+	pthread_mutex_init(&mutexSemHilosDisp, NULL);
+	sem_init(&semPruebas,0,0);
 }
 
 int main(void) {
