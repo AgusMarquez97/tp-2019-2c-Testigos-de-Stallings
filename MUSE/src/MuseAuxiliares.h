@@ -119,9 +119,9 @@ uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 		leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset,segmento->paginas,&contador);
 
 		if(heapMetadata->estaLibre && heapMetadata->offset >= (tamanio + tam_heap_metadata)) {
-			offset = obtenerPosicionPreviaHeap(segmento->paginas, offset); // Retrocede el offset a la posicion previa al heap
-			escribirHeapMetadata(segmento->paginas, offset, tamanio); // validar
-			return offset;
+			offset = obtenerPosicionPreviaHeap(segmento->paginas, offset); // VALIDAR => esta retrocediendo el offset del hm tambien??
+			escribirHeapMetadata(segmento->paginas, offset, tamanio); // validado
+			return offset + tam_heap_metadata;
 		}
 
 	}
@@ -137,7 +137,7 @@ uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 
 	estirarSegmento(idProceso, segmento, tamanio, nuevaCantidadFrames, offset, sobrante);
 
-	return offset;
+	return offset + tam_heap_metadata;
 
 }
 
@@ -150,7 +150,7 @@ void estirarSegmento(char* idProceso, t_segmento* segmento, int tamanio, int nue
 
 	escribirHeapMetadata(listaPaginas,offset,tamanio); // Escribir el heap nuevo en memoria. Considera heap partido
 
-	segmento->tamanio += list_size(listaPaginas) * tamPagina; // ver si es necesario un mutex por cada operacion con el segmento
+	segmento->tamanio = list_size(listaPaginas) * tamPagina; // ver si es necesario un mutex por cada operacion con el segmento
 
 }
 

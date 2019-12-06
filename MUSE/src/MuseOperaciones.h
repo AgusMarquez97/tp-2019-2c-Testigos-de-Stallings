@@ -72,6 +72,8 @@ int32_t procesarFree(char* idProceso, uint32_t posicionSegmento) {
 
 	uint32_t posicionMemoria = obtenerDireccionMemoria(paginas,posicionSegmento);
 
+	posicionMemoria = obtenerPosicionPreviaHeap(paginas,posicionMemoria);
+
 	bytesLiberados = liberarUnHeapMetadata(paginas, posicionMemoria);
 
 	if(bytesLiberados > 0)
@@ -115,6 +117,8 @@ void* procesarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio) {
 		pthread_mutex_unlock(&mutex_diccionario);
 
 		uint32_t posicionMemoria = obtenerDireccionMemoria(paginas,posicionSegmento);
+
+		posicionMemoria = obtenerPosicionPreviaHeap(paginas,posicionMemoria);
 
 		void * buffer = malloc(tamanio);
 
@@ -163,6 +167,8 @@ int procesarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, voi
 			pthread_mutex_unlock(&mutex_diccionario);
 
 			uint32_t posicionMemoria = obtenerDireccionMemoria(paginas,posicionSegmento);
+
+			posicionMemoria = obtenerPosicionPreviaHeap(paginas,posicionMemoria);
 
 			void * buffer = malloc(tamanio);
 

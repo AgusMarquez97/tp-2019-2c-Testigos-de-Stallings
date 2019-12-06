@@ -111,16 +111,16 @@ void rutinaServidor(int* p_socket) {
 			enviarInt(socketRespuesta,valorRetorno);
 			break;
 			case MALLOC:
-				info = malloc(strlen("Se_recibió_una_operación_ALLOC_de_9999999999999999999999_bytes") + 1);
-				sprintf(info, "Se recibió una operación ALLOC de %d bytes", mensajeRecibido->tamanio);
+				info = malloc(strlen("Se_recibió_una_operación_ALLOC del proceso 999999999999999 _de_9999999999999999999999_bytes") + 1);
+				sprintf(info, "Se recibió una operación ALLOC del proceso %d de %d bytes",mensajeRecibido->idProceso, mensajeRecibido->tamanio);
 				loggearInfo(info);
 				free(info);
 				uint32_t retornoMalloc = procesarMalloc(id_proceso, mensajeRecibido->tamanio);
 				enviarUint(socketRespuesta, retornoMalloc);
 				break;
 			case FREE:
-				info = malloc(strlen("Se_recibió_una_operación_FREE_sobre_la_dirección_9999999999999999999999_de_memoria") + 1);
-				sprintf(info, "Se recibió una operación FREE sobre la dirección %u de memoria", mensajeRecibido->posicionMemoria);
+				info = malloc(strlen("Se_recibió_una_operación_FREE del proceso 999999999999999_sobre_la_dirección_9999999999999999999999_de_memoria") + 1);
+				sprintf(info, "Se recibió una operación FREE del proceso %d sobre la dirección %u de memoria",mensajeRecibido->idProceso, mensajeRecibido->posicionMemoria);
 				loggearInfo(info);
 				free(info);
 
@@ -129,8 +129,8 @@ void rutinaServidor(int* p_socket) {
 				enviarInt(socketRespuesta, retornoFree);
 				break;
 			case GET:
-				info = malloc(strlen("Se_recibió_una_operación_GET_sobre_la_dirección_9999999999999999999999_de_9999999999999999999999_bytes") + 1);
-				sprintf(info, "Se recibió una operación GET sobre la dirección %u de %d bytes", mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
+				info = malloc(strlen("Se_recibió_una_operación_GET_ del proceso 99999999999 sobre_la_dirección_9999999999999999999999_de_9999999999999999999999_bytes") + 1);
+				sprintf(info, "Se recibió una operación GET del proceso %d sobre la dirección %u de %d bytes",mensajeRecibido->idProceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
 				loggearInfo(info);
 				free(info);
 
@@ -141,8 +141,8 @@ void rutinaServidor(int* p_socket) {
 				free(retornoGet);
 				break;
 			case CPY:
-				info = malloc(strlen("Se_recibió_una_operación_CPY_sobre_la_dirección_9999999999999999999999_de_9999999999999999999999_bytes") + 1);
-				sprintf(info, "Se recibió una operación CPY sobre la dirección %u de %d bytes", mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
+				info = malloc(strlen("Se_recibió_una_operación_CPY_del proceso 999999999999999999999 sobre_la_dirección_9999999999999999999999_de_9999999999999999999999_bytes") + 1);
+				sprintf(info, "Se recibió una operación CPY del proceso %d sobre la dirección %u de %d bytes",mensajeRecibido->idProceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
 		 		loggearInfo(info);
 				free(info);
 
@@ -151,8 +151,8 @@ void rutinaServidor(int* p_socket) {
 				enviarInt(socketRespuesta, retornoCpy);
 				break;
 			case MAP:
-				info = malloc(strlen("Se_recibió_un_MAP_con_el_flag_9999999999999999999999") + 1);
-				sprintf(info, "Se recibió un MAP con el flag %d", mensajeRecibido->flag);
+				info = malloc(strlen("Se_recibió_un_MAP del proceso 99999999999 _con_el_flag_9999999999999999999999") + 1);
+				sprintf(info, "Se recibió un MAP del proceso %d con el flag %d",mensajeRecibido->idProceso, mensajeRecibido->flag);
 				loggearInfo(info);
 				free(info);
 
@@ -161,8 +161,8 @@ void rutinaServidor(int* p_socket) {
 				enviarUint(socketRespuesta, retornoMap);
 				break;
 			case SYNC:
-				info = malloc(strlen("Se_recibió_un_SYNC_sobre_la_dirección_de_memoria_9999999999999999999999") + 1);
-				sprintf(info, "Se recibió un SYNC sobre la dirección de memoria %u", mensajeRecibido->posicionMemoria);
+				info = malloc(strlen("Se_recibió_un_SYNC_ del proceso 99999999999 sobre_la_dirección_de_memoria_9999999999999999999999") + 1);
+				sprintf(info, "Se recibió un SYNC del proceso %d sobre la dirección de memoria %u",mensajeRecibido->idProceso, mensajeRecibido->posicionMemoria);
 				loggearInfo(info);
 				free(info);
 
@@ -171,8 +171,8 @@ void rutinaServidor(int* p_socket) {
 				enviarInt(socketRespuesta, retornoSync);
 				break;
 			case UNMAP:
-				info = malloc(strlen("Se_recibió_un_UNMAP_sobre_la_dirección_9999999999999999999999") + 1);
-				sprintf(info, "Se recibió un UNMAP sobre la dirección %u", mensajeRecibido->posicionMemoria);
+				info = malloc(strlen("Se_recibió_un_UNMAP del proceso 99999999999 _sobre_la_dirección_9999999999999999999999") + 1);
+				sprintf(info, "Se recibió un UNMAP del proceso %d sobre la dirección %u",mensajeRecibido->idProceso, mensajeRecibido->posicionMemoria);
 				loggearInfo(info);
 				free(info);
 
@@ -181,8 +181,9 @@ void rutinaServidor(int* p_socket) {
 				enviarInt(socketRespuesta, retornoUnmap);
 				break;
 			case CLOSE:
-			loggearInfo("Se recibio una operacion CLOSE");
-
+			info = malloc(strlen("Se_recibió_un_UNMAP del proceso 99999999999 _sobre_la_dirección_9999999999999999999999") + 1);
+			sprintf(info, "Se recibio una operacion CLOSE del proceso %d",mensajeRecibido->idProceso);
+			loggearInfo(info);
 			int retornoClose = procesarClose(id_proceso); //funcion que debe liberar la memoria reservada tanto principal como swap y debe eliminar la entrada del diccionario
 			enviarInt(socketRespuesta, retornoClose);
 			break;

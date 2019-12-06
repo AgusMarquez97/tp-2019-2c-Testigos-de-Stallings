@@ -284,10 +284,8 @@ void escribirDatosHeap(t_list * paginas, int offset, void ** buffer, int tamanio
  * Obtener HM
  */
 
-t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offsetDespuesHM)
+t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offset)
 {
-	int offset = obtenerPosicionPreviaHeap(listaPaginas, offsetDespuesHM);
-
 	t_heap_metadata * unHeapMetadata = malloc(tam_heap_metadata);
 	t_pagina * pagina = obtenerPagina(listaPaginas,offset);
 
@@ -356,7 +354,6 @@ bool ExisteHM(t_list * paginas, int offsetBuscado)
 	sprintf(msj,"cantidad de paginas %d",list_size(paginas));
 	loggearInfo(msj);
 
-	int offsetReal = obtenerPosicionPreviaHeap(paginas,offsetBuscado);
 	int cantPaginas = list_size(paginas);
 	int tamMaximo = tamPagina * cantPaginas;
 	t_pagina* unaPagina = list_get(paginas, 0);
@@ -370,7 +367,7 @@ bool ExisteHM(t_list * paginas, int offsetBuscado)
 
 	while(tamMaximo - bytesLeidos > tam_heap_metadata)
 	{
-		if(offset == offsetReal)
+		if(offset == offsetBuscado)
 			return true;
 
 		leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset, paginas, &contador);
