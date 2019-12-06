@@ -59,11 +59,16 @@ int32_t procesarFree(char* idProceso, uint32_t posicionSegmento) {
 	if(poseeSegmentos(idProceso)) {
 
 	int bytesLiberados = 0;
+	t_list * segmentos;
+	t_segmento * unSegmento;
 	t_list * paginas;
 
 	pthread_mutex_lock(&mutex_diccionario);
-	paginas = dictionary_get(diccionarioProcesos,idProceso);
+	segmentos = dictionary_get(diccionarioProcesos,idProceso);
 	pthread_mutex_unlock(&mutex_diccionario);
+
+	unSegmento = obtenerSegmento(segmentos,posicionSegmento); // ver de hacer validacion por el nulo
+	paginas = unSegmento->paginas;
 
 	uint32_t posicionMemoria = obtenerDireccionMemoria(paginas,posicionSegmento);
 
@@ -71,7 +76,7 @@ int32_t procesarFree(char* idProceso, uint32_t posicionSegmento) {
 
 	if(bytesLiberados > 0)
 	{
-		sprintf(msj, "El Proceso %s libero %d bytes en la posicion %d", idProceso,bytesLiberados,posicionSegmento);
+		sprintf(msj, "El Proceso %s libero %d bytes en la posicion %d", idProceso,(int)(bytesLiberados-tam_heap_metadata),posicionSegmento);
 		retorno = 1;
 	}
 
@@ -83,8 +88,6 @@ int32_t procesarFree(char* idProceso, uint32_t posicionSegmento) {
 	case HM_YA_LIBERADO:
 		sprintf(msj, "El Proceso %s intento liberar un HM que ya estaba libre en la posicion %d", idProceso, posicionSegmento);
 		break;
-	default: // nunca deberia llegar
-		sprintf(msj, "El Proceso %s tuvo un error inesperado al intentar liberar la posicion %d (ver escribirHM)", idProceso, posicionSegmento);
 	}
 
 	loggearInfo(msj);
@@ -133,8 +136,6 @@ void* procesarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio) {
 		case TAMANIO_SOBREPASADO:
 			sprintf(msj, "El Proceso %s intento leer mas bytes (%d) de los permitidos en la posicion %d", idProceso,tamanio,posicionSegmento);
 			break;
-		default: // nunca deberia llegar
-			sprintf(msj, "El Proceso %s tuvo un error inesperado al intentar leer la posicion %d (ver escribirHM)", idProceso, posicionSegmento);
 		}
 
 		return buffer;
@@ -184,8 +185,6 @@ int procesarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, voi
 			case TAMANIO_SOBREPASADO:
 				sprintf(msj, "El Proceso %s intento escribir mas bytes (%d) de los permitidos en la posicion %d", idProceso,tamanio,posicionSegmento);
 				break;
-			default: // nunca deberia llegar
-				sprintf(msj, "El Proceso %s tuvo un error inesperado al intentar escribir la posicion %d (ver escribirHM)", idProceso, posicionSegmento);
 			}
 
 		}
@@ -283,7 +282,7 @@ uint32_t analizarSegmento (char* idProceso, int tamanio, int cantidadFrames, boo
 	t_list* listaSegmentos;
 	int nroSegmento = 0;
 
-	if(poseeSegmentos(idProceso)) // => Es el primer malloc
+	if(!poseeSegmentos(idProceso)) // => Es el primer malloc
 	{
 		listaSegmentos = list_create();
 		crearSegmento(idProceso, tamanio, cantidadFrames, listaSegmentos, 0, esCompartido, 0);
@@ -313,7 +312,7 @@ uint32_t analizarSegmento (char* idProceso, int tamanio, int cantidadFrames, boo
 		}
 	}
 
-	sprintf(aux,"Malloc para el proceso %s retorna la posicion %ud del segmento %d",idProceso,direccionRetorno,nroSegmento);
+	sprintf(aux,"Malloc para el proceso %s retorna la posicion %u del segmento %d",idProceso,direccionRetorno,nroSegmento);
 
 	if(direccionRetorno == 0)
 		sprintf(aux,"Error en el malloc del proceso %s: memoria llena",idProceso);

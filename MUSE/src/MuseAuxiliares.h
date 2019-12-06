@@ -146,14 +146,11 @@ void estirarSegmento(char* idProceso, t_segmento* segmento, int tamanio, int nue
 	t_list* listaPaginas = segmento->paginas;
 	int nroUltimaPagina = list_size(listaPaginas);
 
-	if(sobrante == 0)
-		nroUltimaPagina = list_size(listaPaginas) + 1;
-
 	agregarPaginas(&listaPaginas, nuevaCantidadFrames, nroUltimaPagina);
 
 	escribirHeapMetadata(listaPaginas,offset,tamanio); // Escribir el heap nuevo en memoria. Considera heap partido
 
-	segmento->tamanio += nuevaCantidadFrames * tamPagina; // ver si es necesario un mutex por cada operacion con el segmento
+	segmento->tamanio += list_size(listaPaginas) * tamPagina; // ver si es necesario un mutex por cada operacion con el segmento
 
 }
 
@@ -285,6 +282,15 @@ void defragmentarSegmento(t_segmento* segmento) {
 
 	free(heapMetadata);
 
+}
+
+t_segmento * buscarSegmento(t_list * segmentos, uint32_t posicionSegmento)
+{
+	bool encontrarSegmento(t_segmento * unSegmento)
+	{
+		return (unSegmento->posicionInicial >= posicionSegmento && unSegmento->posicionInicial*unSegmento->tamanio <= posicionSegmento);
+	}
+	return list_find(segmentos,(void*)encontrarSegmento);
 }
 
 #endif /* MUSEAUXILIARES_H_ */
