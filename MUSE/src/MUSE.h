@@ -122,6 +122,7 @@ bool existeEnElDiccionario(char* idProceso);
 int procesarHandshake(char* idProceso);
 uint32_t procesarMalloc(char* idProceso, int32_t tamanio);
 uint32_t obtenerDireccionMemoria(t_list* listaPaginas,uint32_t posicionSegmento);
+void defragmentarSegmento(t_segmento* segmento);
 int32_t procesarFree(char* idProceso, uint32_t posicionSegmento);
 void* procesarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio);
 int procesarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, void* contenido);
@@ -129,37 +130,44 @@ uint32_t procesarMap(char* idProceso, void* contenido, int32_t tamanio, int32_t 
 int procesarSync(char* idProceso, uint32_t posicionMemoria, int32_t tamanio);
 int procesarUnmap(char* idProceso, uint32_t posicionMemoria);
 int procesarClose(char* idProceso);
+uint32_t analizarSegmento (char* idProceso, int tamanio, int cantidadFrames, bool esCompartido);
 
 // MuseAuxiliares
-void estirarSegmento(char * idProceso,t_segmento * segmento,int tamanio,int nuevaCantidadFrames,int offset, int sobrante);
 int obtenerCantidadMarcos(int tamanioPagina, int tamanioMemoria);
 t_segmento* obtenerSegmento(t_list* segmentos, uint32_t posicionMemoria);
+bool segmentoCorrespondiente(t_segmento* segmento);
 t_pagina* obtenerPagina(t_list* paginas, uint32_t posicionMemoria);
+bool paginaCorrespondiente(t_pagina* pagina);
 bool poseeSegmentos(char* idProceso);
-void escribirPaginas(int cantidadMarcos, int tamanio, int primerMarco, int ultimoMarco);
+void agregarPaginas(t_list** listaPaginas, int cantidadMarcos, int nroUltimaPagina);
 t_list* obtenerPaginas(int tamanio, int cantidadMarcos);
 t_segmento* instanciarSegmento(int tamanio, int cantidadFrames, int idSegmento, bool esCompartido, int posicionInicial);
 void crearSegmento(char* idProceso, int tamanio, int cantidadFrames, t_list* listaSegmentos, int idSegmento, bool esCompartido, int posicionInicial);
-void crearSegmentoNuevo(int tamanio, int idSegmento);
 uint32_t completarSegmento(char* idProceso, t_segmento* ultimoSegmento, int tamanio);
-uint32_t analizarSegmento (char * idProceso, int tamanio, int cantidadFrames, bool esCompartido);
-
-t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offsetDespuesHM);
-void leerDatosHeap(t_list * paginas, int offset, void ** buffer, int tamanio);
-
-uint32_t liberarBytesMemoria(int base, int offset);
+void estirarSegmento(char * idProceso,t_segmento * segmento,int tamanio,int nuevaCantidadFrames,int offset, int sobrante);
+int cantidadPaginasPedidas(int offset);
 void* leerDeMemoria(int posicionInicial, int tamanio);
 void escribirEnMemoria(void* contenido, int posicionInicial, int tamanio);
 void liberarMarcoBitarray(int nroMarco);
+bool estaLibreMarco(int nroMarco);
 int asignarMarcoLibre();
+int obtenerPaginaActual(t_list * paginas, int offset);
+uint32_t obtenerDireccionMemoria(t_list* listaPaginas,uint32_t posicionSegmento);
+t_segmento * buscarSegmento(t_list * segmentos, uint32_t posicionSegmento);
+bool encontrarSegmento(t_segmento * unSegmento);
+
+//MuseHeapMetadata
+int leerUnHeapMetadata(t_list * paginas, int offset, void ** buffer, int tamanio);
+int liberarUnHeapMetadata(t_list * paginas, int offset);
+void leerDatosHeap(t_list * paginas, int offset, void ** buffer, int tamanio);
 void leerHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* bytesLeidosPagina, int* offset, t_list * paginas, int* nroPagina);
 void leerHeapPartido(t_heap_metadata** heapMetadata, int* offset, int sobrante, int* nroPagina, t_list* paginas, t_pagina** paginaDummy);
-int cantidadPaginasPedidas(int offset);
 int escribirHeapMetadata(t_list * listaPaginas, int offset, int tamanio);
 int escribirUnHeapMetadata(t_list * paginas, int offset, void ** buffer, int tamanio);
-bool ExisteHM(t_list * paginas, int offsetBuscado);
-int obtenerPosicionPreviaHeap(t_list * paginas, int offset);
 void escribirDatosHeap(t_list * paginas, int offset, void ** buffer, int tamanio);
+t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offset);
+int obtenerPosicionPreviaHeap(t_list * paginas, int offset);
+bool existeHM(t_list * paginas, int offsetBuscado);
 
 #endif /* MUSE_H_ */
 

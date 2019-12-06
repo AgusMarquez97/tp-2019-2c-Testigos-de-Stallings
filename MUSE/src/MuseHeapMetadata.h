@@ -17,7 +17,7 @@
 // La funcion que deberia llamar copy. Offset = primera posicion luego del HM en memoria!
 int leerUnHeapMetadata(t_list * paginas, int offset, void ** buffer, int tamanio)
 {
-	if(ExisteHM(paginas, offset))
+	if(existeHM(paginas, offset))
 	{
 		t_heap_metadata * unHeap = obtenerHeapMetadata(paginas, offset);
 		if(unHeap->estaLibre)
@@ -34,7 +34,7 @@ int leerUnHeapMetadata(t_list * paginas, int offset, void ** buffer, int tamanio
 
 int liberarUnHeapMetadata(t_list * paginas, int offset)
 {
-	if(ExisteHM(paginas, offset))
+	if(existeHM(paginas, offset))
 	{
 		t_heap_metadata * unHeap = obtenerHeapMetadata(paginas, offset);
 
@@ -237,7 +237,7 @@ int escribirHeapMetadata(t_list * listaPaginas, int offset, int tamanio)
 
 int escribirUnHeapMetadata(t_list * paginas, int offset, void ** buffer, int tamanio)
 {
-	if(ExisteHM(paginas, offset))
+	if(existeHM(paginas, offset))
 	{
 		t_heap_metadata * unHeap = obtenerHeapMetadata(paginas, offset);
 		if(unHeap->estaLibre)
@@ -284,10 +284,8 @@ void escribirDatosHeap(t_list * paginas, int offset, void ** buffer, int tamanio
  * Obtener HM
  */
 
-t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offsetDespuesHM)
+t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offset)
 {
-	int offset = obtenerPosicionPreviaHeap(listaPaginas, offsetDespuesHM);
-
 	t_heap_metadata * unHeapMetadata = malloc(tam_heap_metadata);
 	t_pagina * pagina = obtenerPagina(listaPaginas,offset);
 
@@ -350,13 +348,12 @@ int obtenerPosicionPreviaHeap(t_list * paginas, int offset) // agarra la ultima 
 }
 
 // offset previo al HM !!
-bool ExisteHM(t_list * paginas, int offsetBuscado)
+bool existeHM(t_list * paginas, int offsetBuscado)
 {
 	char msj[200];
 	sprintf(msj,"cantidad de paginas %d",list_size(paginas));
 	loggearInfo(msj);
 
-	int offsetReal = obtenerPosicionPreviaHeap(paginas,offsetBuscado);
 	int cantPaginas = list_size(paginas);
 	int tamMaximo = tamPagina * cantPaginas;
 	t_pagina* unaPagina = list_get(paginas, 0);
@@ -370,7 +367,7 @@ bool ExisteHM(t_list * paginas, int offsetBuscado)
 
 	while(tamMaximo - bytesLeidos > tam_heap_metadata)
 	{
-		if(offset == offsetReal)
+		if(offset == offsetBuscado)
 			return true;
 
 		leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset, paginas, &contador);
