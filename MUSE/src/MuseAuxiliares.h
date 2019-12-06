@@ -117,7 +117,8 @@ uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 
 		leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset,segmento->paginas,&contador);
 
-		if(heapMetadata->estaLibre && heapMetadata->offset >= (tamanio + tam_heap_metadata)) {
+		if(heapMetadata->estaLibre && heapMetadata->offset >= (tamanio)) {
+			offset -= heapMetadata->offset;
 			offset = obtenerPosicionPreviaHeap(segmento->paginas, offset); // VALIDAR => esta retrocediendo el offset del hm tambien??
 			escribirHeapMetadata(segmento->paginas, offset, tamanio); // validado
 			return offset + tam_heap_metadata;
@@ -242,6 +243,18 @@ t_segmento * buscarSegmento(t_list * segmentos, uint32_t posicionSegmento)
 		return (unSegmento->posicionInicial >= posicionSegmento && unSegmento->posicionInicial*unSegmento->tamanio <= posicionSegmento);
 	}
 	return list_find(segmentos,(void*)encontrarSegmento);
+}
+
+t_pagina * obtenerPaginaAuxiliar(t_list * paginas, int nroPagina)
+{
+	t_pagina * paginaAuxiliar = malloc(sizeof(*paginaAuxiliar));
+
+	t_pagina * paginaReal = list_get(paginas,nroPagina);
+
+	memcpy(paginaAuxiliar,paginaReal,sizeof(t_pagina));
+
+	return paginaAuxiliar;
+
 }
 
 #endif /* MUSEAUXILIARES_H_ */

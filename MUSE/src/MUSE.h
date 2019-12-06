@@ -166,7 +166,8 @@ int escribirHeapMetadata(t_list * listaPaginas, int offset, int tamanio);
 int escribirUnHeapMetadata(t_list * paginas, int offset, void ** buffer, int tamanio);
 void escribirDatosHeap(t_list * paginas, int offset, void ** buffer, int tamanio);
 t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offset);
-int obtenerPosicionPreviaHeap(t_list * paginas, int offset);
+uint32_t obtenerPosicionPreviaHeap(t_list * paginas, int offset);
+t_pagina * obtenerPaginaAuxiliar(t_list * paginas, int nroPagina);
 bool existeHM(t_list * paginas, int offsetBuscado);
 
 #endif /* MUSE_H_ */
