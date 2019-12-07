@@ -66,6 +66,14 @@ typedef struct __attribute__((packed)) {
 	bool estaLibre;
 } t_heap_metadata;
 
+
+/*
+* diccionario => nombre_archivo
+* 									key
+* 										-> lista de marcos
+* 										-> contador de procesos
+ */
+
 /*
  * Estructura de la memoria swap:
  * 1° Un tamanio de la memoria swap
@@ -122,7 +130,7 @@ bool existeEnElDiccionario(char* idProceso);
 int procesarHandshake(char* idProceso);
 uint32_t procesarMalloc(char* idProceso, int32_t tamanio);
 uint32_t obtenerDireccionMemoria(t_list* listaPaginas,uint32_t posicionSegmento);
-void defragmentarSegmento(t_segmento* segmento);
+void defragmentarSegmento(char* idProceso,t_segmento* segmento);
 int32_t procesarFree(char* idProceso, uint32_t posicionSegmento);
 void* procesarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio);
 int procesarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, void* contenido);
@@ -162,7 +170,7 @@ int liberarUnHeapMetadata(t_list * paginas, int offset);
 void leerDatosHeap(t_list * paginas, int offset, void ** buffer, int tamanio);
 void leerHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* bytesLeidosPagina, int* offset, t_list * paginas, int* nroPagina);
 void leerHeapPartido(t_heap_metadata** heapMetadata, int* offset, int sobrante, int* nroPagina, t_list* paginas, t_pagina** paginaDummy);
-int escribirHeapMetadata(t_list * listaPaginas, int offset, int tamanio);
+int escribirHeapMetadata(t_list * listaPaginas, int offset, int tamanio, int offsetMaximo);
 int escribirUnHeapMetadata(t_list * paginas, int offset, void ** buffer, int tamanio);
 void escribirDatosHeap(t_list * paginas, int offset, void ** buffer, int tamanio);
 t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offset);

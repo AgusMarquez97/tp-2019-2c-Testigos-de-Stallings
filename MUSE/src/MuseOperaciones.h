@@ -51,49 +51,69 @@ uint32_t procesarMalloc(char* idProceso, int32_t tamanio) {
 
 }
 
-void defragmentarSegmento(t_segmento* segmento) {
+void defragmentarSegmento(char * idProceso, t_segmento* segmento) {
 
 	t_list* listaPaginas = segmento->paginas;
 	int cantPaginas = list_size(listaPaginas);
 	int tamMaximo = tamPagina * cantPaginas;
 	int bytesLeidos = 0;
 	t_heap_metadata* heapMetadata = malloc(tam_heap_metadata);
+	char msj[200];
 
 	int offset = 0;
 	int bytesLeidosPagina = 0;
 	int contador = 0;
+	int heapsLeidos = 0;
 	int primerHeapMetadataLibre = 0;
-	int fragmentacion = 0;
+	int acumulador = 0;
+
+	int cantidadHeapsAgrupados = 1;
+	int cantidadBytesAgrupados = 0;
 
 	while(tamMaximo - bytesLeidos > tam_heap_metadata) {
+
 		leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset, listaPaginas, &contador);
 
-		if(heapMetadata->estaLibre) {
-			primerHeapMetadataLibre = offset - tam_heap_metadata;
-			fragmentacion += bytesLeidos;
-			leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset, listaPaginas, &contador);
+		if(heapMetadata->estaLibre)
+		{
 
-			while(heapMetadata->estaLibre) {
-				fragmentacion += bytesLeidos + tam_heap_metadata;
-				leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset, listaPaginas, &contador);
+			heapsLeidos++;
+
+			if(heapsLeidos == 1)
+				primerHeapMetadataLibre = offset - tam_heap_metadata - heapMetadata->offset;// ver
+
+			acumulador += heapMetadata->offset;
+
+			if(heapsLeidos > 1)
+			{
+				heapMetadata->estaLibre = true;
+				heapMetadata->offset = acumulador + tam_heap_metadata*heapsLeidos;
+
+				pthread_mutex_lock(&mutex_memoria);
+				memcpy(memoria + primerHeapMetadataLibre, heapMetadata, tam_heap_metadata);
+				pthread_mutex_unlock(&mutex_memoria);
+
+				cantidadHeapsAgrupados++;
+				cantidadBytesAgrupados = heapMetadata->offset;
+
+				heapsLeidos = 1;
 			}
-
-			heapMetadata->estaLibre = 1;
-			heapMetadata->offset = fragmentacion;
-
-			pthread_mutex_lock(&mutex_memoria);
-			memcpy(memoria + primerHeapMetadataLibre, heapMetadata, tam_heap_metadata);
-			pthread_mutex_unlock(&mutex_memoria);
-
-			char msj[200];
-			sprintf(msj,"Se agruparon %d bytes libres",fragmentacion);
-			loggearInfo(msj);
-
-			fragmentacion = 0;
-		} else {
-			leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset, listaPaginas, &contador);
+		}
+		else
+		{
+			heapsLeidos = 0;
+			acumulador = 0;
 		}
 	}
+
+	if(cantidadHeapsAgrupados > 1)
+		sprintf(msj,"Para el proceso %s, se agruparon %d bytes libres de %d heaps contiguos",idProceso,cantidadBytesAgrupados,cantidadHeapsAgrupados);
+	else
+		sprintf(msj,"Para el proceso %s, no se agruparon heaps luego del free",idProceso);
+
+	loggearInfo(msj);
+
+
 
 	free(heapMetadata);
 
@@ -142,7 +162,7 @@ int32_t procesarFree(char* idProceso, uint32_t posicionSegmento) {
 
 	loggearInfo(msj);
 
-	defragmentarSegmento(unSegmento);
+	defragmentarSegmento(idProceso,unSegmento);
 
 	return retorno;
 	}
