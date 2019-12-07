@@ -171,12 +171,13 @@ void leerDatosHeap(t_list * paginas, int offset, void ** buffer, int tamanio);
 void leerHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* bytesLeidosPagina, int* offset, t_list * paginas, int* nroPagina);
 void leerHeapPartido(t_heap_metadata** heapMetadata, int* offset, int sobrante, int* nroPagina, t_list* paginas, t_pagina** paginaDummy);
 int escribirHeapMetadata(t_list * listaPaginas, int offset, int tamanio, int offsetMaximo);
-int escribirUnHeapMetadata(t_list * paginas, int offset, void ** buffer, int tamanio);
+int escribirDatosHeapMetadata(t_list * paginas, int offset, void ** buffer, int tamanio);
 void escribirDatosHeap(t_list * paginas, int offset, void ** buffer, int tamanio);
 t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offset);
 uint32_t obtenerPosicionPreviaHeap(t_list * paginas, int offset);
 t_pagina * obtenerPaginaAuxiliar(t_list * paginas, int nroPagina);
 bool existeHM(t_list * paginas, int offsetBuscado);
+int escribirUnHeapMetadata(t_list * listaPaginas,int paginaActual,t_heap_metadata * unHeapMetadata, int * offset, int tamanioPaginaRestante);
 
 #endif /* MUSE_H_ */
 

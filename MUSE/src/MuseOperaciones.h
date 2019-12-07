@@ -70,28 +70,38 @@ void defragmentarSegmento(char * idProceso, t_segmento* segmento) {
 	int cantidadHeapsAgrupados = 1;
 	int cantidadBytesAgrupados = 0;
 
-	while(tamMaximo - bytesLeidos > tam_heap_metadata) {
+	while(tamMaximo - bytesLeidos > tam_heap_metadata)
+	{
 
 		leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset, listaPaginas, &contador);
 
 		if(heapMetadata->estaLibre)
 		{
-
 			heapsLeidos++;
 
 			if(heapsLeidos == 1)
-				primerHeapMetadataLibre = offset - tam_heap_metadata - heapMetadata->offset;// ver
+			{
+				primerHeapMetadataLibre = offset;
+				primerHeapMetadataLibre -= heapMetadata->offset;
+				primerHeapMetadataLibre = obtenerPosicionPreviaHeap(listaPaginas, primerHeapMetadataLibre);// ver
+			}
+
 
 			acumulador += heapMetadata->offset;
 
 			if(heapsLeidos > 1)
 			{
 				heapMetadata->estaLibre = true;
-				heapMetadata->offset = acumulador + tam_heap_metadata*heapsLeidos;
+				heapMetadata->offset = acumulador + tam_heap_metadata;
 
-				pthread_mutex_lock(&mutex_memoria);
-				memcpy(memoria + primerHeapMetadataLibre, heapMetadata, tam_heap_metadata);
-				pthread_mutex_unlock(&mutex_memoria);
+				int cantidadMarcos = obtenerCantidadMarcos(tamPagina, primerHeapMetadataLibre);
+
+				if(cantidadMarcos == 0)
+					cantidadMarcos++;
+
+				int tamanioRestante = tamPagina*cantidadMarcos - primerHeapMetadataLibre;
+
+				escribirUnHeapMetadata(listaPaginas, contador, heapMetadata, &primerHeapMetadataLibre, tamanioRestante);
 
 				cantidadHeapsAgrupados++;
 				cantidadBytesAgrupados = heapMetadata->offset;
@@ -242,7 +252,7 @@ int procesarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, voi
 
 			void * buffer = malloc(tamanio);
 
-			int bytesEscritos = escribirUnHeapMetadata(paginas, posicionMemoria, &buffer, tamanio);
+			int bytesEscritos = escribirDatosHeapMetadata(paginas, posicionMemoria, &buffer, tamanio);
 
 			if(bytesEscritos > 0)
 			{

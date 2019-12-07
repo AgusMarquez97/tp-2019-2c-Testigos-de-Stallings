@@ -118,12 +118,14 @@ uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 		leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset,segmento->paginas,&contador);
 
 		if(heapMetadata->estaLibre && heapMetadata->offset >= (tamanio + tam_heap_metadata)) {
+
 			bool tieneUnoSiguiente = existeHM(segmento->paginas, offset);
+
 			offset -= heapMetadata->offset;
 			offset = obtenerPosicionPreviaHeap(segmento->paginas, offset); // VALIDAR => esta retrocediendo el offset del hm tambien??
 
 			if(tieneUnoSiguiente)
-				escribirHeapMetadata(segmento->paginas, offset, tamanio,heapMetadata->offset); // validado
+				escribirHeapMetadata(segmento->paginas, offset, tamanio,tam_heap_metadata + heapMetadata->offset); // validado
 			else
 				escribirHeapMetadata(segmento->paginas, offset, tamanio,false); // validado
 			return offset + tam_heap_metadata;
