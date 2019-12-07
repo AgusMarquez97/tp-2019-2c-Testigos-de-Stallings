@@ -51,23 +51,21 @@ uint32_t procesarMalloc(char* idProceso, int32_t tamanio) {
 
 }
 
-void defragmentarSegmento(char * idProceso, t_segmento* segmento) {
+int defragmentarSegmento(char * idProceso, t_segmento* segmento)
+{
 
 	t_list* listaPaginas = segmento->paginas;
+
 	int cantPaginas = list_size(listaPaginas);
 	int tamMaximo = tamPagina * cantPaginas;
 	int bytesLeidos = 0;
 	t_heap_metadata* heapMetadata = malloc(tam_heap_metadata);
-	char msj[200];
-
 	int offset = 0;
 	int bytesLeidosPagina = 0;
 	int contador = 0;
 	int heapsLeidos = 0;
 	int primerHeapMetadataLibre = 0;
 	int acumulador = 0;
-
-	int cantidadHeapsAgrupados = 1;
 	int cantidadBytesAgrupados = 0;
 
 	while(tamMaximo - bytesLeidos > tam_heap_metadata)
@@ -81,8 +79,7 @@ void defragmentarSegmento(char * idProceso, t_segmento* segmento) {
 
 			if(heapsLeidos == 1)
 			{
-				primerHeapMetadataLibre = offset;
-				primerHeapMetadataLibre -= heapMetadata->offset;
+				primerHeapMetadataLibre = offset - heapMetadata->offset; // CAMBIAR PARA QUE RETROCEDA BIEN
 				primerHeapMetadataLibre = obtenerPosicionPreviaHeap(listaPaginas, primerHeapMetadataLibre);// ver
 			}
 
@@ -102,11 +99,9 @@ void defragmentarSegmento(char * idProceso, t_segmento* segmento) {
 				int tamanioRestante = tamPagina*cantidadMarcos - primerHeapMetadataLibre;
 
 				escribirUnHeapMetadata(listaPaginas, contador, heapMetadata, &primerHeapMetadataLibre, tamanioRestante);
-
-				cantidadHeapsAgrupados++;
 				cantidadBytesAgrupados = heapMetadata->offset;
 
-				heapsLeidos = 1;
+				break;
 			}
 		}
 		else
@@ -115,23 +110,15 @@ void defragmentarSegmento(char * idProceso, t_segmento* segmento) {
 			acumulador = 0;
 		}
 	}
-
-	if(cantidadHeapsAgrupados > 1)
-		sprintf(msj,"Para el proceso %s, se agruparon %d bytes libres de %d heaps contiguos",idProceso,cantidadBytesAgrupados,cantidadHeapsAgrupados);
-	else
-		sprintf(msj,"Para el proceso %s, no se agruparon heaps luego del free",idProceso);
-
-	loggearInfo(msj);
-
-
-
 	free(heapMetadata);
+
+	return cantidadBytesAgrupados;
 
 }
 
 int32_t procesarFree(char* idProceso, uint32_t posicionSegmento) {
 
-	char msj[200];
+	char msj[250];
 	int retorno = -1;
 
 	if(poseeSegmentos(idProceso)) {
@@ -172,7 +159,20 @@ int32_t procesarFree(char* idProceso, uint32_t posicionSegmento) {
 
 	loggearInfo(msj);
 
-	defragmentarSegmento(idProceso,unSegmento);
+	int bytesAgrupados = defragmentarSegmento(idProceso,unSegmento);
+
+	if(bytesAgrupados > 0)
+	{
+		int segundosBytesAgrupados = defragmentarSegmento(idProceso,unSegmento);
+
+		if(segundosBytesAgrupados>0)
+			bytesAgrupados = segundosBytesAgrupados;
+		sprintf(msj,"Para el proceso %s, se agruparon %d bytes contiguos",idProceso,bytesAgrupados);
+	}
+	else
+		sprintf(msj,"Para el proceso %s, no se agruparon heaps luego del free",idProceso);
+
+	loggearInfo(msj);
 
 	return retorno;
 	}

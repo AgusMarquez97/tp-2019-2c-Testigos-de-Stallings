@@ -130,7 +130,7 @@ bool existeEnElDiccionario(char* idProceso);
 int procesarHandshake(char* idProceso);
 uint32_t procesarMalloc(char* idProceso, int32_t tamanio);
 uint32_t obtenerDireccionMemoria(t_list* listaPaginas,uint32_t posicionSegmento);
-void defragmentarSegmento(char* idProceso,t_segmento* segmento);
+int defragmentarSegmento(char * idProceso, t_segmento* segmento);
 int32_t procesarFree(char* idProceso, uint32_t posicionSegmento);
 void* procesarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio);
 int procesarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, void* contenido);
@@ -178,6 +178,7 @@ uint32_t obtenerPosicionPreviaHeap(t_list * paginas, int offset);
 t_pagina * obtenerPaginaAuxiliar(t_list * paginas, int nroPagina);
 bool existeHM(t_list * paginas, int offsetBuscado);
 int escribirUnHeapMetadata(t_list * listaPaginas,int paginaActual,t_heap_metadata * unHeapMetadata, int * offset, int tamanioPaginaRestante);
+uint32_t posicionAnterior(t_list * paginas, int offsetResultante);
 
 #endif /* MUSE_H_ */
 

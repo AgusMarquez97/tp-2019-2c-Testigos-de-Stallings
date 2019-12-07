@@ -264,4 +264,21 @@ t_pagina * obtenerPaginaAuxiliar(t_list * paginas, int nroPagina)
 
 }
 
+// ya se valido que exista
+uint32_t posicionAnterior(t_list * paginas, int offsetResultante)
+{
+	int bytesLeidos = 0;
+	int offset = 0;
+	int nroPagina = 0;
+	int bytesLeidosPagina;
+	int tamMaximo = list_size(paginas)*tamPagina;
+	t_heap_metadata * unHeapMetadata = malloc(tam_heap_metadata);
+
+	while(tamMaximo - bytesLeidos > tam_heap_metadata)
+	{
+		leerHeapMetadata(&unHeapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset,paginas,&nroPagina);
+	}
+	return offset;
+}
+
 #endif /* MUSEAUXILIARES_H_ */
