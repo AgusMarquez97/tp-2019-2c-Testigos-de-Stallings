@@ -707,12 +707,22 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 				int indice = indiceObjeto(nombre);
 				uint8_t estado = tablaNodos[indice].estado;
 				time_t ultimaMod = tablaNodos[indice].fecha_modif;
-				void* buffer = malloc( sizeof(time_t) );
+				uint32_t tamanio;
+
+				if(estado == ARCHIVO)
+					tamanio = tablaNodos[indice].file_size;
+				else
+					tamanio = 0;
+
+				void* buffer = malloc( sizeof(int) + sizeof(time_t) + sizeof(uint32_t) );
+				int tamBuffer = sizeof(time_t) + sizeof(uint32_t);
 
 				enviarInt(socketRespuesta, estado);
 
-				memcpy(buffer, &ultimaMod, sizeof(time_t) );
-				enviarVoid(socketRespuesta, buffer, sizeof(buffer) );
+				memcpy(buffer, &tamBuffer, sizeof(int) );
+				memcpy(buffer + sizeof(int), &ultimaMod, sizeof(time_t) );
+				memcpy(buffer + sizeof(int) + sizeof(time_t), &tamanio, sizeof(uint32_t));
+				enviar(socketRespuesta, buffer, sizeof(int) + tamBuffer);
 
 				free(buffer);
 

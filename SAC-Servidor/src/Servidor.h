@@ -45,7 +45,7 @@ typedef struct bloque
 
 typedef struct bloqueInd
 {
-	GBlock* bloquesDatos[BLOQUES_DATOS];//GBlock*
+	GBlock* bloquesDatos[BLOQUES_DATOS];
 }IndBlock;
 
 typedef struct header
@@ -60,9 +60,9 @@ typedef struct header
 typedef struct archivo
 {
 	uint8_t estado; //0:borrado, 1:archivo, 2:directorio
-	 char nombre[MAX_FILENAME_LENGTH];
+	char nombre[MAX_FILENAME_LENGTH];
 	uint32_t file_size;
-	IndBlock* bloques_ind[BLOQUES_INDIRECTOS];//
+	IndBlock* bloques_ind[BLOQUES_INDIRECTOS];
 	ptrGBloque padre;
 	uint64_t fecha_creacion;//time_t
 	uint64_t fecha_modif;//time_t

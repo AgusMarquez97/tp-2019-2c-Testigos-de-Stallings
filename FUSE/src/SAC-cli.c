@@ -212,8 +212,9 @@ static int hacer_getattr(const char *path, struct stat *st)
 	char* nombre = malloc(MAX_FILENAME_LENGTH);
 	int estadoNodo;
 	time_t ultimaMod;
-	void* bufferDestino;
-
+	void* bufferDestino = malloc( sizeof(int) + sizeof(time_t) + sizeof(uint32_t) );
+	uint32_t tamanio;
+	int tamARecibir;
 
 	if(strcmp(path,"/") == 0)
 	{
@@ -233,29 +234,32 @@ static int hacer_getattr(const char *path, struct stat *st)
 
 	st->st_uid = getuid();		//el duenio del archivo
 	st->st_gid = getgid();
-	st->st_mtime = time(NULL);//cambiar estos dos
+	st->st_mtime = time(NULL);
 	st->st_atime = time(NULL);
 
 	recibirInt(socketConexion, &estadoNodo);
 
 	if(estadoNodo != 0)//existe el nodo en el fs
 	{
-
-		recibirVoid(socketConexion, &bufferDestino);
-		memcpy(&ultimaMod, bufferDestino, sizeof(time_t));
+		recibir(socketConexion, &tamARecibir, sizeof(int) );
+		recibir(socketConexion, bufferDestino, tamARecibir );
+		memcpy(&ultimaMod, bufferDestino, sizeof(time_t) );
+		memcpy(&tamanio, bufferDestino + sizeof(time_t), sizeof(uint32_t) );
 
 		st->st_mtime = ultimaMod;
+		st->st_atime = ultimaMod;
 
 		if(estadoNodo == DIRECTORIO)
 		{
 			st->st_mode = S_IFDIR | 0755; //bits de permiso
 			st->st_nlink = 2;		//num de hardlinks
+			st->st_size = 0;
 		}
 		else//archivo
 		{
 			st->st_mode = S_IFREG | 0777;//0644;
 			st->st_nlink = 1;
-			st->st_size = 1024;	//cambiar despues
+			st->st_size = tamanio;
 		}
 	}
 	else //no existe en el filesystem
