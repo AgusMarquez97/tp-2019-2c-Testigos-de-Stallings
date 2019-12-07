@@ -74,12 +74,12 @@ typedef struct {
 	char * semBloqueante;
 	int32_t hiloBloqueante;
 
-	int32_t timestampCreacion; //time_t
-	int32_t timestampEntraEnReady;
+	long timestampCreacion; //time_t
+	long timestampEntraEnReady;
 	int32_t tiempoEnReady;
 	int32_t tiempoEnExec;
-	int32_t timestampEntra;
-	int32_t timestampSale;
+	long timestampEntra;
+	long timestampSale;
 	int32_t estimado;
 
 
