@@ -586,7 +586,13 @@ void escribirMetricasTotales()
 
 }
 
+void hiloParaMetricas(){
 
+	while(1){
+		sleep(metricsTimer);
+		escribirMetricasTotales();
+			}
+}
 
 void levantarServidorSUSE()
 {
@@ -802,6 +808,8 @@ int main(void) {
 	loggearInfo("Se inicia el proceso SUSE...");
 	levantarConfig();
 	levantarEstructuras();
+	pthread_t hiloMetricas;
+	pthread_create(&hiloMetricas,NULL,hiloParaMetricas,NULL);
 
 	levantarServidorSUSE();
 	liberarVariablesGlobales();
