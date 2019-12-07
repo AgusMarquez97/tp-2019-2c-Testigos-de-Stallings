@@ -26,7 +26,7 @@ int32_t suse_create_servidor(char* idProcString, int32_t idThread){
 	hiloEntrante->estadoHilo= CREATE;
 	hiloEntrante->timestampEntra= 0;
 	hiloEntrante->timestampSale= 0;
-	hiloEntrante->timestampCreacion=(int32_t)time(NULL);
+	hiloEntrante->timestampCreacion=timestampEnMilisegundos();
 	hiloEntrante->estimado = 0;
 	hiloEntrante->tiempoEnReady= 0;
 	hiloEntrante->tiempoEnExec=0;
@@ -70,7 +70,7 @@ void planificar_largoPlazo(){
 					{
 						list_remove(colaNews, tam-1);
 						hiloEnNews->estadoHilo=READY;
-						hiloEnNews->timestampEntraEnReady= (int32_t)time(NULL);
+						hiloEnNews->timestampEntraEnReady= timestampEnMilisegundos();
 						list_add(colaReady, hiloEnNews);
 						//dictionary_put(readys, hiloEnNews->idProceso , colaReady);
 						pthread_mutex_lock(&mutexSemHilosDisp);
@@ -90,7 +90,7 @@ void planificar_largoPlazo(){
 						t_list* nuevaColaReady= list_create();
 						list_remove(colaNews, tam-1);
 						hiloEnNews->estadoHilo=READY;
-						hiloEnNews->timestampEntraEnReady= (int32_t)time(NULL);
+						hiloEnNews->timestampEntraEnReady= timestampEnMilisegundos();
 						list_add(nuevaColaReady, hiloEnNews);
 
 						dictionary_put(readys, hiloEnNews->idProceso , nuevaColaReady);
@@ -146,17 +146,17 @@ if(!list_is_empty(colaReady)){
 	pthread_mutex_lock(&mutexReady);
     hiloSiguiente= removerHiloConRafagaMasCorta(colaReady);
     hiloSiguiente->estadoHilo=EXEC;
-    hiloSiguiente->timestampEntra = (int32_t)time(NULL);
-    hiloSiguiente->tiempoEnReady+=(int32_t)time(NULL)-hiloSiguiente->timestampEntraEnReady;
+    hiloSiguiente->timestampEntra = timestampEnMilisegundos();
+    hiloSiguiente->tiempoEnReady+=timestampEnMilisegundos()-hiloSiguiente->timestampEntraEnReady;
 
 
         if(hiloActual != NULL)
         {
         	hiloActual->estadoHilo = READY;
-        	hiloActual->timestampSale = (int32_t)time(NULL);
+        	hiloActual->timestampSale = timestampEnMilisegundos();
         	hiloActual->estimado = hiloActual->estimado*(1-alphaSJF)+(hiloActual->timestampSale-hiloActual->timestampEntra)*alphaSJF;
-        	hiloActual->timestampEntraEnReady= (int32_t)time(NULL);
-        	hiloActual->tiempoEnExec+=(int32_t)time(NULL)-hiloActual->timestampEntra;
+        	hiloActual->timestampEntraEnReady= timestampEnMilisegundos();
+        	hiloActual->tiempoEnExec+=timestampEnMilisegundos()-hiloActual->timestampEntra;
 
         	list_add(colaReady,hiloActual);
 
@@ -240,7 +240,7 @@ int32_t suse_join_servidor(char* idProcString, int32_t tid)
 	hiloABloquear->hiloBloqueante=tid;//lo bloqueo
 	hiloABloquear->timestampSale=(int32_t) time(NULL);
 	hiloABloquear->estimado = hiloABloquear->estimado*(1-alphaSJF)+(hiloABloquear->timestampSale-hiloABloquear->timestampEntra)*alphaSJF;
-	hiloABloquear->tiempoEnExec+=(int32_t)time(NULL)-hiloABloquear->timestampEntra;
+	hiloABloquear->tiempoEnExec+=timestampEnMilisegundos()-hiloABloquear->timestampEntra;
 
 
 	list_add(blockeds,hiloABloquear);//lo meto en blockeds
@@ -278,6 +278,7 @@ void desbloquearJoin(t_hiloPlanificado* hilo)
 						pthread_mutex_lock(&mutexReady);
 						hiloBloqueadoPorJoin->estadoHilo=READY;
 						hiloBloqueadoPorJoin->hiloBloqueante = NULL;
+						hiloBloqueadoPorJoin->timestampEntraEnReady = timestampEnMilisegundos();
 						t_list* colaReadyDelProc = dictionary_get(readys,hilo->idProceso);
 						list_add(colaReadyDelProc,hiloBloqueadoPorJoin);
 
@@ -301,7 +302,7 @@ int32_t suse_close_servidor(char *  idProcString, int32_t tid)
     hiloParaExit->timestampSale = (int32_t) time(NULL);
     hiloParaExit->estimado = hiloParaExit->estimado*(1-alphaSJF)+(hiloParaExit->timestampSale-hiloParaExit->timestampEntra)*alphaSJF;
     hiloParaExit->estadoHilo=EXIT;
-    hiloParaExit->tiempoEnExec+=(int32_t)time(NULL)-hiloParaExit->timestampEntra;
+    hiloParaExit->tiempoEnExec+=timestampEnMilisegundos()-hiloParaExit->timestampEntra;
     pthread_mutex_lock(&mutexExit);
     list_add(exits,hiloParaExit);
 	pthread_mutex_lock(&mutexSemHilosDisp);
@@ -395,6 +396,7 @@ int32_t suse_signal_servidor(char *idProcString,int32_t idHilo,char *semId)
 				if(hiloADesbloquear!=NULL){
 
 				hiloADesbloquear->estadoHilo=READY;
+				hiloADesbloquear->timestampEntraEnReady = timestampEnMilisegundos();
 				hiloADesbloquear->semBloqueante = NULL;
 
 				pthread_mutex_lock(&mutexReady);
@@ -422,6 +424,15 @@ int32_t suse_signal_servidor(char *idProcString,int32_t idHilo,char *semId)
 
 
 //----------------------------Metricas--------------------------------------------------
+
+long long timestampEnMilisegundos()
+{
+	long long ms;
+	struct timespec  tiempo;
+	clock_gettime(CLOCK_REALTIME, &tiempo);
+	ms =  (long long)tiempo.tv_sec * 1000 + (long long)tiempo.tv_nsec / 1.0e6;
+	return ms;
+}
 
 void escribirMetricasSemaforos(){
 
@@ -497,7 +508,7 @@ int32_t tiempoEjecucionProceso(char* idProcString){
 	}
 
 	void calcularEjecucion(t_hiloPlanificado* hilo){
-		tiempoEjecucionDelProceso+=(int32_t)time(NULL)-hilo->timestampCreacion;
+		tiempoEjecucionDelProceso+= timestampEnMilisegundos()-hilo->timestampCreacion;
 	}
 
 	list_iterate(list_filter(colaNews, (void*)hiloEsDePrograma),calcularEjecucion);
@@ -507,7 +518,7 @@ int32_t tiempoEjecucionProceso(char* idProcString){
 
 	t_hiloPlanificado* hiloEjecutando= dictionary_get(execs,idProcString);
 	if(hiloEjecutando!=NULL)
-		tiempoEjecucionDelProceso+=(int32_t)time(NULL)-hiloEjecutando->timestampCreacion;
+		tiempoEjecucionDelProceso+=timestampEnMilisegundos()-hiloEjecutando->timestampCreacion;
 
 	list_iterate(list_filter(blockeds,(void*)hiloEsDePrograma),calcularEjecucion);
 
@@ -518,7 +529,7 @@ int32_t tiempoEjecucionProceso(char* idProcString){
 
 void metricasUnHilo(t_hiloPlanificado* hilo){
 
-	int32_t tiempoEjecucion= (int32_t)time(NULL)-hilo->timestampCreacion;
+	int32_t tiempoEjecucion= timestampEnMilisegundos()-hilo->timestampCreacion;
 	int32_t tiempoEspera=hilo->tiempoEnReady;
 	int32_t tiempoCPU=hilo->tiempoEnExec;
 	int32_t porcentajeTiempoEjecucion=tiempoEjecucion/tiempoEjecucionProceso(hilo->idProceso);
@@ -551,7 +562,7 @@ void escribirMetricasHilosTotales(){
 
 	dictionary_iterator(execs,escribirMetricasExec);
 
-
+	escribirMetricasLista(exits);
 
 }
 

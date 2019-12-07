@@ -81,6 +81,7 @@ int32_t suse_signal_servidor(char* idProcString,int32_t idHilo,char *semId);
 void inicializarSemaforosPthread();
 
 //------METRICAS.....
+long long timestampEnMilisegundos();
 void escribirMetricasSemaforos();
 void escribirMetricasGrado();
 void metricasUnPrograma(char *  idProcString);
