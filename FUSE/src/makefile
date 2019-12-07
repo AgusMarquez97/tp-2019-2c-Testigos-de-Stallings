@@ -1,70 +1,44 @@
 #
-# 'make depend' uses makedepend to automatically generate dependencies 
-#               (dependencies are added to end of Makefile)
-# 'make'        build executable file 'mycc'
-# 'make clean'  removes all .o and executable files
+# This is an example Makefile for a countwords program.  This
+# program uses both the scanner module and a counter module.
+# Typing 'make' or 'make count' will create the executable file.
 #
 
-# define the C compiler to use
+# define some Makefile variables for the compiler and compiler flags
+# to use Makefile variables later in the Makefile: $()
+#
+#  -g    adds debugging information to the executable file
+#  -Wall turns on most, but not all, compiler warnings
+#
+# for C++ define  CC = g++
 CC = gcc
+CFLAGS  = -Wall -g -fmessage-length=0 -D_FILE_OFFSET_BITS=64 `pkg-config fuse --cflags --libs`
+INCLUDES = -I"/home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/Shared_Library"  -I"/home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/FUSE"
+LFLAGS = -L"/home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/Shared_Library/Debug" -L/home/utnso/workspace/hilolay
+LIBS = -lShared_Library -lrt -lm -lreadline -lpthread -lcommons -lfuse
 
-# define any compile-time flags
-CFLAGS = -Wall -g
-
-# define any directories containing header files other than /usr/include
+# typing 'make' will invoke the first target entry in the file 
+# (in this case the default target entry)
+# you can name this target entry anything, but "default" or "all"
+# are the most commonly used names by convention
 #
-INCLUDES = -I"/home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/Shared_Library"
+all: FUSE
 
-# define library paths in addition to /usr/lib
-#   if I wanted to include libraries not in /usr/lib I'd specify
-#   their path using -Lpath, something like:
-LFLAGS = -L"/home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/Shared_Library/biblioteca" 
-
-# define any libraries to link into executable:
-#   if I want to link in libraries (libx.so or libx.a) I use the -llibname 
-#   option, something like (this will link in libmylib.so and libm.so:
-LIBS = -lShared_Library -lrt -lm -lreadline -lpthread -lcommons
-
-# define the C source files
-SRCS = FUSE.c #aca agregar demas .c 
-
-# define the C object files 
+# To create the executable file count we need the object files
+# countwords.o, counter.o, and scanner.o:
 #
-# This uses Suffix Replacement within a macro:
-#   $(name:string1=string2)
-#         For each word in 'name' replace 'string1' with 'string2'
-# Below we are replacing the suffix .c of all words in the macro SRCS
-# with the .o suffix
+FUSE:  SAC-cli.c FUSE.h
+	$(CC) $(CFLAGS) $(INCLUDES) -o FUSE SAC-cli.c $(LFLAGS) $(LIBS)
+
+# To create the object file countwords.o, we need the source
+# files countwords.c, scanner.h, and counter.h:
 #
-OBJS = $(SRCS:.c=.o)
+#sac-cli.o:  SAC-cli.c FUSE.h 
+#	$(CC) $(CFLAGS) $(INCLUDES) -c SAC-cli.c 
 
-# define the executable file 
-MAIN = Fuse #Nombre final del ejecutable
-
+# To start over from scratch, type 'make clean'.  This
+# removes the executable file, as well as old .o object
+# files and *~ backup files:
 #
-# The following part of the makefile is generic; it can be used to 
-# build any executable just by changing the definitions above and by
-# deleting dependencies appended to the file from 'make depend'
-#
-
-.PHONY: depend clean
-
-all: $(MAIN)
-
-$(MAIN): $(OBJS) 
-	$(CC) $(CFLAGS) $(INCLUDES) -o $(MAIN) $(OBJS) $(LFLAGS) $(LIBS)
-
-# this is a suffix replacement rule for building .o's from .c's
-# it uses automatic variables $<: the name of the prerequisite of
-# the rule(a .c file) and $@: the name of the target of the rule (a .o file) 
-# (see the gnu make manual section about automatic variables)
-.c.o:
-	$(CC) $(CFLAGS) $(INCLUDES) -c $<  -o $@
-
-clean:
-	$(RM) *.o *~ $(MAIN)
-
-depend: $(SRCS)
-	makedepend $(INCLUDES) $^
-
-# DO NOT DELETE THIS LINE -- make depend needs it
+clean: 
+	$(RM) FUSE *.o *~

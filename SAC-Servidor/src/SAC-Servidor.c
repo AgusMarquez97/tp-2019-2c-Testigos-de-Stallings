@@ -13,7 +13,6 @@ GBlock* disco;
 size_t tamDisco;
 GFile* tablaNodos;
 t_bitarray* bitmap;
-//int socketRespuesta;
 int cantBloqueDatos;
 sem_t mutWrite;
 sem_t mutRename;
@@ -199,6 +198,7 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 
 void escribir(int indArchivo, char* contenido, size_t tamanio, off_t offset)
 {
+
 	int cantidadEscrita = 0;
 	int bloqInd = 0;
 	int bloqDatos = 0;
@@ -212,6 +212,8 @@ void escribir(int indArchivo, char* contenido, size_t tamanio, off_t offset)
 	if(tablaNodos[indArchivo].file_size == 0)
 	{
 		//bloque de punteros indirectos
+
+		offset = 0;
 
 		int indBloque = ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER;//el indice en el bitmap arranca despues de eso
 		int valorBit = bitarray_test_bit(bitmap, indBloque);
@@ -578,16 +580,6 @@ void agregarObjeto(char* nombre, char* padre, int estado)
 	else
 		nodoNuevo->padre = 0;
 
-	/*for(int bloqInd = 0; bloqInd < BLOQUES_INDIRECTOS; bloqInd++)
-	{
-		for(int bloqDatos = 0; bloqDatos < BLOQUES_DATOS; bloqDatos++)
-		{
-			nodoNuevo->bloques_ind[bloqInd]->bloquesDatos[bloqDatos] = NULL;
-		}
-
-		nodoNuevo->bloques_ind[bloqInd] = NULL;
-	}*/
-
 }
 
 void crearObjeto(char *path, int estado)
@@ -715,12 +707,22 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 				int indice = indiceObjeto(nombre);
 				uint8_t estado = tablaNodos[indice].estado;
 				time_t ultimaMod = tablaNodos[indice].fecha_modif;
-				void* buffer = malloc( sizeof(time_t) );
+				uint32_t tamanio;
+
+				if(estado == ARCHIVO)
+					tamanio = tablaNodos[indice].file_size;
+				else
+					tamanio = 0;
+
+				void* buffer = malloc( sizeof(int) + sizeof(time_t) + sizeof(uint32_t) );
+				int tamBuffer = sizeof(time_t) + sizeof(uint32_t);
 
 				enviarInt(socketRespuesta, estado);
 
-				memcpy(buffer, &ultimaMod, sizeof(time_t) );
-				enviarVoid(socketRespuesta, buffer, sizeof(buffer) );
+				memcpy(buffer, &tamBuffer, sizeof(int) );
+				memcpy(buffer + sizeof(int), &ultimaMod, sizeof(time_t) );
+				memcpy(buffer + sizeof(int) + sizeof(time_t), &tamanio, sizeof(uint32_t));
+				enviar(socketRespuesta, buffer, sizeof(int) + tamBuffer);
 
 				free(buffer);
 
@@ -772,7 +774,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 			enviarInt(socketRespuesta, indArch);
 
 			if (indArch == -1)// si no existe
-				break;
+					break;
 
 			int bloqInd = 0;
 			int bloqDatos = 0;
@@ -865,7 +867,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 
 			int indArch;
 			int tamARecibir;
-			recibir(socketRespuesta,&tamARecibir, sizeof(int));
+			recibir(socketRespuesta, &tamARecibir, sizeof(int) );
 
 			void* bufferWrite = malloc(tamARecibir);
 			recibir(socketRespuesta, bufferWrite, tamARecibir);
@@ -888,7 +890,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 
 			indArch = indiceObjeto(nombre);
 			if (indArch == -1)//ver
-				break;
+					break;
 
 			escribir(indArch, contenido, tamContenido, offset);//offsetWrite);
 
@@ -899,6 +901,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 			free(bufferWrite);
 
 			break;
+
 		}
 
 		case RENAME:

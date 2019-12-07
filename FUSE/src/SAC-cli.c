@@ -212,8 +212,9 @@ static int hacer_getattr(const char *path, struct stat *st)
 	char* nombre = malloc(MAX_FILENAME_LENGTH);
 	int estadoNodo;
 	time_t ultimaMod;
-	void* bufferDestino;// = malloc( sizeof(uint64_t) + sizeof(int32_t));
-
+	void* bufferDestino = malloc( sizeof(int) + sizeof(time_t) + sizeof(uint32_t) );
+	uint32_t tamanio;
+	int tamARecibir;
 
 	if(strcmp(path,"/") == 0)
 	{
@@ -233,29 +234,32 @@ static int hacer_getattr(const char *path, struct stat *st)
 
 	st->st_uid = getuid();		//el duenio del archivo
 	st->st_gid = getgid();
-	st->st_mtime = time(NULL);//cambiar estos dos
+	st->st_mtime = time(NULL);
 	st->st_atime = time(NULL);
 
 	recibirInt(socketConexion, &estadoNodo);
 
 	if(estadoNodo != 0)//existe el nodo en el fs
 	{
-
-		recibirVoid(socketConexion, &bufferDestino);
-		memcpy(&ultimaMod, bufferDestino, sizeof(time_t));
+		recibir(socketConexion, &tamARecibir, sizeof(int) );
+		recibir(socketConexion, bufferDestino, tamARecibir );
+		memcpy(&ultimaMod, bufferDestino, sizeof(time_t) );
+		memcpy(&tamanio, bufferDestino + sizeof(time_t), sizeof(uint32_t) );
 
 		st->st_mtime = ultimaMod;
+		st->st_atime = ultimaMod;
 
 		if(estadoNodo == DIRECTORIO)
 		{
 			st->st_mode = S_IFDIR | 0755; //bits de permiso
 			st->st_nlink = 2;		//num de hardlinks
+			st->st_size = 0;
 		}
 		else//archivo
 		{
 			st->st_mode = S_IFREG | 0777;//0644;
 			st->st_nlink = 1;
-			st->st_size = 1024;	//cambiar despues
+			st->st_size = tamanio;
 		}
 	}
 	else //no existe en el filesystem
@@ -328,16 +332,27 @@ static int hacer_read(const char *path, char *buffer, size_t size, off_t offset,
 	if(continuar == -1)//no existe en el FS
 		return -1;
 
-	//recibirString(socketConexion,&cont);
 	int tamContenido;
 	recibirInt(socketConexion, &tamContenido);
 
 	char* contenido = malloc(tamContenido);
+
 	recibir(socketConexion, contenido, tamContenido);
 
-	memcpy(buffer, contenido, size );
-	buffer[size] = '\0';
+	if(tamContenido >= 0)
+	{
+		if(size <= tamContenido)
+		{
+			memcpy(buffer, contenido, size );
+			buffer[size] = '\0';
+		}
+		else
+		{
+			strcpy(buffer, contenido);
+			buffer[tamContenido] = '\0';
+		}
 
+	}
 
 	int tamBuffer = strlen(buffer);
 
@@ -381,7 +396,7 @@ static int hacer_write(const char* path, const char* buffer, size_t size, off_t 
 {
 
 	size_t tamBufferLocal;
-	 off_t offsetPrimero = 0;
+	off_t offsetPrimero = 0;
 
 
 	if(bufferWrite == NULL)
@@ -394,8 +409,6 @@ static int hacer_write(const char* path, const char* buffer, size_t size, off_t 
 		tamBufferLocal = strlen(bufferWrite);
 
 	size_t tamACopiar = strlen(buffer) + 1;
-	//if(tamACopiar == 0)
-		//tamACopiar++;
 
 	if(size > tamACopiar)
 	{
@@ -418,17 +431,15 @@ static int hacer_write(const char* path, const char* buffer, size_t size, off_t 
 		int tamNombre = strlen(nombre) + 1;
 
 		void* bufferEnviar = malloc(sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + tamBufferLocal + sizeof(off_t) );
-		//void* bufferEnviar = malloc(sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + tamBufferLocal);
 
 		int tamEnviar = sizeof(int) + tamNombre + sizeof(size_t) + tamBufferLocal + sizeof(off_t);
-		//int tamEnviar = sizeof(int) + tamNombre + sizeof(size_t) + tamBufferLocal;
 
 		memcpy(bufferEnviar, &tamEnviar, sizeof(int) );
 		memcpy(bufferEnviar + sizeof(int), &tamNombre, sizeof(int) );
 		memcpy(bufferEnviar + sizeof(int) + sizeof(int), nombre, tamNombre );
 		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre, &tamBufferLocal, sizeof(size_t) );
 		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t), bufferWrite, tamBufferLocal);
-		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + tamBufferLocal, &offsetPrimero, sizeof(off_t) );//offset
+		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + tamBufferLocal, &offsetPrimero, sizeof(off_t) );
 		enviar(socketConexion, bufferEnviar, sizeof(int) + tamEnviar );
 
 		free(bufferEnviar);
@@ -596,13 +607,7 @@ int hacer_truncate(const char* path, off_t tamanioNuevo, struct fuse_file_info* 
 
 void levantarClienteFUSE()
 {
-
-	/*pthread_t hiloAtendedor = 0;
-	char * info = malloc(300);
-	char * aux = malloc(50);*/
-
 	socketConexion = levantarCliente(ip,puerto);
-
 }
 
 
@@ -664,7 +669,6 @@ size_t tamArchivo(char* archivo)
 int main( int argc, char *argv[] )
 {
 
-
 	remove("Linuse.log");
 	iniciarLog("FUSE");
 	loggearInfo("Se inicia el proceso FUSE...");
@@ -677,49 +681,6 @@ int main( int argc, char *argv[] )
 	liberarTabla();
 
 	return ret;
-
-
-	/*
-	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
-
-
-	memset(&runtime_options, 0, sizeof(struct t_runtime_options));
-
-
-	if (fuse_opt_parse(&args, &runtime_options, fuse_options, NULL) == -1){
-
-		perror("Argumentos invalidos!");
-		return EXIT_FAILURE;
-	}
-
-
-	if( runtime_options.disco != NULL )
-	{
-		printf("%s\n", runtime_options.disco);
-	}
-
-	tamDisco= tamArchivo(runtime_options.disco);
-
-	int discoFD = open(runtime_options.disco, O_RDWR,0);
-
-	disco = mmap(NULL, tamDisco, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, discoFD, 0);
-
-	disco = disco + 1 + BITMAP_SIZE_IN_BLOCKS; // mueve el puntero dos posiciones hasta la tabla de nodos. Cambiar
-	//despues de probar
-
-	tablaNodos = (GFile*) disco;
-
-	tamDisco = tamDisco - (2 * BLOCK_SIZE);
-
-	//int ret = fuse_main(args.argc, args.argv, &operaciones, NULL);
-
-	//lo dejo como antes para el unmap
-	disco = disco - 1 - BITMAP_SIZE_IN_BLOCKS;
-	tamDisco = tamDisco + (2 * BLOCK_SIZE);
-
-	munmap(disco,tamDisco);
-	close(discoFD);*/
-
 
 }
 
