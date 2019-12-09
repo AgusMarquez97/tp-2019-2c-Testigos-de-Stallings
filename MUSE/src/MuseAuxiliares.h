@@ -265,20 +265,59 @@ t_pagina * obtenerPaginaAuxiliar(t_list * paginas, int nroPagina)
 }
 
 // ya se valido que exista
-uint32_t posicionAnterior(t_list * paginas, int offsetResultante)
+uint32_t posicionAnterior(t_list* paginas, int offsetResultante)
 {
 	int bytesLeidos = 0;
 	int offset = 0;
 	int nroPagina = 0;
 	int bytesLeidosPagina;
 	int tamMaximo = list_size(paginas)*tamPagina;
-	t_heap_metadata * unHeapMetadata = malloc(tam_heap_metadata);
+	t_heap_metadata* heapMetadata = malloc(tam_heap_metadata);
 
 	while(tamMaximo - bytesLeidos > tam_heap_metadata)
 	{
-		leerHeapMetadata(&unHeapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset,paginas,&nroPagina);
+		leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset,paginas,&nroPagina);
 	}
+
+	free(heapMetadata);
 	return offset;
+
+}
+
+void liberarPaginas(char* idProceso, int nroPagina, t_list* paginas) {
+
+	char msj[100];
+	char aux[30];
+
+	if((nroPagina + 1) == list_size(paginas)) {
+		sprintf(msj, "Para el proceso %s, se ha liberado la página ", idProceso);
+	} else {
+		sprintf(msj, "Para el proceso %s, se han liberado las páginas [ ", idProceso);
+	}
+
+	bool buscarPagina(t_pagina* pagina) {
+		return (pagina->nroPagina <= nroPagina);
+	}
+
+	t_list* lista_aux = list_filter(paginas, (void*)buscarPagina);
+
+	void liberarPagina(t_pagina* pagina) {
+		if(pagina->nroPagina > nroPagina) {
+			sprintf(aux, "%d ",pagina->nroPagina);
+			strcat(msj, aux);
+			liberarMarcoBitarray(pagina->nroMarco);
+			free(pagina);
+		}
+	}
+
+	list_destroy_and_destroy_elements(paginas, (void*)liberarPagina);
+
+	paginas = list_duplicate(lista_aux); //OJO!
+
+	strcat(msj, "]");
+
+	loggearInfo(msj);
+
 }
 
 #endif /* MUSEAUXILIARES_H_ */

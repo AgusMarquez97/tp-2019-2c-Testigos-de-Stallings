@@ -90,6 +90,7 @@ void leerHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* byt
 	int paginasSalteadas = 0;
 	t_pagina* paginaDummy = malloc(sizeof(*paginaDummy));
 	int sobrantePaginaInicial = tamPagina - (*bytesLeidosPagina);
+	int nroMarco = 0;
 
 	if(sobrantePaginaInicial<tam_heap_metadata) { // esta partido el proximo heap
 		leerHeapPartido(heapMetadata, offset, sobrantePaginaInicial, nroPagina, paginas, &paginaDummy);
@@ -105,20 +106,26 @@ void leerHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* byt
 	}
 
 	*bytesLeidos += tam_heap_metadata + (*heapMetadata)->offset;
+	free(paginaDummy);
 
 	if(*bytesLeidosPagina > tamPagina) { // se paso de la pagina en la que estaba
 		paginasSalteadas = cantidadPaginasPedidas(*bytesLeidosPagina);
 		incremento = *bytesLeidosPagina - tamPagina*(paginasSalteadas);
 		(*nroPagina) += paginasSalteadas;
-		free(paginaDummy);
-		paginaDummy = obtenerPaginaAuxiliar(paginas, (*nroPagina));
-		*offset = paginaDummy->nroMarco * tamPagina + incremento;
+
+		if(paginasSalteadas == list_size(paginas)) {
+			nroMarco = list_size(paginas);
+		} else {
+			paginaDummy = obtenerPaginaAuxiliar(paginas, (*nroPagina));
+			nroMarco = paginaDummy->nroMarco;
+			free(paginaDummy);
+		}
+		*offset = nroMarco * tamPagina + incremento;
 		*bytesLeidosPagina = incremento;
 	} else {
 		*offset += incremento;
 	}
 
-	free(paginaDummy);
 }
 
 void leerHeapPartido(t_heap_metadata** heapMetadata, int* offset, int sobrante, int* nroPagina, t_list* paginas, t_pagina** paginaDummy) {
