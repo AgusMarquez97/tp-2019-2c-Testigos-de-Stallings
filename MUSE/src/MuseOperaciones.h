@@ -225,27 +225,32 @@ void* procesarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio) {
 
 	if(poseeSegmentos(idProceso))
 	{
-		int bytesLiberados = 0;
 		t_list * paginas;
+		t_list* segmentos;
+		t_segmento* segmento;
+
 
 		pthread_mutex_lock(&mutex_diccionario);
-		paginas = dictionary_get(diccionarioProcesos,idProceso);
+		segmentos = dictionary_get(diccionarioProcesos,idProceso);
 		pthread_mutex_unlock(&mutex_diccionario);
 
-		uint32_t posicionMemoria = obtenerDireccionMemoria(paginas,posicionSegmento);
+		segmento = obtenerSegmento(segmentos, posicionSegmento); // ver de hacer validacion por el nulo
+		paginas = segmento->paginas;
 
-		posicionMemoria = obtenerPosicionPreviaHeap(paginas,posicionMemoria);
+		uint32_t posicionPosteriorHeap = obtenerDireccionMemoria(paginas,posicionSegmento);
+
+		uint32_t posicionAnteriorHeap = obtenerPosicionPreviaHeap(paginas,posicionPosteriorHeap);
 
 		void * buffer = malloc(tamanio);
 
-		int bytesLeidos = leerUnHeapMetadata(paginas, posicionMemoria, &buffer, tamanio);
+		int bytesLeidos = leerUnHeapMetadata(paginas, posicionAnteriorHeap,posicionPosteriorHeap, &buffer, tamanio);
 
 		if(bytesLeidos > 0)
 		{
 			sprintf(msj, "El Proceso %s leyo %d bytes de la posicion %d", idProceso,bytesLeidos,posicionSegmento);
 		}
 
-		switch(bytesLiberados)
+		switch(bytesLeidos)
 		{
 		case HM_NO_EXISTENTE:
 			sprintf(msj, "El Proceso %s intento leer de un HM no existente en la posicion %d", idProceso, posicionSegmento);
@@ -257,6 +262,8 @@ void* procesarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio) {
 			sprintf(msj, "El Proceso %s intento leer mas bytes (%d) de los permitidos en la posicion %d", idProceso,tamanio,posicionSegmento);
 			break;
 		}
+
+		loggearInfo(msj);
 
 		return buffer;
 
@@ -275,20 +282,25 @@ int procesarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, voi
 
 	if(poseeSegmentos(idProceso))
 		{
-			int bytesLiberados = 0;
 			t_list * paginas;
+			t_list* segmentos;
+			t_segmento* segmento;
+
 
 			pthread_mutex_lock(&mutex_diccionario);
-			paginas = dictionary_get(diccionarioProcesos,idProceso);
+			segmentos = dictionary_get(diccionarioProcesos,idProceso);
 			pthread_mutex_unlock(&mutex_diccionario);
 
-			uint32_t posicionMemoria = obtenerDireccionMemoria(paginas,posicionSegmento);
+			segmento = obtenerSegmento(segmentos, posicionSegmento); // ver de hacer validacion por el nulo
+			paginas = segmento->paginas;
 
-			posicionMemoria = obtenerPosicionPreviaHeap(paginas,posicionMemoria);
+			uint32_t posicionPosteriorHeap = obtenerDireccionMemoria(paginas,posicionSegmento);
 
-			void * buffer = malloc(tamanio);
+			uint32_t posicionAnteriorHeap = obtenerPosicionPreviaHeap(paginas,posicionPosteriorHeap);
 
-			int bytesEscritos = escribirDatosHeapMetadata(paginas, posicionMemoria, &buffer, tamanio);
+			//void * buffer = malloc(tamanio);
+
+			int bytesEscritos = escribirDatosHeapMetadata(paginas,posicionAnteriorHeap, posicionPosteriorHeap, &contenido, tamanio);
 
 			if(bytesEscritos > 0)
 			{
@@ -296,7 +308,7 @@ int procesarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, voi
 				retorno = 0;
 			}
 
-			switch(bytesLiberados)
+			switch(bytesEscritos)
 			{
 			case HM_NO_EXISTENTE:
 				sprintf(msj, "El Proceso %s intento escribir en un HM no existente en la posicion %d", idProceso, posicionSegmento);
@@ -309,9 +321,12 @@ int procesarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, voi
 				break;
 			}
 
+			loggearInfo(msj);
 		}
+	else{
 	sprintf(msj, "El Proceso %s no ah realizado el init correspondiente", idProceso);
 	loggearInfo(msj);
+	}
 
 	return retorno;
 
