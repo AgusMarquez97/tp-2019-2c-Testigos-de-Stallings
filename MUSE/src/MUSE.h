@@ -166,7 +166,7 @@ t_segmento * buscarSegmento(t_list * segmentos, uint32_t posicionSegmento);
 bool encontrarSegmento(t_segmento * unSegmento);
 uint32_t posicionAnterior(t_list * paginas, int offsetResultante);
 void liberarPagina(int nroPagina, t_list* paginas);
-void liberarPaginas(char* idProceso, int nroPagina, t_list* paginas);
+void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento);
 
 //MuseHeapMetadata
 int leerUnHeapMetadata(t_list * paginas, int offset, void ** buffer, int tamanio);

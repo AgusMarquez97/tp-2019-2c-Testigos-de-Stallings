@@ -284,10 +284,12 @@ uint32_t posicionAnterior(t_list* paginas, int offsetResultante)
 
 }
 
-void liberarPaginas(char* idProceso, int nroPagina, t_list* paginas) {
+void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento) {
 
 	char msj[100];
 	char aux[30];
+
+	t_list * paginas = segmento->paginas;
 
 	if((nroPagina + 1) == list_size(paginas)) {
 		sprintf(msj, "Para el proceso %s, se ha liberado la página ", idProceso);
@@ -312,7 +314,8 @@ void liberarPaginas(char* idProceso, int nroPagina, t_list* paginas) {
 
 	list_destroy_and_destroy_elements(paginas, (void*)liberarPagina);
 
-	paginas = list_duplicate(lista_aux); //OJO!
+	segmento->paginas = list_duplicate(lista_aux); //OJO! POSIBLE ML
+	segmento->tamanio = tamPagina*list_size(segmento->paginas);
 
 	strcat(msj, "]");
 

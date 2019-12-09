@@ -147,7 +147,7 @@ void compactarSegmento(char* idProceso, t_segmento* segmento) {
 		heapMetadata->offset = tamanioPaginaRestante - tam_heap_metadata;
 		escribirUnHeapMetadata(paginas, paginaUltimoHeapMetadata, heapMetadata, &posUltimoHeapMetadata, tamanioPaginaRestante);
 
-		liberarPaginas(idProceso, paginaUltimoHeapMetadata, paginas);
+		liberarPaginas(idProceso, paginaUltimoHeapMetadata, segmento);
 	}
 
 }
