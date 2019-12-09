@@ -111,24 +111,22 @@ uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 
 	int contador = 0;
 	int bytesLeidosPagina = 0;
+	int offsetAnterior = 0;
 
 
 	while(tamMaximo - bytesLeidos > tam_heap_metadata) {
-
+		offsetAnterior = offset;
 		leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset,segmento->paginas,&contador);
 
 		if(heapMetadata->estaLibre && heapMetadata->offset >= (tamanio + tam_heap_metadata)) {
 
 			bool tieneUnoSiguiente = existeHM(segmento->paginas, offset);
 
-			offset -= heapMetadata->offset;
-			offset = obtenerPosicionPreviaHeap(segmento->paginas, offset); // VALIDAR => esta retrocediendo el offset del hm tambien??
-
 			if(tieneUnoSiguiente)
-				escribirHeapMetadata(segmento->paginas, offset, tamanio,tam_heap_metadata + heapMetadata->offset); // validado
+				escribirHeapMetadata(segmento->paginas, offsetAnterior, tamanio,tam_heap_metadata + heapMetadata->offset); // validado
 			else
-				escribirHeapMetadata(segmento->paginas, offset, tamanio,false); // validado
-			return offset + tam_heap_metadata;
+				escribirHeapMetadata(segmento->paginas, offsetAnterior, tamanio,false); // validado
+			return offsetAnterior + tam_heap_metadata;
 		}
 
 	}
@@ -137,7 +135,7 @@ uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 
 	if(heapMetadata->estaLibre) {
 		sobrante = heapMetadata->offset + tam_heap_metadata; // me sobro un hm entero
-		offset -= (heapMetadata->offset + tam_heap_metadata); // Pongo el offset en la primera posicion libre
+		offset = offsetAnterior; // Pongo el offset en la primera posicion libre
 	}
 
 	int nuevaCantidadFrames = obtenerCantidadMarcos(tamPagina, tamanio + tam_heap_metadata - sobrante); // Frames necesarios para escribir en memoria
@@ -264,21 +262,43 @@ t_pagina * obtenerPaginaAuxiliar(t_list * paginas, int nroPagina)
 
 }
 
-// ya se valido que exista
-uint32_t posicionAnterior(t_list * paginas, int offsetResultante)
-{
-	int bytesLeidos = 0;
-	int offset = 0;
-	int nroPagina = 0;
-	int bytesLeidosPagina;
-	int tamMaximo = list_size(paginas)*tamPagina;
-	t_heap_metadata * unHeapMetadata = malloc(tam_heap_metadata);
+void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento) {
 
-	while(tamMaximo - bytesLeidos > tam_heap_metadata)
-	{
-		leerHeapMetadata(&unHeapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset,paginas,&nroPagina);
+	char msj[100];
+	char aux[30];
+
+	t_list * paginas = segmento->paginas;
+
+	if((nroPagina + 1) == list_size(paginas)) {
+		sprintf(msj, "Para el proceso %s, se ha liberado la página ", idProceso);
+	} else {
+		sprintf(msj, "Para el proceso %s, se han liberado las páginas [ ", idProceso);
 	}
-	return offset;
+
+	bool buscarPagina(t_pagina* pagina) {
+		return (pagina->nroPagina <= nroPagina);
+	}
+
+	t_list* lista_aux = list_filter(paginas, (void*)buscarPagina);
+
+	void liberarPagina(t_pagina* pagina) {
+		if(pagina->nroPagina > nroPagina) {
+			sprintf(aux, "%d ",pagina->nroPagina);
+			strcat(msj, aux);
+			liberarMarcoBitarray(pagina->nroMarco);
+			free(pagina);
+		}
+	}
+
+	list_destroy_and_destroy_elements(paginas, (void*)liberarPagina);
+
+	segmento->paginas = list_duplicate(lista_aux); //OJO! POSIBLE ML
+	segmento->tamanio = tamPagina*list_size(segmento->paginas);
+
+	strcat(msj, "]");
+
+	loggearInfo(msj);
+
 }
 
 #endif /* MUSEAUXILIARES_H_ */
