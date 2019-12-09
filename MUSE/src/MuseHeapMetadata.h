@@ -389,6 +389,7 @@ uint32_t obtenerPosicionPreviaHeap(t_list * paginas, int offset) // agarra la ul
 	else
 	{
 		// La idea es: Retrocedo una pagina, obtengo el siguiente marco contiguo (me paso un marco) y resto lo que me falto leer del HM
+
 	int tamanioRestante = tam_heap_metadata - tamanioPaginaUsado;
 	free(unaPagina);
 	unaPagina = obtenerPaginaAuxiliar(paginas,paginaActual-1);

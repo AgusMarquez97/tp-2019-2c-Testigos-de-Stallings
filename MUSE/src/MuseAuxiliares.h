@@ -111,24 +111,22 @@ uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 
 	int contador = 0;
 	int bytesLeidosPagina = 0;
+	int offsetAnterior = 0;
 
 
 	while(tamMaximo - bytesLeidos > tam_heap_metadata) {
-
+		offsetAnterior = offset;
 		leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset,segmento->paginas,&contador);
 
 		if(heapMetadata->estaLibre && heapMetadata->offset >= (tamanio + tam_heap_metadata)) {
 
 			bool tieneUnoSiguiente = existeHM(segmento->paginas, offset);
 
-			offset -= heapMetadata->offset;
-			offset = obtenerPosicionPreviaHeap(segmento->paginas, offset); // VALIDAR => esta retrocediendo el offset del hm tambien??
-
 			if(tieneUnoSiguiente)
-				escribirHeapMetadata(segmento->paginas, offset, tamanio,tam_heap_metadata + heapMetadata->offset); // validado
+				escribirHeapMetadata(segmento->paginas, offsetAnterior, tamanio,tam_heap_metadata + heapMetadata->offset); // validado
 			else
-				escribirHeapMetadata(segmento->paginas, offset, tamanio,false); // validado
-			return offset + tam_heap_metadata;
+				escribirHeapMetadata(segmento->paginas, offsetAnterior, tamanio,false); // validado
+			return offsetAnterior + tam_heap_metadata;
 		}
 
 	}
@@ -137,7 +135,7 @@ uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 
 	if(heapMetadata->estaLibre) {
 		sobrante = heapMetadata->offset + tam_heap_metadata; // me sobro un hm entero
-		offset -= (heapMetadata->offset + tam_heap_metadata); // Pongo el offset en la primera posicion libre
+		offset = offsetAnterior; // Pongo el offset en la primera posicion libre
 	}
 
 	int nuevaCantidadFrames = obtenerCantidadMarcos(tamPagina, tamanio + tam_heap_metadata - sobrante); // Frames necesarios para escribir en memoria
@@ -261,26 +259,6 @@ t_pagina * obtenerPaginaAuxiliar(t_list * paginas, int nroPagina)
 	memcpy(paginaAuxiliar,paginaReal,sizeof(t_pagina));
 
 	return paginaAuxiliar;
-
-}
-
-// ya se valido que exista
-uint32_t posicionAnterior(t_list* paginas, int offsetResultante)
-{
-	int bytesLeidos = 0;
-	int offset = 0;
-	int nroPagina = 0;
-	int bytesLeidosPagina;
-	int tamMaximo = list_size(paginas)*tamPagina;
-	t_heap_metadata* heapMetadata = malloc(tam_heap_metadata);
-
-	while(tamMaximo - bytesLeidos > tam_heap_metadata)
-	{
-		leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset,paginas,&nroPagina);
-	}
-
-	free(heapMetadata);
-	return offset;
 
 }
 

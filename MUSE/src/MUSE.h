@@ -164,7 +164,6 @@ int obtenerPaginaActual(t_list * paginas, int offset);
 uint32_t obtenerDireccionMemoria(t_list* listaPaginas,uint32_t posicionSegmento);
 t_segmento * buscarSegmento(t_list * segmentos, uint32_t posicionSegmento);
 bool encontrarSegmento(t_segmento * unSegmento);
-uint32_t posicionAnterior(t_list * paginas, int offsetResultante);
 void liberarPagina(int nroPagina, t_list* paginas);
 void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento);
 
