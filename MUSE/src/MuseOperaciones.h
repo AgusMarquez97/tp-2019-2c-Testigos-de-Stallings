@@ -170,6 +170,13 @@ int32_t procesarFree(char* idProceso, uint32_t posicionSegmento) {
 		pthread_mutex_unlock(&mutex_diccionario);
 
 		segmento = obtenerSegmento(segmentos, posicionSegmento); // ver de hacer validacion por el nulo
+
+		if(segmento->esCompartido)
+		{
+			sprintf(msj, "El Proceso %s intento liberar un Heap Metadata compartido en la posicion %d", idProceso, posicionSegmento);
+			loggearInfo(msj);
+			return 1;
+		}
 		paginas = segmento->paginas;
 
 		uint32_t posicionMemoria = obtenerDireccionMemoria(paginas, posicionSegmento);
@@ -277,22 +284,19 @@ void* procesarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio) {
 
 int procesarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, void* contenido) {
 
-	char msj[200];
+	char msj[250];
 	int retorno = -1;
 
 	if(poseeSegmentos(idProceso))
 		{
-			t_list * paginas;
-			t_list* segmentos;
-			t_segmento* segmento;
+			t_list * paginas = obtenerPaginas(idProceso, posicionSegmento); // normalizar para free,get,etc
 
-
-			pthread_mutex_lock(&mutex_diccionario);
-			segmentos = dictionary_get(diccionarioProcesos,idProceso);
-			pthread_mutex_unlock(&mutex_diccionario);
-
-			segmento = obtenerSegmento(segmentos, posicionSegmento); // ver de hacer validacion por el nulo
-			paginas = segmento->paginas;
+			if(paginas == NULL)
+			{
+				sprintf(msj, "El Proceso %s intento escribir fuera del segmento en la direccion %d", idProceso, posicionSegmento);
+				loggearInfo(msj);
+				return -1;
+			}
 
 			uint32_t posicionPosteriorHeap = obtenerDireccionMemoria(paginas,posicionSegmento);
 
@@ -332,16 +336,26 @@ int procesarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, voi
 
 }
 
-uint32_t procesarMap(char* idProceso, void* contenido, int32_t tamanio, int32_t flag) {
+uint32_t procesarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag) {
 
-	char* pathArchivo = malloc(tamanio + 1);
+	char msj[400];
+	uint32_t posicionRetorno = 0;
 
-	memcpy(pathArchivo, contenido, tamanio);
-	pathArchivo[tamanio] = 0;
-	loggearInfo(pathArchivo);
-	free(pathArchivo);
 
-	return 1;
+	if(existeEnElDiccionario(idProceso))
+	{
+	//Rutina para escribir el proceso
+	posicionRetorno = 5;
+	sprintf(msj,"El proceso %s escribio %d bytes en la posicion %d para el archivo %s con el flag %d",idProceso,tamanio,posicionRetorno,path,flag);
+	}else
+	{
+		sprintf(msj, "El Proceso %s no ah realizado el init correspondiente", idProceso);
+	}
+
+
+	loggearInfo(msj);
+	//error = 0
+	return posicionRetorno;
 
 }
 

@@ -20,7 +20,6 @@ t_segmento* obtenerSegmento(t_list* segmentos, uint32_t posicionMemoria) {
 				&& posicionMemoria <= (segmento->posicionInicial + 1) * segmento->tamanio);
 	}
 	return list_find(segmentos, (void*)segmentoCorrespondiente);
-
 }
 
 t_pagina* obtenerPagina(t_list* paginas, uint32_t posicionMemoria) {
@@ -55,7 +54,7 @@ void agregarPaginas(t_list** listaPaginas, int cantidadMarcos, int nroUltimaPagi
 
 }
 
-t_list* obtenerPaginas(int tamanio, int cantidadMarcos) {
+t_list* crearListaPaginas(int tamanio, int cantidadMarcos) {
 
 	t_list* listaPaginas = list_create();
 
@@ -71,7 +70,7 @@ t_list* obtenerPaginas(int tamanio, int cantidadMarcos) {
 
 t_segmento* instanciarSegmento(int tamanio, int cantidadFrames, int idSegmento, bool esCompartido, int posicionInicial) {
 
-	t_list* listaPaginas = obtenerPaginas(tamanio, cantidadFrames);
+	t_list* listaPaginas = crearListaPaginas(tamanio, cantidadFrames);
 
 	t_segmento * segmento = malloc(sizeof(t_segmento));
 
@@ -298,6 +297,23 @@ void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento) {
 	strcat(msj, "]");
 
 	loggearInfo(msj);
+
+}
+
+t_list * obtenerPaginas(char* idProceso, uint32_t posicionSegmento)
+{
+	t_list * segmentos;
+	t_segmento* segmento;
+
+	pthread_mutex_lock(&mutex_diccionario);
+	segmentos = dictionary_get(diccionarioProcesos,idProceso);
+	pthread_mutex_unlock(&mutex_diccionario);
+
+	segmento = obtenerSegmento(segmentos, posicionSegmento); // ver de hacer validacion por el nulo
+
+	if(segmento)
+		return segmento->paginas;
+	return NULL;
 
 }
 

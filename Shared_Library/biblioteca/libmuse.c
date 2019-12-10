@@ -132,11 +132,10 @@ uint32_t muse_map(char* path, size_t length, int flags) {
 
 	uint32_t direccionMemoria;
 	int socketCliente = levantarCliente(ip_muse, puerto_muse);
-	char* contenido = leerDesde(path, length);
 	// revisar si se le envía el path con la longitud a MUSE o los bytes ya leídos en libMuse
 
 	if(socketCliente != -1) {
-		enviarMap(socketCliente, id_muse, length ,contenido, flags);
+		enviarMap(socketCliente, id_muse, length , flags, path);
 		recibirUint(socketCliente, &direccionMemoria); //@return: error [0] / ok [dirección de memoria]
 		close(socketCliente);
 	}

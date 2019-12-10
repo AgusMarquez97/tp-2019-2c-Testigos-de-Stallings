@@ -151,12 +151,12 @@ void rutinaServidor(int* p_socket) {
 				enviarInt(socketRespuesta, retornoCpy);
 				break;
 			case MAP:
-				info = malloc(strlen("Se_recibió_un_MAP del proceso 99999999999 _con_el_flag_9999999999999999999999") + 1);
-				sprintf(info, "Se recibió un MAP del proceso %d con el flag %d",mensajeRecibido->idProceso, mensajeRecibido->flag);
+				info = malloc(strlen("Se_recibió_un_MAP del proceso 99999999999 ara el arcara el archivohivoara el archivo_con_el_flag_9999999999999999999999") + 1 + strlen((char*)mensajeRecibido->contenido) +1);
+				sprintf(info, "Se recibió un MAP del proceso %d para el archivo %s con el flag %d",mensajeRecibido->idProceso,(char*)mensajeRecibido->contenido,mensajeRecibido->flag);
 				loggearInfo(info);
 				free(info);
 
-				uint32_t retornoMap = procesarMap(id_proceso, mensajeRecibido->contenido, mensajeRecibido->tamanio, mensajeRecibido->flag);
+				uint32_t retornoMap = procesarMap(id_proceso, (char*)mensajeRecibido->contenido, mensajeRecibido->tamanio, mensajeRecibido->flag);
 
 				enviarUint(socketRespuesta, retornoMap);
 				break;

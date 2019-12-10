@@ -8,11 +8,11 @@ void enviarMalloc(int socketReceptor, int32_t proceso, int32_t tamanio);
 void enviarFree(int socketReceptor, int32_t proceso, uint32_t posicion);
 void enviarGet(int socketReceptor, int32_t proceso, uint32_t posicionMuse, int32_t cantidadBytes);
 void enviarCpy(int socketReceptor, int32_t proceso, uint32_t posDestino, void* origen, int32_t cantBytes);
-void enviarMap(int socketReceptor, int32_t proceso, int32_t tamanio, void* contenido, int32_t flag);
+void enviarMap(int socketReceptor, int32_t proceso, int32_t tamanio, int32_t flag, char* pathArchivo);
 void enviarSync(int socketReceptor, int32_t proceso, uint32_t posMuse, int32_t cantBytes);
 void enviarUnmap(int socketReceptor, int32_t proceso, uint32_t posicion);
 void enviarClose(int socketReceptor, int32_t proceso);
-void enviarOperacion(int socket, int32_t proceso, int32_t operacion, uint32_t posicionMemoria, int32_t tamanio, void* contenido, int32_t flag);
+void enviarOperacion(int socket, int32_t proceso, int32_t operacion, uint32_t posicion,int32_t tamanio, void* contenido, int32_t flag, char* pathArchivo);
 t_mensajeMuse* recibirOperacion(int socketEmisor);
 
 #endif /* BIBLIOTECA_MENSAJESMUSE_H_ */

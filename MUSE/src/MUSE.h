@@ -135,7 +135,7 @@ void compactarSegmento(char* idProceso, t_segmento* segmento);
 int32_t procesarFree(char* idProceso, uint32_t posicionSegmento);
 void* procesarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio);
 int procesarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, void* contenido);
-uint32_t procesarMap(char* idProceso, void* contenido, int32_t tamanio, int32_t flag);
+uint32_t procesarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag);
 int procesarSync(char* idProceso, uint32_t posicionMemoria, int32_t tamanio);
 int procesarUnmap(char* idProceso, uint32_t posicionMemoria);
 int procesarClose(char* idProceso);
@@ -144,12 +144,11 @@ uint32_t analizarSegmento (char* idProceso, int tamanio, int cantidadFrames, boo
 // MuseAuxiliares
 int obtenerCantidadMarcos(int tamanioPagina, int tamanioMemoria);
 t_segmento* obtenerSegmento(t_list* segmentos, uint32_t posicionMemoria);
-bool segmentoCorrespondiente(t_segmento* segmento);
 t_pagina* obtenerPagina(t_list* paginas, uint32_t posicionMemoria);
 bool paginaCorrespondiente(t_pagina* pagina);
 bool poseeSegmentos(char* idProceso);
 void agregarPaginas(t_list** listaPaginas, int cantidadMarcos, int nroUltimaPagina);
-t_list* obtenerPaginas(int tamanio, int cantidadMarcos);
+t_list* crearListaPaginas(int tamanio, int cantidadMarcos);
 t_segmento* instanciarSegmento(int tamanio, int cantidadFrames, int idSegmento, bool esCompartido, int posicionInicial);
 void crearSegmento(char* idProceso, int tamanio, int cantidadFrames, t_list* listaSegmentos, int idSegmento, bool esCompartido, int posicionInicial);
 uint32_t completarSegmento(char* idProceso, t_segmento* ultimoSegmento, int tamanio);
@@ -166,6 +165,7 @@ t_segmento * buscarSegmento(t_list * segmentos, uint32_t posicionSegmento);
 bool encontrarSegmento(t_segmento * unSegmento);
 void liberarPagina(int nroPagina, t_list* paginas);
 void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento);
+t_list * obtenerPaginas(char* idProceso, uint32_t posicionSegmento);
 
 //MuseHeapMetadata
 int leerUnHeapMetadata(t_list * paginas, int posicionAnteriorHeap,int posicionPosteriorHeap, void ** buffer, int tamanio);
