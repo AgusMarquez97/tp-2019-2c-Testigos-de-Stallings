@@ -40,14 +40,14 @@ char puerto[10];
 
 int metricsTimer;
 int maxMultiprog;
-float alphaSJF;
+double alphaSJF;
 
 
 char ** semIds;
 char ** semInit;
 char ** semMax;
 
-pthread_mutex_t mutexNew, mutexReady, mutexExec, mutexBlocked, mutexWaitSig, mutexExit, mutexProc,mutexSemHilosDisp, mutexSemaforos;
+pthread_mutex_t mutexNew, mutexReady, mutexExec, mutexBlocked, mutexWaitSig, mutexExit, mutexProc,mutexSemHilosDisp, mutexSemaforos, mutexEstimado;
 sem_t semPruebas;
 
 t_log* metricas;

@@ -80,7 +80,7 @@ typedef struct {
 	int32_t tiempoEnExec;
 	long timestampEntra;
 	long timestampSale;
-	int32_t estimado;
+	long estimado;
 
 
 } t_hiloPlanificado;
