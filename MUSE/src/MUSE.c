@@ -33,6 +33,7 @@ void levantarConfig() {
 void levantarMemoria() {
 
 	diccionarioProcesos = dictionary_create();
+	listaArchivosCompartidos = list_create();
 	memoria = malloc(tamMemoria);
 	crearMemoriaSwap();
 
@@ -67,6 +68,7 @@ void inicializarSemaforos() {
 	pthread_mutex_init(&mutex_marcos_libres, NULL);
 	pthread_mutex_init(&mutex_diccionario, NULL);
 	pthread_mutex_init(&mutex_memoria, NULL);
+	pthread_mutex_init(&mutex_lista_archivos, NULL);
 
 }
 

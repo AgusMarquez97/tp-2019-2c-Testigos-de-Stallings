@@ -36,18 +36,25 @@ int procesarHandshake(char* idProceso) {
 
 uint32_t procesarMalloc(char* idProceso, int32_t tamanio) {
 
-	char msj[120];
+	char msj[200];
 	int cantidadFrames;
+	uint32_t posicionRetorno = 0;
 
 	if(existeEnElDiccionario(idProceso)) {
 		cantidadFrames = obtenerCantidadMarcos(tamPagina, tamanio + tam_heap_metadata);
-		return analizarSegmento(idProceso, tamanio, cantidadFrames, false);
+		posicionRetorno = analizarSegmento(idProceso, tamanio, cantidadFrames,false);
+		if(posicionRetorno == 0)
+			sprintf(msj,"Error en el malloc del proceso %s: memoria llena",idProceso);
+		else
+			sprintf(msj,"Malloc para el proceso %s retorna la posicion %u",idProceso,posicionRetorno);
+
+		loggearInfo(msj);
+	} else	{
+		sprintf(msj, "El proceso %s no realizo el init correspondiente", idProceso);
+		loggearWarning(msj);
 	}
 
-	sprintf(msj, "El proceso %s no realizo el init correspondiente", idProceso);
-	loggearWarning(msj);
-
-	return 0;
+	return posicionRetorno;
 
 }
 
@@ -338,23 +345,54 @@ int procesarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, voi
 
 uint32_t procesarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag) {
 
-	char msj[400];
+	char msj[450];
 	uint32_t posicionRetorno = 0;
-
 
 	if(existeEnElDiccionario(idProceso))
 	{
-	//Rutina para escribir el proceso
-	posicionRetorno = 5;
-	sprintf(msj,"El proceso %s escribio %d bytes en la posicion %d para el archivo %s con el flag %d",idProceso,tamanio,posicionRetorno,path,flag);
+
+	int cantidadFrames = obtenerCantidadMarcos(tamPagina, tamanio + tam_heap_metadata);
+
+	if(flag == MUSE_MAP_SHARED)
+	{
+		t_archivo_compartido * unArchivoCompartido = obtenerArchivoCompartido(path);
+		agregarArchivoLista(path,unArchivoCompartido); // Si es nulo crea uno nuevo y no entra en el proximo if
+		if(unArchivoCompartido) // Entonces ya existe en memoria! Solo hay que agregarlo en las estructuras administrativas. Si no hay que agregarlo en memoria
+		{
+			posicionRetorno = agregarPaginasSinMemoria(idProceso,unArchivoCompartido,cantidadFrames);
+			sprintf(msj, "El Proceso %s mapeo el archivo compartido [%s] en la posicion [%u]. El archivo ya se encontraba en memoria", idProceso, path,posicionRetorno);
+			loggearInfo(msj);
+			return posicionRetorno;
+		}
+	}
+
+	posicionRetorno = analizarSegmento(idProceso, tamanio, cantidadFrames, true);
+
+	void * buffer = obtenerDatosArchivo(path,tamanio);
+
+	if(!buffer)
+	{
+		sprintf(msj, "El Proceso %s intento leer el archivo %s no existente en el FileSystem", idProceso, path);
+		loggearWarning(msj);
+		return 0;
+	}
+
+	t_list * paginas = obtenerPaginas(idProceso, posicionRetorno); // normalizar para free,get,etc
+	escribirDatosHeap(paginas, posicionRetorno-tam_heap_metadata, &buffer, tamanio);
+
+	/*
+	 * Aca la idea seria agregar al diccionario!
+	 */
+
+
+		sprintf(msj,"El proceso %s escribio %d bytes en la posicion %d para el archivo %s con el flag %d",idProceso,tamanio,posicionRetorno,path,flag);
 	}else
 	{
 		sprintf(msj, "El Proceso %s no ah realizado el init correspondiente", idProceso);
 	}
 
-
 	loggearInfo(msj);
-	//error = 0
+
 	return posicionRetorno;
 
 }
@@ -428,7 +466,7 @@ int procesarClose(char* idProceso) {
 
 uint32_t analizarSegmento (char* idProceso, int tamanio, int cantidadFrames, bool esCompartido) {
 	//Que pasa si en el medio de esta operacion el mismo proceso mediante otro hilo me inserta otro segmento al mismo tiempo = PROBLEMAS
-	char aux[140];
+
 	uint32_t direccionRetorno = 0;
 	t_list* listaSegmentos;
 	int nroSegmento = 0;
@@ -449,28 +487,19 @@ uint32_t analizarSegmento (char* idProceso, int tamanio, int cantidadFrames, boo
 		pthread_mutex_unlock(&mutex_diccionario);
 
 		ultimoSegmento = list_get(listaSegmentos, list_size(listaSegmentos) - 1);
-		ultimaPosicionSegmento = ultimoSegmento->posicionInicial + ultimoSegmento->tamanio;
-		nroSegmento = ultimoSegmento->id_segmento;
 
-		if(ultimoSegmento->esCompartido) {
-			nroSegmento = ultimoSegmento->id_segmento + 1;
-			ultimaPosicionSegmento = ultimoSegmento->posicionInicial + ultimoSegmento->tamanio;
+		ultimaPosicionSegmento = ultimoSegmento->posicionInicial + ultimoSegmento->tamanio;
+		nroSegmento = ultimoSegmento->id_segmento + 1;
+
+		if(ultimoSegmento->esCompartido || esCompartido)
+		{
 			crearSegmento(idProceso, tamanio, cantidadFrames, listaSegmentos,nroSegmento, esCompartido, ultimaPosicionSegmento); // HACER
 			direccionRetorno = ultimaPosicionSegmento + tam_heap_metadata;
-		} else {
+		}
+		else
 			direccionRetorno = completarSegmento(idProceso, ultimoSegmento, tamanio);
 
-		}
 	}
-
-	sprintf(aux,"Malloc para el proceso %s retorna la posicion %u del segmento %d",idProceso,direccionRetorno,nroSegmento);
-
-	if(direccionRetorno == 0)
-		sprintf(aux,"Error en el malloc del proceso %s: memoria llena",idProceso);
-
-
-	loggearInfo(aux);
-
 	return direccionRetorno;
 
 }

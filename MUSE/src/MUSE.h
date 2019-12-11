@@ -5,6 +5,10 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <math.h>
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include <biblioteca/sockets.h>
 #include <biblioteca/serializacion.h>
@@ -30,7 +34,8 @@ typedef enum {
 	HM_NO_EXISTENTE = -1,
 	TAMANIO_SOBREPASADO = - 2, // = SEG FAULT
 	HM_YA_LIBERADO = -3,
-	MEMORIA_COMPLETA = -4
+	MEMORIA_COMPLETA = -4,
+	TAMANIO_ARCHIVO_SOBREPASADO = -5
 } t_errores;
 
 char ip[46];
@@ -45,6 +50,7 @@ char puerto[10];
 pthread_mutex_t mutex_memoria;
 pthread_mutex_t mutex_marcos_libres;
 pthread_mutex_t mutex_diccionario;
+pthread_mutex_t mutex_lista_archivos;
 
 /*
  * Estructura de la memoria principal:
@@ -98,6 +104,7 @@ int cantidadMarcosMemoriaVirtual;
 */
 
 t_dictionary * diccionarioProcesos;
+t_list * listaArchivosCompartidos;
 
 typedef struct {
 	int id_segmento;
@@ -113,6 +120,12 @@ typedef struct {
 	//bit presencia
 	//bit modificado
 } t_pagina;
+
+typedef struct {
+	char * nombreArchivo;
+	int nroParticipantes;
+	int * marcosMapeados;
+} t_archivo_compartido;
 
 // MUSE
 int main();
@@ -166,6 +179,7 @@ bool encontrarSegmento(t_segmento * unSegmento);
 void liberarPagina(int nroPagina, t_list* paginas);
 void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento);
 t_list * obtenerPaginas(char* idProceso, uint32_t posicionSegmento);
+uint32_t agregarPaginasSinMemoria(char * idProceso,t_archivo_compartido * unArchivoCompartido,int cantidadFramesTeoricos);
 
 //MuseHeapMetadata
 int leerUnHeapMetadata(t_list * paginas, int posicionAnteriorHeap,int posicionPosteriorHeap, void ** buffer, int tamanio);

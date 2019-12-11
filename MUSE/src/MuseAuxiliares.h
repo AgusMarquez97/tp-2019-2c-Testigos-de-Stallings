@@ -317,4 +317,116 @@ t_list * obtenerPaginas(char* idProceso, uint32_t posicionSegmento)
 
 }
 
+void * obtenerDatosArchivo(char * path, int tamanio)
+{
+	void * buffer = malloc(tamanio);
+	int tamanioArchivo = 0;
+
+	FILE * fd = fopen(path,"r+");
+		if(!fd)
+			return NULL;
+
+	struct stat statbuf = {0};
+	stat(path,&statbuf);
+
+	int fd_num = fileno(fd);
+	tamanioArchivo = statbuf.st_size;
+
+	void * bufferAuxiliar = mmap(NULL,tamanioArchivo,PROT_READ|PROT_WRITE,MAP_PRIVATE,fd_num,0);
+
+	/*
+	 * Validar con franco
+	 */
+
+	if(tamanio <= tamanioArchivo)
+		memcpy(buffer,bufferAuxiliar,tamanio);
+	else
+	{
+		memcpy(buffer,bufferAuxiliar,tamanioArchivo);
+		memset(buffer + tamanioArchivo,0,tamanio-tamanioArchivo);
+	}
+
+	munmap(buffer,tamanioArchivo);
+
+	fclose(fd);
+
+	return buffer;
+}
+
+void agregarArchivoLista(char * unArchivo, t_archivo_compartido * archivoCompartido)
+{
+	if(archivoCompartido!=NULL)
+	{
+	pthread_mutex_lock(&mutex_lista_archivos);
+	archivoCompartido->nroParticipantes++;
+	pthread_mutex_lock(&mutex_lista_archivos);
+	}
+	else
+	{
+	t_archivo_compartido * unArchivoCompartido = malloc(sizeof(*unArchivoCompartido));
+
+	unArchivoCompartido->nombreArchivo = strdup(unArchivo);
+	unArchivoCompartido->nroParticipantes = 1;
+
+	pthread_mutex_lock(&mutex_lista_archivos);
+	list_add(listaArchivosCompartidos,unArchivoCompartido);
+	pthread_mutex_unlock(&mutex_lista_archivos);
+
+	}
+}
+
+t_archivo_compartido * obtenerArchivoCompartido(char * path)
+{
+	bool existencia(t_archivo_compartido * unArchivoComp)
+	{
+		return strcmp(unArchivoComp->nombreArchivo,path) == 0;
+	}
+	t_archivo_compartido * unArchivo =  list_find(listaArchivosCompartidos,(void*)existencia); // En este caso no me deberia importar lockear
+	return unArchivo;
+}
+
+uint32_t agregarPaginasSinMemoria(char * idProceso,t_archivo_compartido * unArchivoCompartido,int cantidadFramesTeoricos)
+{
+	t_list * listaSegmentos;
+	pthread_mutex_lock(&mutex_diccionario);
+	listaSegmentos = dictionary_get(diccionarioProcesos,idProceso);
+	pthread_mutex_unlock(&mutex_diccionario);
+
+	t_segmento * segmentoNuevo;
+	t_segmento * ultimoSegmento = list_get(listaSegmentos,list_size(listaSegmentos)-1);
+
+	uint32_t nuevaPosicionInicial = ultimoSegmento->posicionInicial + ultimoSegmento->tamanio;
+	int idSegmento = ultimoSegmento->id_segmento + 1;
+
+	t_list * listaPaginas = list_create();
+
+	for(int i = 0;i < cantidadFramesTeoricos;i++)
+	{
+		t_pagina * unaPagina = malloc(sizeof(*unaPagina));
+
+		unaPagina->nroPagina = i;
+		unaPagina->nroMarco = *(unArchivoCompartido->marcosMapeados + i);
+
+		list_add(listaPaginas,unaPagina);
+	}
+
+	segmentoNuevo = malloc(sizeof(*segmentoNuevo));
+
+	segmentoNuevo->esCompartido=true;
+	segmentoNuevo->id_segmento=idSegmento;
+	segmentoNuevo->posicionInicial = nuevaPosicionInicial;
+	segmentoNuevo->tamanio = cantidadFramesTeoricos*tamPagina;
+	segmentoNuevo->paginas = listaPaginas;
+
+	list_add(listaSegmentos,segmentoNuevo);
+
+	pthread_mutex_lock(&mutex_diccionario);
+	dictionary_remove(diccionarioProcesos, idProceso);
+	dictionary_put(diccionarioProcesos, idProceso, listaSegmentos);
+	pthread_mutex_unlock(&mutex_diccionario);
+
+	return nuevaPosicionInicial;
+}
+
+
 #endif /* MUSEAUXILIARES_H_ */

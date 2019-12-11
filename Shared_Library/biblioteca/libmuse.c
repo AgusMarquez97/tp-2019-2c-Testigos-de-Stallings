@@ -130,6 +130,12 @@ int muse_cpy(uint32_t dst, void* src, int n) {
 
 uint32_t muse_map(char* path, size_t length, int flags) {
 
+	if(length<=0)
+	{
+		loggearWarning("Error, length negativo o igual a 0");
+		return 0;
+	}
+
 	uint32_t direccionMemoria;
 	int socketCliente = levantarCliente(ip_muse, puerto_muse);
 	// revisar si se le envía el path con la longitud a MUSE o los bytes ya leídos en libMuse
