@@ -124,7 +124,7 @@ typedef struct {
 typedef struct {
 	char * nombreArchivo;
 	int nroParticipantes;
-	int * marcosMapeados;
+	int32_t * marcosMapeados;
 } t_archivo_compartido;
 
 // MUSE
@@ -179,6 +179,7 @@ bool encontrarSegmento(t_segmento * unSegmento);
 void liberarPagina(int nroPagina, t_list* paginas);
 void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento);
 t_list * obtenerPaginas(char* idProceso, uint32_t posicionSegmento);
+t_archivo_compartido * agregarArchivoLista(char * unArchivo, t_archivo_compartido * archivoCompartido);
 uint32_t agregarPaginasSinMemoria(char * idProceso,t_archivo_compartido * unArchivoCompartido,int cantidadFramesTeoricos);
 
 //MuseHeapMetadata

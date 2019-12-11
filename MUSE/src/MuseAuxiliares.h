@@ -353,8 +353,9 @@ void * obtenerDatosArchivo(char * path, int tamanio)
 	return buffer;
 }
 
-void agregarArchivoLista(char * unArchivo, t_archivo_compartido * archivoCompartido)
+t_archivo_compartido * agregarArchivoLista(char * unArchivo, t_archivo_compartido * archivoCompartido)
 {
+	t_archivo_compartido * unArchivoCompartido = NULL;
 	if(archivoCompartido!=NULL)
 	{
 	pthread_mutex_lock(&mutex_lista_archivos);
@@ -363,7 +364,7 @@ void agregarArchivoLista(char * unArchivo, t_archivo_compartido * archivoCompart
 	}
 	else
 	{
-	t_archivo_compartido * unArchivoCompartido = malloc(sizeof(*unArchivoCompartido));
+	unArchivoCompartido = malloc(sizeof(*unArchivoCompartido));
 
 	unArchivoCompartido->nombreArchivo = strdup(unArchivo);
 	unArchivoCompartido->nroParticipantes = 1;
@@ -371,8 +372,8 @@ void agregarArchivoLista(char * unArchivo, t_archivo_compartido * archivoCompart
 	pthread_mutex_lock(&mutex_lista_archivos);
 	list_add(listaArchivosCompartidos,unArchivoCompartido);
 	pthread_mutex_unlock(&mutex_lista_archivos);
-
 	}
+	return unArchivoCompartido;
 }
 
 t_archivo_compartido * obtenerArchivoCompartido(char * path)

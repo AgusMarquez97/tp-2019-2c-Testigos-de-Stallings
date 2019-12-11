@@ -350,17 +350,25 @@ uint32_t procesarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
 
 	if(existeEnElDiccionario(idProceso))
 	{
+	char aux[35];
+	if(flag == MUSE_MAP_SHARED)
+		strcpy(aux,"MUSE_MAP_SHARED");
+	else
+		strcpy(aux,"MUSE_MAP_PRIVATE");
 
 	int cantidadFrames = obtenerCantidadMarcos(tamPagina, tamanio + tam_heap_metadata);
+	t_archivo_compartido * unArchivoCompartido = NULL;
+
 
 	if(flag == MUSE_MAP_SHARED)
 	{
-		t_archivo_compartido * unArchivoCompartido = obtenerArchivoCompartido(path);
-		agregarArchivoLista(path,unArchivoCompartido); // Si es nulo crea uno nuevo y no entra en el proximo if
+		unArchivoCompartido = obtenerArchivoCompartido(path);
+
 		if(unArchivoCompartido) // Entonces ya existe en memoria! Solo hay que agregarlo en las estructuras administrativas. Si no hay que agregarlo en memoria
 		{
+			agregarArchivoLista(path,unArchivoCompartido);
 			posicionRetorno = agregarPaginasSinMemoria(idProceso,unArchivoCompartido,cantidadFrames);
-			sprintf(msj, "El Proceso %s mapeo el archivo compartido [%s] en la posicion [%u]. El archivo ya se encontraba en memoria", idProceso, path,posicionRetorno);
+			sprintf(msj, "El Proceso %s mapeo el archivo compartido [%s] en la posicion [%u]. El archivo ya se encontraba en memoria compartida", idProceso, path,posicionRetorno);
 			loggearInfo(msj);
 			return posicionRetorno;
 		}
@@ -378,20 +386,31 @@ uint32_t procesarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
 	}
 
 	t_list * paginas = obtenerPaginas(idProceso, posicionRetorno); // normalizar para free,get,etc
-	escribirDatosHeap(paginas, posicionRetorno-tam_heap_metadata, &buffer, tamanio);
+	t_pagina * unaPagina;
+	escribirDatosHeap(paginas, posicionRetorno, &buffer, tamanio);
 
 	/*
 	 * Aca la idea seria agregar al diccionario!
 	 */
 
+	unArchivoCompartido = agregarArchivoLista(path,unArchivoCompartido); // me devuelve el nuevo archivo compartido
+	unArchivoCompartido->marcosMapeados = malloc(sizeof(int32_t)*cantidadFrames);
 
-		sprintf(msj,"El proceso %s escribio %d bytes en la posicion %d para el archivo %s con el flag %d",idProceso,tamanio,posicionRetorno,path,flag);
+	for(int i = 0; i < cantidadFrames;i++)
+	{
+		unaPagina = list_get(paginas,i);
+		*(unArchivoCompartido->marcosMapeados + i) = unaPagina->nroMarco;
+	}
+
+		sprintf(msj,"El proceso %s escribio %d bytes en la posicion %d para el archivo %s con el flag %s",idProceso,tamanio,posicionRetorno,path,aux);
 	}else
 	{
 		sprintf(msj, "El Proceso %s no ah realizado el init correspondiente", idProceso);
 	}
 
 	loggearInfo(msj);
+
+	free(path);
 
 	return posicionRetorno;
 

@@ -308,7 +308,7 @@ void escribirDatosHeap(t_list * paginas, int posicionPosteriorHeap, void ** buff
 {
 	int paginaActual = obtenerPaginaActual(paginas, posicionPosteriorHeap);
 	t_pagina * unaPagina = obtenerPaginaAuxiliar(paginas,paginaActual);
-	int bytesLeidos = 0;
+	int bytesEscritos = 0;
 	int bytesRestantesPagina = 0;
 
 	if(tamanio > tamPagina)
@@ -316,15 +316,15 @@ void escribirDatosHeap(t_list * paginas, int posicionPosteriorHeap, void ** buff
 	else
 		bytesRestantesPagina = tamanio;
 
-	while(bytesLeidos < tamanio)
+	while(bytesEscritos < tamanio)
 	{
 		pthread_mutex_lock(&mutex_memoria);
-		memcpy(memoria + posicionPosteriorHeap,*buffer + bytesLeidos,bytesRestantesPagina);
+		memcpy(memoria + posicionPosteriorHeap,*buffer + bytesEscritos,bytesRestantesPagina);
 		pthread_mutex_unlock(&mutex_memoria);
 
-		bytesLeidos += bytesRestantesPagina;
+		bytesEscritos += bytesRestantesPagina;
 
-		if(bytesLeidos == tamanio)
+		if(bytesEscritos == tamanio)
 			break;
 
 		free(unaPagina);
@@ -333,8 +333,8 @@ void escribirDatosHeap(t_list * paginas, int posicionPosteriorHeap, void ** buff
 
 		posicionPosteriorHeap = unaPagina->nroMarco*tamPagina; // me paro en la primera posicion de la siguiente pagina
 
-		if(tamanio - bytesLeidos < tamPagina)
-			bytesRestantesPagina = tamanio - bytesLeidos;
+		if(tamanio - bytesEscritos < tamPagina)
+			bytesRestantesPagina = tamanio - bytesEscritos;
 		else
 			bytesRestantesPagina = tamPagina;
 	}

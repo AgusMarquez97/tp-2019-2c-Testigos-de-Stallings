@@ -109,9 +109,9 @@ void rutinaServidor(int* p_socket) {
 	} else {
 		switch(mensajeRecibido->tipoOperacion) {
 			case HANDSHAKE:
-			valorRetorno = procesarHandshake(id_proceso);
-			enviarInt(socketRespuesta,valorRetorno);
-			break;
+				valorRetorno = procesarHandshake(id_proceso);
+				enviarInt(socketRespuesta,valorRetorno);
+				break;
 			case MALLOC:
 				info = malloc(strlen("Se_recibió_una_operación_ALLOC del proceso 999999999999999 _de_9999999999999999999999_bytes") + 1);
 				sprintf(info, "Se recibió una operación ALLOC del proceso %d de %d bytes",mensajeRecibido->idProceso, mensajeRecibido->tamanio);
@@ -183,11 +183,11 @@ void rutinaServidor(int* p_socket) {
 				enviarInt(socketRespuesta, retornoUnmap);
 				break;
 			case CLOSE:
-			info = malloc(strlen("Se_recibió_un_UNMAP del proceso 99999999999 _sobre_la_dirección_9999999999999999999999") + 1);
-			sprintf(info, "Se recibio una operacion CLOSE del proceso %d",mensajeRecibido->idProceso);
-			loggearInfo(info);
-			int retornoClose = procesarClose(id_proceso); //funcion que debe liberar la memoria reservada tanto principal como swap y debe eliminar la entrada del diccionario
-			enviarInt(socketRespuesta, retornoClose);
+				info = malloc(strlen("Se_recibió_un_UNMAP del proceso 99999999999 _sobre_la_dirección_9999999999999999999999") + 1);
+				sprintf(info, "Se recibio una operacion CLOSE del proceso %d",mensajeRecibido->idProceso);
+				loggearInfo(info);
+				int retornoClose = procesarClose(id_proceso); //funcion que debe liberar la memoria reservada tanto principal como swap y debe eliminar la entrada del diccionario
+				enviarInt(socketRespuesta, retornoClose);
 			break;
 		default:
 			break;
