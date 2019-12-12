@@ -347,14 +347,13 @@ uint32_t procesarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
 
 	char msj[450];
 	uint32_t posicionRetorno = 0;
-
 	if(existeEnElDiccionario(idProceso))
 	{
 	char aux[35];
 	if(flag == MUSE_MAP_SHARED)
-		strcpy(aux,"MUSE_MAP_SHARED");
+		strcpy(aux,"MUSE MAP SHARED");
 	else
-		strcpy(aux,"MUSE_MAP_PRIVATE");
+		strcpy(aux,"MUSE MAP PRIVATE");
 
 	int cantidadFrames = obtenerCantidadMarcos(tamPagina, tamanio + tam_heap_metadata);
 	t_archivo_compartido * unArchivoCompartido = NULL;
@@ -368,7 +367,7 @@ uint32_t procesarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
 		{
 			agregarArchivoLista(path,unArchivoCompartido);
 			posicionRetorno = agregarPaginasSinMemoria(idProceso,unArchivoCompartido,cantidadFrames);
-			sprintf(msj, "El Proceso %s mapeo el archivo compartido [%s] en la posicion [%u]. El archivo ya se encontraba en memoria compartida", idProceso, path,posicionRetorno);
+			sprintf(msj, "El Proceso %s mapeo el archivo compartido %s en la posicion %u. El archivo ya se encontraba en memoria compartida", idProceso, path,posicionRetorno);
 			loggearInfo(msj);
 			return posicionRetorno;
 		}
@@ -402,6 +401,9 @@ uint32_t procesarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
 		*(unArchivoCompartido->marcosMapeados + i) = unaPagina->nroMarco;
 	}
 
+		t_segmento* unSegmento = obtenerUnSegmento(idProceso, posicionRetorno);
+		unSegmento->archivo = strdup(path);
+
 		sprintf(msj,"El proceso %s escribio %d bytes en la posicion %d para el archivo %s con el flag %s",idProceso,tamanio,posicionRetorno,path,aux);
 	}else
 	{
@@ -418,28 +420,56 @@ uint32_t procesarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
 
 int procesarSync(char* idProceso, uint32_t posicionMemoria, int32_t tamanio) {
 
-	//int base = 0;
-	//int offset = 0;
 
+	char msj[450];
+	int retorno = -1;
 
-//	if(obtenerDireccionMemoria(idProceso, posicionMemoria, &base, &offset)) {
-//		t_heap_metadata* heapMetadata = obtenerHeapMetadata(base, offset);
-//
-//		if(!heapMetadata->estaLibre && heapMetadata->offset >= tamanio) {
-//
-//			return 0;
-//		}
-//	}
+	if(existeEnElDiccionario(idProceso))
+	{
+	void * buffer = procesarGet(idProceso, posicionMemoria, tamanio);
+	t_segmento* unSegmento = obtenerUnSegmento(idProceso, posicionMemoria);
+	retorno = copiarDatosEnArchivo(unSegmento->archivo, tamanio, buffer);
+	sprintf(msj,"El Proceso %s descargo %d bytes en el archivo %s",idProceso,tamanio,unSegmento->archivo);
+	}
+	else
+	{
+		sprintf(msj, "El Proceso %s no ah realizado el init correspondiente", idProceso); // ver de pasar la validacion al lado del cliente
+	}
 
-
-	return -1;
+	return retorno;
 
 }
 
+
 int procesarUnmap(char* idProceso, uint32_t posicionMemoria) {
 
-	return 0;
+	char msj[350];
 
+	pthread_mutex_lock(&mutex_diccionario);
+	t_list * segmentos = dictionary_get(diccionarioProcesos, idProceso);
+	pthread_mutex_unlock(&mutex_diccionario);
+
+	t_segmento* unSegmento = obtenerSegmento(segmentos, posicionMemoria);
+
+	liberarConUnmap(idProceso,unSegmento);
+
+	reducirArchivoCompartido(unSegmento->archivo);
+
+	free(unSegmento->archivo);
+
+	/*if(unSegmento->id_segmento == list_size(segmentos)-1)
+	{
+		sprintf(msj,"Unmap resulta en que el segmento %d es liberado de la lista del proceso %s",unSegmento->id_segmento,idProceso);
+		list_remove_and_destroy_element(segmentos,unSegmento->id_segmento,(void*)free); // falta analizar que pasa si es el unico/ultimo elemento de la lista => PENDIENTE (aunque no es un requerimiento)
+	}else
+	{
+		sprintf(msj,"Unmap ejecutado correctamente para el proceso %s direccion %d",idProceso,unSegmento->id_segmento);
+	}*/
+
+	sprintf(msj,"Unmap ejecutado correctamente para el proceso %s direccion %d",idProceso,unSegmento->id_segmento);
+	loggearInfo(msj);
+
+	return 0;
 }
 
 int procesarClose(char* idProceso) {

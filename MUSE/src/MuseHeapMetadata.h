@@ -294,7 +294,7 @@ int escribirDatosHeapMetadata(t_list * paginas, int posicionAnteriorHeap,int pos
 		t_heap_metadata * unHeap = obtenerHeapMetadata(paginas, posicionAnteriorHeap);
 		if(unHeap->estaLibre)
 			return HM_YA_LIBERADO;
-		if(unHeap->offset < tamanio)
+		if(unHeap->offset < tamanio) // Para hacer esto infalible => pasar el segmento, todo para evitar el caso de memoria compartida (NO LO PIDEN)
 			return TAMANIO_SOBREPASADO;
 
 		escribirDatosHeap(paginas,posicionPosteriorHeap,buffer,tamanio);
@@ -448,7 +448,6 @@ bool existeHM(t_list * paginas, int offsetBuscado)
 
 
 	return false;
-
 }
 
 

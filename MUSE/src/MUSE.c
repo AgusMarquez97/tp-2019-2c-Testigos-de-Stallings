@@ -135,9 +135,7 @@ void rutinaServidor(int* p_socket) {
 				sprintf(info, "Se recibió una operación GET del proceso %d sobre la dirección %u de %d bytes",mensajeRecibido->idProceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
 				loggearInfo(info);
 				free(info);
-
-				void* retornoGet = malloc(mensajeRecibido->tamanio);
-				retornoGet = procesarGet(id_proceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
+				void* retornoGet = procesarGet(id_proceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
 				enviarVoid(socketRespuesta, retornoGet, mensajeRecibido->tamanio);
 
 				free(retornoGet);
@@ -154,7 +152,13 @@ void rutinaServidor(int* p_socket) {
 				break;
 			case MAP:
 				info = malloc(strlen("Se_recibió_un_MAP del proceso 99999999999 ara el arcara el archivohivoara el archivo_con_el_flag_9999999999999999999999") + 1 + strlen((char*)mensajeRecibido->contenido) +1);
-				sprintf(info, "Se recibió un MAP del proceso %d para el archivo %s con el flag %d",mensajeRecibido->idProceso,(char*)mensajeRecibido->contenido,mensajeRecibido->flag);
+				char aux[35];
+				if(mensajeRecibido->flag == MUSE_MAP_SHARED)
+					strcpy(aux,"MUSE MAP SHARED");
+				else
+					strcpy(aux,"MUSE MAP PRIVATE");
+
+				sprintf(info, "Se recibió un MAP del proceso %d para el archivo %s con el flag %s",mensajeRecibido->idProceso,(char*)mensajeRecibido->contenido,aux);
 				loggearInfo(info);
 				free(info);
 

@@ -112,6 +112,7 @@ typedef struct {
 	int tamanio; //tamanio que sera multiplo del tam de pag siendo este el menor tamanio posible
 	bool esCompartido;
 	t_list * paginas;
+	char * archivo;
 } t_segmento;
 
 typedef struct {
@@ -156,6 +157,7 @@ uint32_t analizarSegmento (char* idProceso, int tamanio, int cantidadFrames, boo
 
 // MuseAuxiliares
 int obtenerCantidadMarcos(int tamanioPagina, int tamanioMemoria);
+t_segmento* obtenerUnSegmento(char * idProceso, uint32_t posicionMemoria);
 t_segmento* obtenerSegmento(t_list* segmentos, uint32_t posicionMemoria);
 t_pagina* obtenerPagina(t_list* paginas, uint32_t posicionMemoria);
 bool paginaCorrespondiente(t_pagina* pagina);
@@ -181,6 +183,11 @@ void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento);
 t_list * obtenerPaginas(char* idProceso, uint32_t posicionSegmento);
 t_archivo_compartido * agregarArchivoLista(char * unArchivo, t_archivo_compartido * archivoCompartido);
 uint32_t agregarPaginasSinMemoria(char * idProceso,t_archivo_compartido * unArchivoCompartido,int cantidadFramesTeoricos);
+t_list * crearPaginasSinMemoria(t_archivo_compartido * unArchivoCompartido,int cantidadFramesTeoricos);
+t_segmento * crearSegmentoSinMemoria(t_list * listaPaginas,int idSegmento,uint32_t posicionInicial,int cantidadFramesTeoricos);
+int copiarDatosEnArchivo(char * path, int tamanio, void * buffer);
+void liberarConUnmap(char * idProceso, t_segmento * unSegmento);
+void reducirArchivoCompartido(char * path);
 
 //MuseHeapMetadata
 int leerUnHeapMetadata(t_list * paginas, int posicionAnteriorHeap,int posicionPosteriorHeap, void ** buffer, int tamanio);
