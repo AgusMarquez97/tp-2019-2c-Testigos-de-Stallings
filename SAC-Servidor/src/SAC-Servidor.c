@@ -204,8 +204,8 @@ void escribir(int indArchivo, char* contenido, size_t tamanio, off_t offset)
 	int bloqDatos = 0;
 	int cantAEscribir;
 
-	if(offset == 0)
-		offset = tablaNodos[indArchivo].file_size;
+	//if(offset == 0)
+	offset = tablaNodos[indArchivo].file_size;
 
 	sem_wait(&mutWrite);
 
@@ -213,7 +213,6 @@ void escribir(int indArchivo, char* contenido, size_t tamanio, off_t offset)
 	{
 		//bloque de punteros indirectos
 
-		offset = 0;
 
 		int indBloque = ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER;//el indice en el bitmap arranca despues de eso
 		int valorBit = bitarray_test_bit(bitmap, indBloque);
@@ -246,7 +245,7 @@ void escribir(int indArchivo, char* contenido, size_t tamanio, off_t offset)
 
 	if(tamanio + offset < BLOCK_SIZE)
 	{
-		strcpy(tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[0]->bytes + offset, contenido);
+		memcpy(tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[0]->bytes + offset, contenido, tamanio);
 	}
 	else
 	{
@@ -310,8 +309,8 @@ void escribir(int indArchivo, char* contenido, size_t tamanio, off_t offset)
 					if(bloqDatos < (BLOQUES_DATOS - 1) )
 						tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos + 1] = NULL;
 				}
+				memcpy(tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes + offset, contenido+cantidadEscrita, cantAEscribir);
 
-				strncpy(tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes + offset, contenido+cantidadEscrita, cantAEscribir);
 				cantidadEscrita = cantidadEscrita + cantAEscribir;
 				cantAEscribir = BLOCK_SIZE;
 				if( (tamanio-cantidadEscrita) < BLOCK_SIZE)
@@ -768,7 +767,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 			memcpy(&size, buffer + sizeof(int) + tamNombre , sizeof(size_t) );
 			memcpy(&offset, buffer + sizeof(int) + tamNombre + sizeof(size_t), sizeof(off_t) );
 
-			char* contAEnviar = malloc(size + 1);
+
 			indArch = indiceObjeto(nombreRead);
 
 			enviarInt(socketRespuesta, indArch);
@@ -778,18 +777,24 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 
 			int bloqInd = 0;
 			int bloqDatos = 0;
-			char* contenido = malloc(BLOCK_SIZE);
 
 			int cantALeer;
 			int cantidadLeida = 0;
 
-			if(size > tablaNodos[indArch].file_size)//esto es una mierda, ver de donde sale el error
-				size = tablaNodos[indArch].file_size;
+			int suma = size + offset;
+
+			if(suma > tablaNodos[indArch].file_size)
+				size = tablaNodos[indArch].file_size - offset;
+
+			//if(offset > tablaNodos[indArch].file_size)
+				//cantALeer = 0;
+
+			char* contAEnviar = malloc(size);
 
 			if(size + offset < BLOCK_SIZE)
 			{
-				strncpy(contAEnviar, tablaNodos[indArch].bloques_ind[0]->bloquesDatos[0]->bytes + offset, size);
-				contAEnviar[size] = '\0';
+				memcpy(contAEnviar, tablaNodos[indArch].bloques_ind[0]->bloquesDatos[0]->bytes + offset, size);
+				cantidadLeida = size;
 			}
 			else
 			{
@@ -804,17 +809,28 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 					}
 
 					offset = offset % BLOCK_SIZE;
-				}
 
-				cantALeer = BLOCK_SIZE - offset;
+					if(suma < tablaNodos[indArch].file_size)
+						cantALeer = BLOCK_SIZE - offset;
+					else
+					{
+						if( (suma - tablaNodos[indArch].file_size) < BLOCK_SIZE)
+							cantALeer = BLOCK_SIZE - (suma - tablaNodos[indArch].file_size);
+						else
+							cantALeer = BLOCK_SIZE - ( (suma - tablaNodos[indArch].file_size) % BLOCK_SIZE );
+					}
+				}
+				else
+					cantALeer = BLOCK_SIZE - offset;
+
 
 				while(cantidadLeida < size && bloqInd < BLOQUES_INDIRECTOS)
 				{
 
 					while( cantidadLeida < size && bloqDatos < BLOQUES_DATOS)
 					{
-						strncpy(contAEnviar, tablaNodos[indArch].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes + offset, cantALeer);
-						cantidadLeida = cantidadLeida + BLOCK_SIZE;
+						memcpy(contAEnviar + cantidadLeida, tablaNodos[indArch].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes + offset, cantALeer);
+						cantidadLeida = cantidadLeida + cantALeer;
 						cantALeer = BLOCK_SIZE;
 						if( (size-cantidadLeida) < BLOCK_SIZE)
 							cantALeer = size-cantidadLeida;
@@ -827,16 +843,14 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 				}
 			}
 
-			int tamAEnviar = strlen(contAEnviar);
+			int tamAEnviar = cantidadLeida;
 
-			//enviarString(socketRespuesta, contAEnviar);
-			enviarInt(socketRespuesta, tamAEnviar);//esto esta mal, mandar todo junto
+			enviarInt(socketRespuesta, tamAEnviar);
 			enviar(socketRespuesta, contAEnviar, tamAEnviar);
 
 			free(nombreRead);
 			free(buffer);
 			//free(contAEnviar);
-			free(contenido);
 
 			break;
 		}
@@ -879,9 +893,9 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 			off_t offset;
 
 
-			memcpy(&tamNom, bufferWrite, sizeof(int));
+			memcpy(&tamNom, bufferWrite, sizeof(int) );
 			memcpy(nombre, bufferWrite + sizeof(int), tamNom);
-			memcpy(&tamContenido,bufferWrite + sizeof(int) + tamNom, sizeof(size_t) );
+			memcpy(&tamContenido, bufferWrite + sizeof(int) + tamNom, sizeof(size_t) );
 
 			char* contenido = malloc(tamContenido);
 			memcpy(contenido, bufferWrite + sizeof(int) + tamNom + sizeof(size_t), tamContenido);
@@ -892,9 +906,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 			if (indArch == -1)//ver
 					break;
 
-			escribir(indArch, contenido, tamContenido, offset);//offsetWrite);
-
-			//offsetWrite = offsetWrite + tamContenido;
+			escribir(indArch, contenido, tamContenido, offset);
 
 			free(contenido);
 			free(nombre);
