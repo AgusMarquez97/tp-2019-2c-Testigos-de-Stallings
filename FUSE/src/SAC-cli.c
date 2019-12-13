@@ -22,8 +22,9 @@ int indiceTabla=-1;
 int32_t socketConexion;
 int tamanioTotal = 0;
 char* bufferWrite;
-int offsetWrite = 0;
+size_t offsetWrite = 0;
 int contadorWrite = 0;
+off_t offsetPrimero = 0;
 
 struct t_runtime_options {
 	char* disco;
@@ -314,7 +315,6 @@ static int hacer_read(const char *path, char *buffer, size_t size, off_t offset,
 
 	void* bufferEnviar = malloc( sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + sizeof(off_t) );
 
-	//int que le va a indicar al servidor que tamanio recibir
 	int tamARecibir = sizeof(int) + tamNombre + sizeof(size_t) + sizeof(off_t);
 
 	enviarInt(socketConexion, READ);
@@ -339,22 +339,26 @@ static int hacer_read(const char *path, char *buffer, size_t size, off_t offset,
 
 	recibir(socketConexion, contenido, tamContenido);
 
-	if(tamContenido >= 0)
+	int tamBuffer;
+
+	if(tamContenido > 0)
 	{
 		if(size <= tamContenido)
 		{
-			memcpy(buffer, contenido, size );
-			buffer[size] = '\0';
+			memcpy(buffer, contenido, size);
+			//buffer[size] = '\0';
+			tamBuffer = size;
 		}
 		else
 		{
-			strcpy(buffer, contenido);
-			buffer[tamContenido] = '\0';
+			memcpy(buffer, contenido, tamContenido);
+			//buffer[tamContenido] = '\0';
+			tamBuffer = tamContenido;
 		}
 
 	}
-
-	int tamBuffer = strlen(buffer);
+	else
+		tamBuffer = tamContenido;
 
 	free(contenido);
 	free(bufferEnviar);
@@ -396,31 +400,47 @@ static int hacer_write(const char* path, const char* buffer, size_t size, off_t 
 {
 
 	size_t tamBufferLocal;
-	off_t offsetPrimero = 0;
+	//off_t offsetPrimero = 0;
 
 
 	if(bufferWrite == NULL)
 	{
-		bufferWrite = malloc(size + 1);
+		bufferWrite = malloc(size);
 		tamBufferLocal = 0;
 		offsetPrimero = offset;
 	}
 	else
 		tamBufferLocal = strlen(bufferWrite);
 
-	size_t tamACopiar = strlen(buffer) + 1;
+	size_t tamACopiar = strlen(buffer);// + 1;
+
+	if(buffer[0] == '\0')
+		tamACopiar = 1;
 
 	if(size > tamACopiar)
 	{
-		memcpy(bufferWrite + offsetWrite, buffer, tamACopiar);
-		tamBufferLocal = strlen(bufferWrite) + 1;
-		offsetWrite = offsetWrite + tamACopiar - 1;
+		/*if(buffer[0] == '\0')
+		{
+			tamACopiar = 1;
+			memcpy(bufferWrite + offsetWrite, "", tamACopiar);
+			tamBufferLocal = strlen(bufferWrite);
+			offsetWrite = offsetWrite + tamACopiar;
+		}
+		else
+		{*/
+			memcpy(bufferWrite + offsetWrite, buffer, tamACopiar);
+			tamBufferLocal = strlen(bufferWrite);
+			offsetWrite = offsetWrite + tamACopiar;
+		//}
+
+			//if(buffer[0] == '\0')
+				//offsetWrite--;
 	}
 	else
 	{
 		memcpy(bufferWrite + offsetWrite, buffer, size);
-		bufferWrite[offsetWrite+size] = '\0';
-		tamBufferLocal = strlen(bufferWrite) + 1;
+		//bufferWrite[offsetWrite+size] = '\0';
+		tamBufferLocal = strlen(bufferWrite);
 		offsetWrite = offsetWrite + size;
 		tamACopiar = size;
 
@@ -430,15 +450,15 @@ static int hacer_write(const char* path, const char* buffer, size_t size, off_t 
 		char* nombre = nombreObjeto(path);
 		int tamNombre = strlen(nombre) + 1;
 
-		void* bufferEnviar = malloc(sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + tamBufferLocal + sizeof(off_t) );
+		void* bufferEnviar = malloc(sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + offsetWrite + sizeof(off_t) );//tamBufferLocal
 
-		int tamEnviar = sizeof(int) + tamNombre + sizeof(size_t) + tamBufferLocal + sizeof(off_t);
+		int tamEnviar = sizeof(int) + tamNombre + sizeof(size_t) + offsetWrite + sizeof(off_t);
 
 		memcpy(bufferEnviar, &tamEnviar, sizeof(int) );
 		memcpy(bufferEnviar + sizeof(int), &tamNombre, sizeof(int) );
 		memcpy(bufferEnviar + sizeof(int) + sizeof(int), nombre, tamNombre );
-		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre, &tamBufferLocal, sizeof(size_t) );
-		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t), bufferWrite, tamBufferLocal);
+		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre, &offsetWrite, sizeof(size_t) );
+		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t), bufferWrite, offsetWrite);
 		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + tamBufferLocal, &offsetPrimero, sizeof(off_t) );
 		enviar(socketConexion, bufferEnviar, sizeof(int) + tamEnviar );
 
@@ -449,6 +469,7 @@ static int hacer_write(const char* path, const char* buffer, size_t size, off_t 
 		offsetWrite = 0;
 
 	}
+
 
 	return tamACopiar;
 
