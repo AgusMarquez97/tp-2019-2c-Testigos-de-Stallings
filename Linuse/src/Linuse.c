@@ -7,23 +7,22 @@ int main(void) {
 
 	muse_init(getpid(),"127.0.0.1",5003);
 
-	uint32_t pos = muse_alloc(50);
-
-	
-	char* msj = malloc(strlen("Se_recibió_la_siguiente_dirección:_9999999999999999999999"));
-	sprintf(msj, "Se recibió la siguiente dirección: %u\n", pos);
-	loggearInfo(msj);
-	free(msj);
-
-	char* cadena_cpy = "Cadena con algo";
-	muse_cpy(pos, cadena_cpy, strlen(cadena_cpy) + 1);
-
-	char* cadena_get = malloc(30);
-	muse_get(cadena_get, pos, 16);
-	loggearInfo(cadena_get);
-	free(cadena_get);
-	
-	muse_free(pos);
+	uint32_t xxi = muse_alloc(21);
+	uint32_t ix = muse_alloc(9);
+	uint32_t xvii = muse_alloc(17);
+	uint32_t v = muse_alloc(5);
+	muse_free(xvii);
+	uint32_t x = muse_alloc(10);
+	uint32_t xl = muse_alloc(40);
+	muse_free(xxi);
+	uint32_t c = muse_alloc(100);
+	muse_free(x);
+	muse_free(v);
+	muse_free(c);
+	muse_free(ix);
+	muse_free(xl);
+	uint32_t cxi = muse_alloc(111);
+	muse_free(cxi);
 
 	muse_close();
 

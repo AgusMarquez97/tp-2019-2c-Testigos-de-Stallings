@@ -27,7 +27,9 @@ int32_t suse_create_servidor(char* idProcString, int32_t idThread){
 	hiloEntrante->timestampEntra= 0;
 	hiloEntrante->timestampSale= 0;
 	hiloEntrante->timestampCreacion=timestampEnMilisegundos();
+	pthread_mutex_lock(&mutexEstimado);
 	hiloEntrante->estimado = 0;
+	pthread_mutex_unlock(&mutexEstimado);
 	hiloEntrante->tiempoEnReady= 0;
 	hiloEntrante->tiempoEnExec=0;
 
@@ -142,29 +144,35 @@ int32_t suse_schedule_next_servidor(char* idProcString){
 	pthread_mutex_unlock(&mutexSemHilosDisp);
 	sem_wait(semDisp);
 
-if(!list_is_empty(colaReady)){
+
+  if(hiloActual != NULL)
+	   {
+		hiloActual->estadoHilo = READY;
+		hiloActual->timestampSale = timestampEnMilisegundos();
+		pthread_mutex_lock(&mutexEstimado);
+		hiloActual->estimado = hiloActual->estimado*(1-alphaSJF)+(hiloActual->timestampSale-hiloActual->timestampEntra)*alphaSJF;
+		pthread_mutex_unlock(&mutexEstimado);
+		hiloActual->timestampEntraEnReady= timestampEnMilisegundos();
+		hiloActual->tiempoEnExec+=timestampEnMilisegundos()-hiloActual->timestampEntra;
+
+		list_add(colaReady,hiloActual);
+		char * msj = malloc(strlen("El hilo 99999999999 tiene ESTIMADO:999999999999999" ) + 1);
+		sprintf(msj,"El hilo %d tiene ESTIMADO:%ld",hiloActual->idHilo,hiloActual->estimado);
+		loggearInfo(msj);
+		free(msj);
+	    }
+
+ if(!list_is_empty(colaReady)){
 	pthread_mutex_lock(&mutexReady);
     hiloSiguiente= removerHiloConRafagaMasCorta(colaReady);
     hiloSiguiente->estadoHilo=EXEC;
     hiloSiguiente->timestampEntra = timestampEnMilisegundos();
     hiloSiguiente->tiempoEnReady+=timestampEnMilisegundos()-hiloSiguiente->timestampEntraEnReady;
 
-
-        if(hiloActual != NULL)
-        {
-        	hiloActual->estadoHilo = READY;
-        	hiloActual->timestampSale = timestampEnMilisegundos();
-        	hiloActual->estimado = hiloActual->estimado*(1-alphaSJF)+(hiloActual->timestampSale-hiloActual->timestampEntra)*alphaSJF;
-        	hiloActual->timestampEntraEnReady= timestampEnMilisegundos();
-        	hiloActual->tiempoEnExec+=timestampEnMilisegundos()-hiloActual->timestampEntra;
-
-        	list_add(colaReady,hiloActual);
-
-        }
-        pthread_mutex_lock(&mutexExec);
-        dictionary_put(execs,hiloSiguiente->idProceso,hiloSiguiente);
-        pthread_mutex_unlock(&mutexExec);
-        pthread_mutex_unlock(&mutexReady);
+	pthread_mutex_lock(&mutexExec);
+	dictionary_put(execs,hiloSiguiente->idProceso,hiloSiguiente);
+	pthread_mutex_unlock(&mutexExec);
+	pthread_mutex_unlock(&mutexReady);
 
     char * msj = malloc(strlen("El hilo 99999999999 del proceso 9999999999999 entro en EXEC " ) + 1);
     sprintf(msj,"El hilo %d del proceso %s entro en EXEC ",hiloSiguiente->idHilo,hiloSiguiente->idProceso);
@@ -174,16 +182,7 @@ if(!list_is_empty(colaReady)){
     sem_post(semDisp);
     return hiloSiguiente->idHilo;
 	}
-if(hiloActual!=NULL)
-	{
-	char * msj1 = malloc(strlen("El hilo 99999999999 del proceso 9999999999999 continua en EXEC " ) + 1);
-	sprintf(msj1,"El hilo %d del proceso %s continua en EXEC ",hiloActual->idHilo,hiloActual->idProceso);
-	loggearInfo(msj1);
-	free(msj1);
-	sem_post(semDisp);
-	return hiloActual->idHilo;
 
-	}
 
 loggearInfo("/////FALLO EL NEXT///////////");
 return -1;//aca no debería llegar nunca...
@@ -239,7 +238,9 @@ int32_t suse_join_servidor(char* idProcString, int32_t tid)
 	hiloABloquear->estadoHilo=BLOCK;
 	hiloABloquear->hiloBloqueante=tid;//lo bloqueo
 	hiloABloquear->timestampSale=(int32_t) time(NULL);
+	pthread_mutex_lock(&mutexSemHilosDisp);
 	hiloABloquear->estimado = hiloABloquear->estimado*(1-alphaSJF)+(hiloABloquear->timestampSale-hiloABloquear->timestampEntra)*alphaSJF;
+	pthread_mutex_unlock(&mutexSemHilosDisp);
 	hiloABloquear->tiempoEnExec+=timestampEnMilisegundos()-hiloABloquear->timestampEntra;
 
 
@@ -300,7 +301,9 @@ int32_t suse_close_servidor(char *  idProcString, int32_t tid)
     {
     dictionary_remove(execs,idProcString);
     hiloParaExit->timestampSale = (int32_t) time(NULL);
+    pthread_mutex_lock(&mutexEstimado);
     hiloParaExit->estimado = hiloParaExit->estimado*(1-alphaSJF)+(hiloParaExit->timestampSale-hiloParaExit->timestampEntra)*alphaSJF;
+    pthread_mutex_unlock(&mutexEstimado);
     hiloParaExit->estadoHilo=EXIT;
     hiloParaExit->tiempoEnExec+=timestampEnMilisegundos()-hiloParaExit->timestampEntra;
     pthread_mutex_lock(&mutexExit);
@@ -661,7 +664,6 @@ void rutinaServidor(int * p_socket)
 				dictionary_put(semHilosDisp,procStringAux,semProceso);
 				pthread_mutex_unlock(&mutexSemHilosDisp);
 				result= suse_create_servidor(idProcString, mensajeRecibido->idHilo);
-
 				suse_schedule_next_servidor(idProcString);
 			}
 			else
@@ -750,7 +752,7 @@ void levantarConfig()
 	semInit = config_get_array_value(unConfig,"SEM_INIT");
 	semMax = config_get_array_value(unConfig,"SEM_MAX");
 
-	alphaSJF = config_get_int_value(unConfig,"ALPHA_SJF");
+	alphaSJF = config_get_double_value(unConfig,"ALPHA_SJF");
 
 	config_destroy(unConfig);
 
@@ -797,6 +799,7 @@ void inicializarSemaforosPthread(){
 	pthread_mutex_init(&mutexProc, NULL);
 	pthread_mutex_init(&mutexExit, NULL);
 	pthread_mutex_init(&mutexSemHilosDisp, NULL);
+	pthread_mutex_init(&mutexEstimado, NULL);
 	sem_init(&semPruebas,0,0);
 }
 

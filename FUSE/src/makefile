@@ -14,8 +14,8 @@
 CC = gcc
 CFLAGS  = -Wall -g -fmessage-length=0 -D_FILE_OFFSET_BITS=64 `pkg-config fuse --cflags --libs`
 INCLUDES = -I"/home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/Shared_Library"  -I"/home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/FUSE"
-LFLAGS = -L"/home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/Shared_Library/Debug" -L/home/utnso/workspace/hilolay
-LIBS = -lShared_Library -lrt -lm -lreadline -lpthread -lcommons -lfuse
+LFLAGS = -L"/home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/Shared_Library/biblioteca" -L"/home/utnso/workspace/hilolay"
+LIBS = -lShared_Library -lrt -lm -lreadline -lpthread -lcommons -lfuse -lhilolay
 
 # typing 'make' will invoke the first target entry in the file 
 # (in this case the default target entry)

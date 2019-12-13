@@ -15,17 +15,17 @@
  */
 
 // La funcion que deberia llamar copy. Offset = primera posicion luego del HM en memoria!
-int leerUnHeapMetadata(t_list * paginas, int offset, void ** buffer, int tamanio)
+int leerUnHeapMetadata(t_list * paginas, int posicionAnteriorHeap,int posicionPosteriorHeap, void ** buffer, int tamanio)
 {
-	if(existeHM(paginas, offset))
+	if(existeHM(paginas, posicionAnteriorHeap))
 	{
-		t_heap_metadata * unHeap = obtenerHeapMetadata(paginas, offset);
+		t_heap_metadata * unHeap = obtenerHeapMetadata(paginas, posicionAnteriorHeap);
 		if(unHeap->estaLibre)
 			return HM_YA_LIBERADO;
 		if(unHeap->offset < tamanio)
 			return TAMANIO_SOBREPASADO;
 
-		leerDatosHeap(paginas,offset+tam_heap_metadata,buffer,tamanio);
+		leerDatosHeap(paginas,posicionPosteriorHeap,buffer,tamanio);
 		free(unHeap);
 		return tamanio; // si llego nunca deberia fallar leerDatosHeap
 	}
@@ -38,9 +38,16 @@ int liberarUnHeapMetadata(t_list * paginas, int offset)
 	{
 		t_heap_metadata * unHeap = obtenerHeapMetadata(paginas, offset);
 
+		int cantidadMarcos = obtenerCantidadMarcos(tamPagina, offset);
+		if(cantidadMarcos == 0)
+			cantidadMarcos++;
+		int nroPagina = obtenerPaginaActual(paginas, offset);
+		int tamanioRestante = tamPagina*cantidadMarcos - offset;
+
 		if(!unHeap->estaLibre)
 		{
-			return escribirHeapMetadata(paginas, offset,-1,false);
+			unHeap->estaLibre = true;
+			return escribirUnHeapMetadata(paginas, nroPagina, unHeap, &offset, tamanioRestante);
 		}
 		return HM_YA_LIBERADO;
 
@@ -48,32 +55,41 @@ int liberarUnHeapMetadata(t_list * paginas, int offset)
 	return HM_NO_EXISTENTE;
 }
 
-void leerDatosHeap(t_list * paginas, int offset, void ** buffer, int tamanio)
+void leerDatosHeap(t_list * paginas, int posicionPosteriorHeap, void ** buffer, int tamanio)
 {
-	int paginaActual = obtenerPaginaActual(paginas, offset);
-	t_pagina * unaPagina = list_get(paginas,paginaActual);
-	int bytesLeidos = 0;
-	int bytesRestantesPagina = 0;
+		int paginaActual = obtenerPaginaActual(paginas, posicionPosteriorHeap);
+		t_pagina * unaPagina = obtenerPaginaAuxiliar(paginas,paginaActual);
+		int bytesLeidos = 0;
+		int bytesRestantesPagina = 0;
 
-	while(bytesLeidos < tamanio)
-	{
-		bytesRestantesPagina = (tamPagina)*(unaPagina->nroMarco+1) - offset;
-
-		pthread_mutex_lock(&mutex_memoria);
-		memcpy(*buffer + bytesLeidos,memoria + offset,bytesRestantesPagina);
-		pthread_mutex_unlock(&mutex_memoria);
-
-		bytesLeidos += bytesRestantesPagina;
-
-		unaPagina = list_get(paginas,(paginaActual+1));
-
-		offset = unaPagina->nroMarco*tamPagina; // me paro en la primera posicion de la siguiente pagina
-
-		if(tamanio - bytesLeidos < tamPagina)
-			bytesRestantesPagina = tamanio - bytesLeidos;
+		if(tamanio > tamPagina)
+			bytesRestantesPagina = (tamPagina)*(unaPagina->nroMarco+1) - posicionPosteriorHeap;
 		else
-		bytesRestantesPagina = tamPagina;
-	}
+			bytesRestantesPagina = tamanio;
+
+		while(bytesLeidos < tamanio)
+		{
+			pthread_mutex_lock(&mutex_memoria);
+			memcpy(*buffer + bytesLeidos,memoria + posicionPosteriorHeap,bytesRestantesPagina);
+			pthread_mutex_unlock(&mutex_memoria);
+
+			bytesLeidos += bytesRestantesPagina;
+
+			if(bytesLeidos == tamanio)
+				break;
+
+			free(unaPagina);
+			paginaActual++;
+			unaPagina = obtenerPaginaAuxiliar(paginas,paginaActual);
+
+			posicionPosteriorHeap = unaPagina->nroMarco*tamPagina; // me paro en la primera posicion de la siguiente pagina
+
+			if(tamanio - bytesLeidos < tamPagina)
+				bytesRestantesPagina = tamanio - bytesLeidos;
+			else
+				bytesRestantesPagina = tamPagina;
+		}
+		free(unaPagina);
 }
 
 void leerHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* bytesLeidosPagina, int* offset, t_list * paginas, int* nroPagina) {
@@ -83,6 +99,7 @@ void leerHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* byt
 	int paginasSalteadas = 0;
 	t_pagina* paginaDummy = malloc(sizeof(*paginaDummy));
 	int sobrantePaginaInicial = tamPagina - (*bytesLeidosPagina);
+	int nroMarco = 0;
 
 	if(sobrantePaginaInicial<tam_heap_metadata) { // esta partido el proximo heap
 		leerHeapPartido(heapMetadata, offset, sobrantePaginaInicial, nroPagina, paginas, &paginaDummy);
@@ -98,20 +115,26 @@ void leerHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* byt
 	}
 
 	*bytesLeidos += tam_heap_metadata + (*heapMetadata)->offset;
+	free(paginaDummy);
 
 	if(*bytesLeidosPagina > tamPagina) { // se paso de la pagina en la que estaba
 		paginasSalteadas = cantidadPaginasPedidas(*bytesLeidosPagina);
 		incremento = *bytesLeidosPagina - tamPagina*(paginasSalteadas);
 		(*nroPagina) += paginasSalteadas;
-		free(paginaDummy);
-		paginaDummy = obtenerPaginaAuxiliar(paginas, (*nroPagina));
-		*offset = paginaDummy->nroMarco * tamPagina + incremento;
+
+		if(paginasSalteadas == list_size(paginas)) {
+			nroMarco = list_size(paginas);
+		} else {
+			paginaDummy = obtenerPaginaAuxiliar(paginas, (*nroPagina));
+			nroMarco = paginaDummy->nroMarco;
+			free(paginaDummy);
+		}
+		*offset = nroMarco * tamPagina + incremento;
 		*bytesLeidosPagina = incremento;
 	} else {
 		*offset += incremento;
 	}
 
-	free(paginaDummy);
 }
 
 void leerHeapPartido(t_heap_metadata** heapMetadata, int* offset, int sobrante, int* nroPagina, t_list* paginas, t_pagina** paginaDummy) {
@@ -139,6 +162,47 @@ void leerHeapPartido(t_heap_metadata** heapMetadata, int* offset, int sobrante, 
 
 }
 
+//Escribe un solo heap
+int escribirUnHeapMetadata(t_list * listaPaginas,int paginaActual,t_heap_metadata * unHeapMetadata, int * offset, int tamanioPaginaRestante)
+{
+
+	if(tamanioPaginaRestante >= tam_heap_metadata)
+	{
+		pthread_mutex_lock(&mutex_memoria);
+		memcpy(memoria + *offset,unHeapMetadata,tam_heap_metadata);
+		pthread_mutex_unlock(&mutex_memoria);
+		*offset += tam_heap_metadata;
+	}
+	else
+	{
+		void * buffer = malloc(tam_heap_metadata);
+		int offsetBuffer = 0;
+
+		memcpy(buffer,unHeapMetadata,tam_heap_metadata);
+
+		pthread_mutex_lock(&mutex_memoria);
+		memcpy(memoria + *offset,buffer,tamanioPaginaRestante);
+		pthread_mutex_unlock(&mutex_memoria);
+
+		offsetBuffer+=tamanioPaginaRestante;
+		paginaActual++;
+		t_pagina * pagina = obtenerPaginaAuxiliar(listaPaginas,paginaActual);
+		*offset = pagina->nroMarco*tamPagina; //Obtengo la pagina siguiente
+
+		pthread_mutex_lock(&mutex_memoria);
+		memcpy(memoria + *offset,buffer + offsetBuffer,tam_heap_metadata - offsetBuffer);
+		pthread_mutex_unlock(&mutex_memoria);
+
+		*offset += (tam_heap_metadata - offsetBuffer);
+
+		free(buffer);
+		free(pagina);
+	}
+
+	return tam_heap_metadata + unHeapMetadata->offset;
+}
+
+
 
 /*
  * ESCRITURA HM
@@ -150,155 +214,129 @@ void leerHeapPartido(t_heap_metadata** heapMetadata, int* offset, int sobrante, 
 int escribirHeapMetadata(t_list * listaPaginas, int offset, int tamanio, int offsetMaximo)
 {
 		int paginaActual = obtenerPaginaActual(listaPaginas, offset);
-		t_pagina * pagina = obtenerPaginaAuxiliar(listaPaginas,paginaActual);
+		int cantidadMarcos = obtenerCantidadMarcos(tamPagina, offset);
+
+		if(cantidadMarcos == 0)
+			cantidadMarcos++;
+
 		t_heap_metadata * unHeapMetadata;
 
-		int paginasPedidas;
+		int paginasPedidas = cantidadPaginasPedidas(tamanio+tam_heap_metadata); // Por que no considera el tam_heap??
 		int bytesSobrantesUltimaPagina;
-		int tamanioPaginaRestante;
-		int tamanioOffsetHeap;
-
+		int tamanioPaginaRestante = (tamPagina)*(cantidadMarcos) - offset;
 		int bytesEscritos = 0;
 
-		int posicionActual = offset - tamPagina*pagina->nroMarco;
+		int posicionActual = offset - (cantidadMarcos - 1)*tamPagina;
 
-		int tamanioMaximo = tamPagina;
+		unHeapMetadata = malloc(tam_heap_metadata);
+		unHeapMetadata->estaLibre = false;
+		unHeapMetadata->offset = tamanio;
 
-		if(tamanio == -1) // free
+		if(offsetMaximo != 0)
 		{
-			unHeapMetadata = obtenerHeapMetadata(listaPaginas,offset); // validar OFFSET
-			unHeapMetadata->estaLibre = true;
-			tamanioOffsetHeap = unHeapMetadata->offset;
-		}
-		else
-		{
-			 // malloc normal
-			tamanioOffsetHeap = tamanio;
-			unHeapMetadata = malloc(tam_heap_metadata);
-			unHeapMetadata->estaLibre = false;
-			unHeapMetadata->offset = tamanio;
+			paginasPedidas = cantidadPaginasPedidas(offsetMaximo); // VALIDAR
+			if(tamanioPaginaRestante > offsetMaximo)
+				tamanioPaginaRestante = offsetMaximo;
 		}
 
-		bytesSobrantesUltimaPagina = tamanioOffsetHeap;//int paginasPedidas = list_size(listaPaginas) - paginaActual - 1;
-		paginasPedidas = cantidadPaginasPedidas(tamanioOffsetHeap);
+		escribirUnHeapMetadata(listaPaginas, paginaActual, unHeapMetadata, &offset, tamanioPaginaRestante);
 
-		tamanioPaginaRestante = (tamPagina)*(pagina->nroMarco+1) - offset; // OJOTA! es el restante de la pagina actual
-
-		if(tamanioPaginaRestante > tam_heap_metadata)
-		{
-			pthread_mutex_lock(&mutex_memoria);
-			memcpy(memoria + offset,unHeapMetadata,tam_heap_metadata);
-			pthread_mutex_unlock(&mutex_memoria);
-		}
-		else
-		{
-			void * buffer = malloc(tam_heap_metadata);
-			int offsetBuffer = 0;
-
-			memcpy(buffer,unHeapMetadata,tam_heap_metadata);
-
-			pthread_mutex_lock(&mutex_memoria);
-			memcpy(memoria + offset,buffer,tamanioPaginaRestante);
-			pthread_mutex_unlock(&mutex_memoria);
-
-			offsetBuffer+=tamanioPaginaRestante;
-			free(pagina);
-			pagina = obtenerPaginaAuxiliar(listaPaginas,paginaActual+1);
-			offset = pagina->nroMarco*tamPagina; //Obtengo la pagina siguiente
-
-			pthread_mutex_lock(&mutex_memoria);
-			memcpy(memoria + offset,buffer + offsetBuffer,tam_heap_metadata - offsetBuffer);
-			pthread_mutex_unlock(&mutex_memoria);
-
-			free(buffer);
-		}
-		free(pagina);
-		bytesEscritos = tam_heap_metadata + unHeapMetadata->offset;
-
+		bytesEscritos = tam_heap_metadata + tamanio;
 
 		if(bytesEscritos > tamanioPaginaRestante) // => pasaste de pagina!
 		{
+			if(paginasPedidas == 0)
 			paginasPedidas++;
+
 			bytesSobrantesUltimaPagina = tamPagina*(paginasPedidas) - (bytesEscritos - tamanioPaginaRestante);
-		}
-		else if(offsetMaximo) // si es == true
-		{
-			free(pagina);
-			tamanioMaximo = posicionActual + offsetMaximo + tam_heap_metadata;
-			bytesSobrantesUltimaPagina = offsetMaximo - (bytesEscritos - tam_heap_metadata); // siempre deberia dar > tam_heap_metadata
+
+			if(bytesSobrantesUltimaPagina<0)
+			{
+				bytesSobrantesUltimaPagina += tamPagina;
+				paginasPedidas++;
+			}
 		}
 		else
 		{
 			bytesSobrantesUltimaPagina = tamanioPaginaRestante - bytesEscritos; // bytes que me sobraron en la pagina actual
 		}
 
-
-
-		if(bytesSobrantesUltimaPagina > tam_heap_metadata && tamanio != -1)
+		if(bytesSobrantesUltimaPagina >= tam_heap_metadata || offsetMaximo!=0)
 		{
-			pagina = obtenerPaginaAuxiliar(listaPaginas,paginaActual + paginasPedidas); // La idea es ir siempre a la ultima pagina donde este el heap
+			t_pagina * pagina = obtenerPaginaAuxiliar(listaPaginas,paginaActual + paginasPedidas); // La idea es ir siempre a la ultima pagina donde este el heap
 
-			offset = pagina->nroMarco*tamPagina + (tamanioMaximo - bytesSobrantesUltimaPagina);
+			offset = pagina->nroMarco*tamPagina + (tamPagina - bytesSobrantesUltimaPagina);
 
 			unHeapMetadata->estaLibre = true;
-			unHeapMetadata->offset = bytesSobrantesUltimaPagina - tam_heap_metadata; // PUEDE ESTAR PARTIDO => ANDA BUSCANDO LA 9mm
 
-			pthread_mutex_lock(&mutex_memoria);
-			memcpy(memoria + offset,unHeapMetadata,tam_heap_metadata); // siempre sera un heap entero; FALSO! UNO DEL MEDIO PUEDE GENERARLO
-			pthread_mutex_unlock(&mutex_memoria);
+			if(offsetMaximo!=0)
+			{
+				offset = pagina->nroMarco*tamPagina + (offsetMaximo - bytesSobrantesUltimaPagina) + posicionActual;
+				unHeapMetadata->offset = (offsetMaximo - bytesEscritos) - tam_heap_metadata; // PUEDE ESTAR PARTIDO => ANDA BUSCANDO LA 9mm
+			}
+			else
+				unHeapMetadata->offset = bytesSobrantesUltimaPagina - tam_heap_metadata; // PUEDE ESTAR PARTIDO => ANDA BUSCANDO LA 9mm
 
+			escribirUnHeapMetadata(listaPaginas,pagina->nroPagina,unHeapMetadata, &offset, bytesSobrantesUltimaPagina);
 			bytesEscritos += bytesSobrantesUltimaPagina;
-			free(pagina);
 		}
 
 		free(unHeapMetadata);
 
 		return bytesEscritos;
 }
+
 // funcion para cpy => escribe datos despues del heap
-int escribirUnHeapMetadata(t_list * paginas, int offset, void ** buffer, int tamanio)
+int escribirDatosHeapMetadata(t_list * paginas, int posicionAnteriorHeap,int posicionPosteriorHeap, void ** buffer, int tamanio)
 {
-	if(existeHM(paginas, offset))
+	if(existeHM(paginas, posicionAnteriorHeap))
 	{
-		t_heap_metadata * unHeap = obtenerHeapMetadata(paginas, offset);
+		t_heap_metadata * unHeap = obtenerHeapMetadata(paginas, posicionAnteriorHeap);
 		if(unHeap->estaLibre)
 			return HM_YA_LIBERADO;
-		if(unHeap->offset < tamanio)
+		if(unHeap->offset < tamanio) // Para hacer esto infalible => pasar el segmento, todo para evitar el caso de memoria compartida (NO LO PIDEN)
 			return TAMANIO_SOBREPASADO;
 
-		escribirDatosHeap(paginas,offset+tam_heap_metadata,buffer,tamanio);
+		escribirDatosHeap(paginas,posicionPosteriorHeap,buffer,tamanio);
 		free(unHeap);
 		return tamanio; // si llego nunca deberia fallar leerDatosHeap
 	}
 	return HM_NO_EXISTENTE;
 }
 
-void escribirDatosHeap(t_list * paginas, int offset, void ** buffer, int tamanio)
+void escribirDatosHeap(t_list * paginas, int posicionPosteriorHeap, void ** buffer, int tamanio)
 {
-	int paginaActual = obtenerPaginaActual(paginas, offset);
+	int paginaActual = obtenerPaginaActual(paginas, posicionPosteriorHeap);
 	t_pagina * unaPagina = obtenerPaginaAuxiliar(paginas,paginaActual);
-	int bytesLeidos = 0;
+	int bytesEscritos = 0;
 	int bytesRestantesPagina = 0;
 
-	while(bytesLeidos < tamanio)
-	{
-		bytesRestantesPagina = (tamPagina)*(unaPagina->nroMarco+1) - offset;
+	if(tamanio > tamPagina)
+		bytesRestantesPagina = (tamPagina)*(unaPagina->nroMarco+1) - posicionPosteriorHeap;
+	else
+		bytesRestantesPagina = tamanio;
 
+	while(bytesEscritos < tamanio)
+	{
 		pthread_mutex_lock(&mutex_memoria);
-		memcpy(memoria + offset,*buffer + bytesLeidos,bytesRestantesPagina);
+		memcpy(memoria + posicionPosteriorHeap,*buffer + bytesEscritos,bytesRestantesPagina);
 		pthread_mutex_unlock(&mutex_memoria);
 
-		bytesLeidos += bytesRestantesPagina;
+		bytesEscritos += bytesRestantesPagina;
+
+		if(bytesEscritos == tamanio)
+			break;
 
 		free(unaPagina);
-		unaPagina = obtenerPaginaAuxiliar(paginas,(paginaActual+1));
+		paginaActual++;
+		unaPagina = obtenerPaginaAuxiliar(paginas,paginaActual);
 
-		offset = unaPagina->nroMarco*tamPagina; // me paro en la primera posicion de la siguiente pagina
+		posicionPosteriorHeap = unaPagina->nroMarco*tamPagina; // me paro en la primera posicion de la siguiente pagina
 
-		if(tamanio - bytesLeidos < tamPagina)
-			bytesRestantesPagina = tamanio - bytesLeidos;
+		if(tamanio - bytesEscritos < tamPagina)
+			bytesRestantesPagina = tamanio - bytesEscritos;
 		else
-		bytesRestantesPagina = tamPagina;
+			bytesRestantesPagina = tamPagina;
 	}
 	free(unaPagina);
 }
@@ -318,7 +356,7 @@ t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offset)
 
 	int tamanioPaginaRestante = (tamPagina)*(pagina->nroMarco+1) - offset;
 
-	if(tamanioPaginaRestante > tam_heap_metadata)
+	if(tamanioPaginaRestante >= tam_heap_metadata)
 	{
 
 		pthread_mutex_lock(&mutex_memoria);
@@ -373,6 +411,7 @@ uint32_t obtenerPosicionPreviaHeap(t_list * paginas, int offset) // agarra la ul
 	else
 	{
 		// La idea es: Retrocedo una pagina, obtengo el siguiente marco contiguo (me paso un marco) y resto lo que me falto leer del HM
+
 	int tamanioRestante = tam_heap_metadata - tamanioPaginaUsado;
 	free(unaPagina);
 	unaPagina = obtenerPaginaAuxiliar(paginas,paginaActual-1);
@@ -409,7 +448,8 @@ bool existeHM(t_list * paginas, int offsetBuscado)
 
 
 	return false;
-
 }
+
+
 
 #endif /* MUSEHEAPMETADATA_H_ */

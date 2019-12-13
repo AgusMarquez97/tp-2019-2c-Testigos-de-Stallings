@@ -16,7 +16,7 @@ int levantarCliente(char* servidorIP,char* servidorPuerto)
 		snprintf(aux,10,"%d",socketCliente);
 		strcat(mensaje,aux);
 
-		loggearInfo(mensaje);
+		//loggearInfo(mensaje);
 
 		retorno = conectarConServidor(&socketCliente,servidorObjetivo);
 
@@ -30,7 +30,7 @@ int levantarCliente(char* servidorIP,char* servidorPuerto)
 		strcat(mensaje,aux);
 		strcat(mensaje," se conecto al servidor");
 
-		loggearInfo(mensaje);
+		//loggearInfo(mensaje);
 
       	free(servidorObjetivo); //Ya estoy conectado
       	free(mensaje);
@@ -43,7 +43,7 @@ int levantarCliente(char* servidorIP,char* servidorPuerto)
 
 int levantarSocketGenerico(char* servidorIP,char* servidorPuerto,estructuraConexion** servidor)
 {
-	loggearInfo("Creando estructuras para la conexion...");
+//	loggearInfo("Creando estructuras para la conexion...");
 			instanciarConexion(servidorIP,servidorPuerto,servidor);
 			//imprimirDatosServidor(*servidor);
 			return crearSocket(*servidor);
@@ -164,7 +164,7 @@ int enviar(int socketConexion, void* datosAEnviar, int32_t tamanioAEnviar){
 
 	int bytesTotales = 0;
 
-	loggearInfo("Enviando...");
+	//loggearInfo("Enviando...");
 
 	while (tamanioAEnviar - bytesTotales > 0) {
 
@@ -187,7 +187,7 @@ int enviar(int socketConexion, void* datosAEnviar, int32_t tamanioAEnviar){
 
 
 		//Luego ver de usar itoa y  -> bytesEnviados
-	loggearInfo(mensaje);
+	//loggearInfo(mensaje);
 
 	free(mensaje);
 	free(aux);
@@ -208,7 +208,7 @@ int recibir(int socketConexion, void* buffer,int32_t tamanioARecibir) {
 	snprintf(aux,10,"%d",socketConexion);
 	strcat(info,aux);
 
-	loggearInfo(info);
+	//loggearInfo(info);
 
 	int bytesTotales = recv(socketConexion, buffer, tamanioARecibir, MSG_WAITALL);
 
@@ -253,7 +253,7 @@ int recibir(int socketConexion, void* buffer,int32_t tamanioARecibir) {
 	strcat(info,aux);
 	strcat(info," bytes");
 
-	loggearInfo(info);
+	//loggearInfo(info);
 
 	free(info);
 	free(aux);
@@ -447,7 +447,7 @@ void loggearDatosRecibidos(int socket, int datosRecibidos)
 		  strcat(info,aux);
 		  strcat(info,"\n");
 
-		  loggearInfo(info);
+		  //loggearInfo(info);
 
 		  free(info);
 	      free(aux);

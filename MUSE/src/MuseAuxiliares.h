@@ -13,14 +13,24 @@ int obtenerCantidadMarcos(int tamanioPagina, int tamanioMemoria) {
 
 }
 
+t_segmento* obtenerUnSegmento(char * idProceso, uint32_t posicionMemoria)
+{
+
+	pthread_mutex_lock(&mutex_diccionario);
+	t_list * segmentos = dictionary_get(diccionarioProcesos, idProceso);
+	pthread_mutex_unlock(&mutex_diccionario);
+
+	return obtenerSegmento(segmentos,posicionMemoria);
+}
+
+
 t_segmento* obtenerSegmento(t_list* segmentos, uint32_t posicionMemoria) {
 
 	bool segmentoCorrespondiente(t_segmento* segmento) {
 		return (posicionMemoria >= segmento->posicionInicial
-				&& posicionMemoria <= (segmento->posicionInicial + 1) * segmento->tamanio);
+				&& posicionMemoria <= (segmento->posicionInicial + segmento->tamanio));
 	}
 	return list_find(segmentos, (void*)segmentoCorrespondiente);
-
 }
 
 t_pagina* obtenerPagina(t_list* paginas, uint32_t posicionMemoria) {
@@ -55,7 +65,7 @@ void agregarPaginas(t_list** listaPaginas, int cantidadMarcos, int nroUltimaPagi
 
 }
 
-t_list* obtenerPaginas(int tamanio, int cantidadMarcos) {
+t_list* crearListaPaginas(int tamanio, int cantidadMarcos) {
 
 	t_list* listaPaginas = list_create();
 
@@ -71,7 +81,7 @@ t_list* obtenerPaginas(int tamanio, int cantidadMarcos) {
 
 t_segmento* instanciarSegmento(int tamanio, int cantidadFrames, int idSegmento, bool esCompartido, int posicionInicial) {
 
-	t_list* listaPaginas = obtenerPaginas(tamanio, cantidadFrames);
+	t_list* listaPaginas = crearListaPaginas(tamanio, cantidadFrames);
 
 	t_segmento * segmento = malloc(sizeof(t_segmento));
 
@@ -111,22 +121,22 @@ uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 
 	int contador = 0;
 	int bytesLeidosPagina = 0;
+	int offsetAnterior = 0;
 
 
 	while(tamMaximo - bytesLeidos > tam_heap_metadata) {
-
+		offsetAnterior = offset;
 		leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset,segmento->paginas,&contador);
 
 		if(heapMetadata->estaLibre && heapMetadata->offset >= (tamanio + tam_heap_metadata)) {
+
 			bool tieneUnoSiguiente = existeHM(segmento->paginas, offset);
-			offset -= heapMetadata->offset;
-			offset = obtenerPosicionPreviaHeap(segmento->paginas, offset); // VALIDAR => esta retrocediendo el offset del hm tambien??
 
 			if(tieneUnoSiguiente)
-				escribirHeapMetadata(segmento->paginas, offset, tamanio,heapMetadata->offset); // validado
+				escribirHeapMetadata(segmento->paginas, offsetAnterior, tamanio,tam_heap_metadata + heapMetadata->offset); // validado
 			else
-				escribirHeapMetadata(segmento->paginas, offset, tamanio,false); // validado
-			return offset + tam_heap_metadata;
+				escribirHeapMetadata(segmento->paginas, offsetAnterior, tamanio,false); // validado
+			return offsetAnterior + tam_heap_metadata;
 		}
 
 	}
@@ -135,7 +145,7 @@ uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 
 	if(heapMetadata->estaLibre) {
 		sobrante = heapMetadata->offset + tam_heap_metadata; // me sobro un hm entero
-		offset -= (heapMetadata->offset + tam_heap_metadata); // Pongo el offset en la primera posicion libre
+		offset = offsetAnterior; // Pongo el offset en la primera posicion libre
 	}
 
 	int nuevaCantidadFrames = obtenerCantidadMarcos(tamPagina, tamanio + tam_heap_metadata - sobrante); // Frames necesarios para escribir en memoria
@@ -261,5 +271,271 @@ t_pagina * obtenerPaginaAuxiliar(t_list * paginas, int nroPagina)
 	return paginaAuxiliar;
 
 }
+
+void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento) {
+
+	char msj[100];
+	char aux[30];
+
+	t_list * paginas = segmento->paginas;
+
+	if((nroPagina + 1) == list_size(paginas)) {
+		sprintf(msj, "Para el proceso %s, se ha liberado la página ", idProceso);
+	} else {
+		sprintf(msj, "Para el proceso %s, se han liberado las páginas [ ", idProceso);
+	}
+
+	bool buscarPagina(t_pagina* pagina) {
+		return (pagina->nroPagina <= nroPagina);
+	}
+
+	t_list* lista_aux = list_filter(paginas, (void*)buscarPagina);
+
+	void liberarPagina(t_pagina* pagina) {
+		if(pagina->nroPagina > nroPagina) {
+			sprintf(aux, "%d ",pagina->nroPagina);
+			strcat(msj, aux);
+			liberarMarcoBitarray(pagina->nroMarco);
+			free(pagina);
+		}
+	}
+
+	list_destroy_and_destroy_elements(paginas, (void*)liberarPagina);
+
+	segmento->paginas = list_duplicate(lista_aux); //OJO! POSIBLE ML
+	segmento->tamanio = tamPagina*list_size(segmento->paginas);
+
+	strcat(msj, "]");
+
+	loggearInfo(msj);
+
+}
+
+t_list * obtenerPaginas(char* idProceso, uint32_t posicionSegmento)
+{
+	t_list * segmentos;
+	t_segmento* segmento;
+
+	pthread_mutex_lock(&mutex_diccionario);
+	segmentos = dictionary_get(diccionarioProcesos,idProceso);
+	pthread_mutex_unlock(&mutex_diccionario);
+
+	segmento = obtenerSegmento(segmentos, posicionSegmento); // ver de hacer validacion por el nulo
+
+	if(segmento)
+		return segmento->paginas;
+	return NULL;
+
+}
+
+void * obtenerDatosArchivo(char * path, int tamanio)
+{
+	void * buffer = malloc(tamanio);
+	int tamanioArchivo = 0;
+
+	FILE * fd = fopen(path,"r+");
+		if(!fd)
+			return NULL;
+
+	struct stat statbuf = {0};
+	stat(path,&statbuf);
+
+	int fd_num = fileno(fd);
+	tamanioArchivo = statbuf.st_size;
+
+	void * bufferAuxiliar = mmap(NULL,tamanioArchivo,PROT_READ|PROT_WRITE,MAP_PRIVATE,fd_num,0);
+
+	/*
+	 * Validar con franco
+	 */
+
+	if(tamanio <= tamanioArchivo)
+		memcpy(buffer,bufferAuxiliar,tamanio);
+	else
+	{
+		memcpy(buffer,bufferAuxiliar,tamanioArchivo);
+		memset(buffer + tamanioArchivo,0,tamanio-tamanioArchivo);
+	}
+
+	munmap(buffer,tamanioArchivo);
+
+	fclose(fd);
+
+	return buffer;
+}
+
+t_archivo_compartido * agregarArchivoLista(char * unArchivo, t_archivo_compartido * archivoCompartido)
+{
+	t_archivo_compartido * unArchivoCompartido = NULL;
+	if(archivoCompartido!=NULL)
+	{
+	pthread_mutex_lock(&mutex_lista_archivos);
+	archivoCompartido->nroParticipantes++;
+	pthread_mutex_unlock(&mutex_lista_archivos);
+	}
+	else
+	{
+	unArchivoCompartido = malloc(sizeof(*unArchivoCompartido));
+
+	unArchivoCompartido->nombreArchivo = strdup(unArchivo);
+	unArchivoCompartido->nroParticipantes = 1;
+
+	pthread_mutex_lock(&mutex_lista_archivos);
+	list_add(listaArchivosCompartidos,unArchivoCompartido);
+	pthread_mutex_unlock(&mutex_lista_archivos);
+	}
+	return unArchivoCompartido;
+}
+
+t_archivo_compartido * obtenerArchivoCompartido(char * path)
+{
+	bool existencia(t_archivo_compartido * unArchivoComp)
+	{
+		return strcmp(unArchivoComp->nombreArchivo,path) == 0;
+	}
+	t_archivo_compartido * unArchivo =  list_find(listaArchivosCompartidos,(void*)existencia); // En este caso no me deberia importar lockear
+	return unArchivo;
+}
+
+uint32_t agregarPaginasSinMemoria(char * idProceso,t_archivo_compartido * unArchivoCompartido,int cantidadFramesTeoricos)
+{
+	t_list * listaSegmentos;
+	t_segmento * segmentoNuevo;
+	uint32_t posicionInicial = 0;
+	int idSegmento = 0;
+
+	if(poseeSegmentos(idProceso))
+	{
+		pthread_mutex_lock(&mutex_diccionario);
+		listaSegmentos = dictionary_get(diccionarioProcesos,idProceso);
+		pthread_mutex_unlock(&mutex_diccionario);
+
+		t_segmento * ultimoSegmento = list_get(listaSegmentos,list_size(listaSegmentos)-1);
+
+		posicionInicial = ultimoSegmento->posicionInicial + ultimoSegmento->tamanio;
+		idSegmento = ultimoSegmento->id_segmento + 1;
+	}
+	else
+	{
+		listaSegmentos = list_create();
+	}
+
+	t_list * paginas = crearPaginasSinMemoria(unArchivoCompartido, cantidadFramesTeoricos);
+	segmentoNuevo = crearSegmentoSinMemoria(paginas, idSegmento, posicionInicial, cantidadFramesTeoricos);
+
+	list_add(listaSegmentos,segmentoNuevo);
+
+	pthread_mutex_lock(&mutex_diccionario);
+	dictionary_remove(diccionarioProcesos, idProceso);
+	dictionary_put(diccionarioProcesos, idProceso, listaSegmentos);
+	pthread_mutex_unlock(&mutex_diccionario);
+
+	return posicionInicial + tam_heap_metadata; // al principio nunca estara partido
+}
+
+t_list * crearPaginasSinMemoria(t_archivo_compartido * unArchivoCompartido,int cantidadFramesTeoricos)
+{
+	t_list * listaPaginas = list_create();
+
+	for(int i = 0;i < cantidadFramesTeoricos;i++)
+	{
+		t_pagina * unaPagina = malloc(sizeof(*unaPagina));
+
+		unaPagina->nroPagina = i;
+		unaPagina->nroMarco = *(unArchivoCompartido->marcosMapeados + i);
+
+		list_add(listaPaginas,unaPagina);
+	}
+	return listaPaginas;
+}
+
+t_segmento * crearSegmentoSinMemoria(t_list * listaPaginas,int idSegmento,uint32_t posicionInicial,int cantidadFramesTeoricos)
+{
+	t_segmento * segmentoNuevo = malloc(sizeof(*segmentoNuevo));
+
+	segmentoNuevo->esCompartido=true;
+	segmentoNuevo->id_segmento=idSegmento;
+	segmentoNuevo->posicionInicial = posicionInicial;
+	segmentoNuevo->tamanio = cantidadFramesTeoricos*tamPagina;
+	segmentoNuevo->paginas = listaPaginas;
+
+	return segmentoNuevo;
+}
+
+int copiarDatosEnArchivo(char * path, int tamanio, void * buffer)
+{
+			FILE * fd = fopen(path,"r+");
+				if(!fd)
+					return -1;
+
+			struct stat statbuf = {0};
+			stat(path,&statbuf);
+
+			int fd_num = fileno(fd);
+
+			ftruncate(fd_num,tamanio); // lo que habia volo!
+
+			void * bufferAuxiliar = mmap(NULL,tamanio,PROT_READ|PROT_WRITE,MAP_SHARED,fd_num,0);
+
+			memcpy(bufferAuxiliar,buffer,tamanio);
+
+			msync(bufferAuxiliar,tamanio,MS_SYNC);
+
+			munmap(bufferAuxiliar,tamanio);
+
+			return 0;
+
+}
+
+
+void liberarConUnmap(char * idProceso, t_segmento * unSegmento)
+{
+
+	char msj[100];
+	char aux[30];
+
+	t_list * paginas = unSegmento->paginas;
+
+	if(list_size(paginas)==1) {
+		sprintf(msj, "Para el proceso %s, se ha liberado la página ", idProceso);
+	} else {
+		sprintf(msj, "Para el proceso %s, se han liberado las páginas [ ", idProceso);
+	}
+
+	void liberarPagina(t_pagina* pagina) {
+				liberarMarcoBitarray(pagina->nroMarco); // Agregar validacion para liberar memoria virtual tambien
+				sprintf(aux, "%d ",pagina->nroPagina);
+				strcat(msj, aux);
+				free(pagina);
+		}
+	list_destroy_and_destroy_elements(paginas, (void*)liberarPagina);
+
+	strcat(msj, "]");
+
+	loggearInfo(msj);
+}
+
+void reducirArchivoCompartido(char * path)
+{
+
+	bool condicion(t_archivo_compartido * unArchivoCompartido)
+	{
+		if(strcmp(unArchivoCompartido->nombreArchivo,path) == 0)
+		{
+			if(unArchivoCompartido->nroParticipantes == 1)
+				return true;
+			else
+				unArchivoCompartido->nroParticipantes--;
+
+		}
+			return false;
+	}
+
+	pthread_mutex_lock(&mutex_lista_archivos);
+	list_remove_and_destroy_by_condition(listaArchivosCompartidos,(void*)condicion,free);
+	pthread_mutex_unlock(&mutex_lista_archivos);
+}
+
+
 
 #endif /* MUSEAUXILIARES_H_ */

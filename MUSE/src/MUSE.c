@@ -33,6 +33,7 @@ void levantarConfig() {
 void levantarMemoria() {
 
 	diccionarioProcesos = dictionary_create();
+	listaArchivosCompartidos = list_create();
 	memoria = malloc(tamMemoria);
 	crearMemoriaSwap();
 
@@ -67,6 +68,7 @@ void inicializarSemaforos() {
 	pthread_mutex_init(&mutex_marcos_libres, NULL);
 	pthread_mutex_init(&mutex_diccionario, NULL);
 	pthread_mutex_init(&mutex_memoria, NULL);
+	pthread_mutex_init(&mutex_lista_archivos, NULL);
 
 }
 
@@ -107,9 +109,9 @@ void rutinaServidor(int* p_socket) {
 	} else {
 		switch(mensajeRecibido->tipoOperacion) {
 			case HANDSHAKE:
-			valorRetorno = procesarHandshake(id_proceso);
-			enviarInt(socketRespuesta,valorRetorno);
-			break;
+				valorRetorno = procesarHandshake(id_proceso);
+				enviarInt(socketRespuesta,valorRetorno);
+				break;
 			case MALLOC:
 				info = malloc(strlen("Se_recibió_una_operación_ALLOC del proceso 999999999999999 _de_9999999999999999999999_bytes") + 1);
 				sprintf(info, "Se recibió una operación ALLOC del proceso %d de %d bytes",mensajeRecibido->idProceso, mensajeRecibido->tamanio);
@@ -133,9 +135,7 @@ void rutinaServidor(int* p_socket) {
 				sprintf(info, "Se recibió una operación GET del proceso %d sobre la dirección %u de %d bytes",mensajeRecibido->idProceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
 				loggearInfo(info);
 				free(info);
-
-				void* retornoGet = malloc(mensajeRecibido->tamanio);
-				retornoGet = procesarGet(id_proceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
+				void* retornoGet = procesarGet(id_proceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
 				enviarVoid(socketRespuesta, retornoGet, mensajeRecibido->tamanio);
 
 				free(retornoGet);
@@ -151,12 +151,18 @@ void rutinaServidor(int* p_socket) {
 				enviarInt(socketRespuesta, retornoCpy);
 				break;
 			case MAP:
-				info = malloc(strlen("Se_recibió_un_MAP del proceso 99999999999 _con_el_flag_9999999999999999999999") + 1);
-				sprintf(info, "Se recibió un MAP del proceso %d con el flag %d",mensajeRecibido->idProceso, mensajeRecibido->flag);
+				info = malloc(strlen("Se_recibió_un_MAP del proceso 99999999999 ara el arcara el archivohivoara el archivo_con_el_flag_9999999999999999999999") + 1 + strlen((char*)mensajeRecibido->contenido) +1);
+				char aux[35];
+				if(mensajeRecibido->flag == MUSE_MAP_SHARED)
+					strcpy(aux,"MUSE MAP SHARED");
+				else
+					strcpy(aux,"MUSE MAP PRIVATE");
+
+				sprintf(info, "Se recibió un MAP del proceso %d para el archivo %s con el flag %s",mensajeRecibido->idProceso,(char*)mensajeRecibido->contenido,aux);
 				loggearInfo(info);
 				free(info);
 
-				uint32_t retornoMap = procesarMap(id_proceso, mensajeRecibido->contenido, mensajeRecibido->tamanio, mensajeRecibido->flag);
+				uint32_t retornoMap = procesarMap(id_proceso, (char*)mensajeRecibido->contenido, mensajeRecibido->tamanio, mensajeRecibido->flag);
 
 				enviarUint(socketRespuesta, retornoMap);
 				break;
@@ -181,11 +187,11 @@ void rutinaServidor(int* p_socket) {
 				enviarInt(socketRespuesta, retornoUnmap);
 				break;
 			case CLOSE:
-			info = malloc(strlen("Se_recibió_un_UNMAP del proceso 99999999999 _sobre_la_dirección_9999999999999999999999") + 1);
-			sprintf(info, "Se recibio una operacion CLOSE del proceso %d",mensajeRecibido->idProceso);
-			loggearInfo(info);
-			int retornoClose = procesarClose(id_proceso); //funcion que debe liberar la memoria reservada tanto principal como swap y debe eliminar la entrada del diccionario
-			enviarInt(socketRespuesta, retornoClose);
+				info = malloc(strlen("Se_recibió_un_UNMAP del proceso 99999999999 _sobre_la_dirección_9999999999999999999999") + 1);
+				sprintf(info, "Se recibio una operacion CLOSE del proceso %d",mensajeRecibido->idProceso);
+				loggearInfo(info);
+				int retornoClose = procesarClose(id_proceso); //funcion que debe liberar la memoria reservada tanto principal como swap y debe eliminar la entrada del diccionario
+				enviarInt(socketRespuesta, retornoClose);
 			break;
 		default:
 			break;

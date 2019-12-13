@@ -121,8 +121,8 @@ int muse_cpy(uint32_t dst, void* src, int n) {
 	if(retorno != -1) {
 		loggearInfo("Datos en memoria copiados con éxito");
 	} else {
-		loggearError("No se ha podido copiar la información a memoria");
-		//Posible Seg Fault
+		loggearWarning("No se ha podido copiar la información a memoria");
+		raise(SIGSEGV);
 	}
 	return retorno;
 
@@ -130,13 +130,18 @@ int muse_cpy(uint32_t dst, void* src, int n) {
 
 uint32_t muse_map(char* path, size_t length, int flags) {
 
+	if(length<=0)
+	{
+		loggearWarning("Error, length negativo o igual a 0");
+		return 0;
+	}
+
 	uint32_t direccionMemoria;
 	int socketCliente = levantarCliente(ip_muse, puerto_muse);
-	char* contenido = leerDesde(path, length);
 	// revisar si se le envía el path con la longitud a MUSE o los bytes ya leídos en libMuse
 
 	if(socketCliente != -1) {
-		enviarMap(socketCliente, id_muse, length ,contenido, flags);
+		enviarMap(socketCliente, id_muse, length , flags, path);
 		recibirUint(socketCliente, &direccionMemoria); //@return: error [0] / ok [dirección de memoria]
 		close(socketCliente);
 	}

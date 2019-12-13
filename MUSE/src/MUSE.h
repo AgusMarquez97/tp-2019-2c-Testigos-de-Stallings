@@ -5,6 +5,10 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <math.h>
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include <biblioteca/sockets.h>
 #include <biblioteca/serializacion.h>
@@ -30,7 +34,8 @@ typedef enum {
 	HM_NO_EXISTENTE = -1,
 	TAMANIO_SOBREPASADO = - 2, // = SEG FAULT
 	HM_YA_LIBERADO = -3,
-	MEMORIA_COMPLETA = -4
+	MEMORIA_COMPLETA = -4,
+	TAMANIO_ARCHIVO_SOBREPASADO = -5
 } t_errores;
 
 char ip[46];
@@ -45,6 +50,7 @@ char puerto[10];
 pthread_mutex_t mutex_memoria;
 pthread_mutex_t mutex_marcos_libres;
 pthread_mutex_t mutex_diccionario;
+pthread_mutex_t mutex_lista_archivos;
 
 /*
  * Estructura de la memoria principal:
@@ -98,6 +104,7 @@ int cantidadMarcosMemoriaVirtual;
 */
 
 t_dictionary * diccionarioProcesos;
+t_list * listaArchivosCompartidos;
 
 typedef struct {
 	int id_segmento;
@@ -105,6 +112,7 @@ typedef struct {
 	int tamanio; //tamanio que sera multiplo del tam de pag siendo este el menor tamanio posible
 	bool esCompartido;
 	t_list * paginas;
+	char * archivo;
 } t_segmento;
 
 typedef struct {
@@ -113,6 +121,12 @@ typedef struct {
 	//bit presencia
 	//bit modificado
 } t_pagina;
+
+typedef struct {
+	char * nombreArchivo;
+	int nroParticipantes;
+	int32_t * marcosMapeados;
+} t_archivo_compartido;
 
 // MUSE
 int main();
@@ -130,11 +144,12 @@ bool existeEnElDiccionario(char* idProceso);
 int procesarHandshake(char* idProceso);
 uint32_t procesarMalloc(char* idProceso, int32_t tamanio);
 uint32_t obtenerDireccionMemoria(t_list* listaPaginas,uint32_t posicionSegmento);
-void defragmentarSegmento(char* idProceso,t_segmento* segmento);
+int defragmentarSegmento(t_segmento* segmento);
+void compactarSegmento(char* idProceso, t_segmento* segmento);
 int32_t procesarFree(char* idProceso, uint32_t posicionSegmento);
 void* procesarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio);
 int procesarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, void* contenido);
-uint32_t procesarMap(char* idProceso, void* contenido, int32_t tamanio, int32_t flag);
+uint32_t procesarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag);
 int procesarSync(char* idProceso, uint32_t posicionMemoria, int32_t tamanio);
 int procesarUnmap(char* idProceso, uint32_t posicionMemoria);
 int procesarClose(char* idProceso);
@@ -142,13 +157,13 @@ uint32_t analizarSegmento (char* idProceso, int tamanio, int cantidadFrames, boo
 
 // MuseAuxiliares
 int obtenerCantidadMarcos(int tamanioPagina, int tamanioMemoria);
+t_segmento* obtenerUnSegmento(char * idProceso, uint32_t posicionMemoria);
 t_segmento* obtenerSegmento(t_list* segmentos, uint32_t posicionMemoria);
-bool segmentoCorrespondiente(t_segmento* segmento);
 t_pagina* obtenerPagina(t_list* paginas, uint32_t posicionMemoria);
 bool paginaCorrespondiente(t_pagina* pagina);
 bool poseeSegmentos(char* idProceso);
 void agregarPaginas(t_list** listaPaginas, int cantidadMarcos, int nroUltimaPagina);
-t_list* obtenerPaginas(int tamanio, int cantidadMarcos);
+t_list* crearListaPaginas(int tamanio, int cantidadMarcos);
 t_segmento* instanciarSegmento(int tamanio, int cantidadFrames, int idSegmento, bool esCompartido, int posicionInicial);
 void crearSegmento(char* idProceso, int tamanio, int cantidadFrames, t_list* listaSegmentos, int idSegmento, bool esCompartido, int posicionInicial);
 uint32_t completarSegmento(char* idProceso, t_segmento* ultimoSegmento, int tamanio);
@@ -163,174 +178,30 @@ int obtenerPaginaActual(t_list * paginas, int offset);
 uint32_t obtenerDireccionMemoria(t_list* listaPaginas,uint32_t posicionSegmento);
 t_segmento * buscarSegmento(t_list * segmentos, uint32_t posicionSegmento);
 bool encontrarSegmento(t_segmento * unSegmento);
+void liberarPagina(int nroPagina, t_list* paginas);
+void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento);
+t_list * obtenerPaginas(char* idProceso, uint32_t posicionSegmento);
+t_archivo_compartido * agregarArchivoLista(char * unArchivo, t_archivo_compartido * archivoCompartido);
+uint32_t agregarPaginasSinMemoria(char * idProceso,t_archivo_compartido * unArchivoCompartido,int cantidadFramesTeoricos);
+t_list * crearPaginasSinMemoria(t_archivo_compartido * unArchivoCompartido,int cantidadFramesTeoricos);
+t_segmento * crearSegmentoSinMemoria(t_list * listaPaginas,int idSegmento,uint32_t posicionInicial,int cantidadFramesTeoricos);
+int copiarDatosEnArchivo(char * path, int tamanio, void * buffer);
+void liberarConUnmap(char * idProceso, t_segmento * unSegmento);
+void reducirArchivoCompartido(char * path);
 
 //MuseHeapMetadata
-int leerUnHeapMetadata(t_list * paginas, int offset, void ** buffer, int tamanio);
+int leerUnHeapMetadata(t_list * paginas, int posicionAnteriorHeap,int posicionPosteriorHeap, void ** buffer, int tamanio);
 int liberarUnHeapMetadata(t_list * paginas, int offset);
 void leerDatosHeap(t_list * paginas, int offset, void ** buffer, int tamanio);
 void leerHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* bytesLeidosPagina, int* offset, t_list * paginas, int* nroPagina);
 void leerHeapPartido(t_heap_metadata** heapMetadata, int* offset, int sobrante, int* nroPagina, t_list* paginas, t_pagina** paginaDummy);
 int escribirHeapMetadata(t_list * listaPaginas, int offset, int tamanio, int offsetMaximo);
-int escribirUnHeapMetadata(t_list * paginas, int offset, void ** buffer, int tamanio);
-void escribirDatosHeap(t_list * paginas, int offset, void ** buffer, int tamanio);
+int escribirDatosHeapMetadata(t_list * paginas, int posicionAnteriorHeap,int posicionPosteriorHeap, void ** buffer, int tamanio);
+void escribirDatosHeap(t_list * paginas, int posicionPosteriorHeap, void ** buffer, int tamanio);
 t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offset);
 uint32_t obtenerPosicionPreviaHeap(t_list * paginas, int offset);
 t_pagina * obtenerPaginaAuxiliar(t_list * paginas, int nroPagina);
 bool existeHM(t_list * paginas, int offsetBuscado);
+int escribirUnHeapMetadata(t_list * listaPaginas,int paginaActual,t_heap_metadata * unHeapMetadata, int * offset, int tamanioPaginaRestante);
 
 #endif /* MUSE_H_ */
-
-/*
- * Consideraciones
- * Se retornar direcciones virtuales, esto quiere decir que no retorno la direccion real de la MP, si no una abstraccion:
- * EJ:
- * Segmento A [0-100]
- * Memoria [0-1000]
- * Las direcciones de memoria que conoce el proceso son las del segmento A, si realiza un malloc de 10 y el heap_metada=5, el programa retorna la posicion 5 como primera posicion disponible,
- * cuando realmente esta posicion puede ser cualquiera de memoria.
- */
-
-/*
- * Se dispone el siguiente ejemplo real para entender bien el funcionamiento: SE OMITE EL CASO DE MEMORIA VIRTUAL O COMPARTIDA
- * *Se supone pags = 20 y tam del t_heap_metadata = 4
- *
- * A) P1 realiza un malloc(10)
- *
- *	Parte Fisica:
- *
- * 		=> 1° Se calcula que cantidad de paginas tendra el segmento (en este caso se necesita solo 1 pag ya que tam malloc < tam de pag), al saber que
- * 		necesito una sola pagina solicito un marco libre (si no hay entra en juego el algoritmo y la MV [se evita por simplicidad]).
- * 		Para saber que marco esta libre recorro el bitmap.
- * 		* Para el ejemplo tengo el marco libre = 5 *	(en gral retornara una lista de marcos [5])
- *
- * 		Por ultimo, se actualiza el valor del bitmap para indicar que el marco 5 esta ocupado
- *
- * 		=> 2° Una vez obtenido el frame, me dispongo a ESCRIBIR en la memoria => tengo que escribir las estructuras metadatas que luego seran leidas
- *
- * 		Prosigo a calcular la lista de t_heap_metadatos (en este caso 2, 1 para lo que uso y otra para identificar lo que me quede libre)
- *
- * 		t_list * lista_metadatos = [
- * 		{
- * 			offset = 10,
- * 			isFree = false
- * 		}, // Lo que voy a usar para el malloc
- * 		{
- * 			offset = 2,
- * 			isFree = true
- * 		} // Lo que me sobro de la pagina, validar que sucede si solo me queda espacio para que entre la estructura Heap_metadata
- * 		]
- * 		Luego se recorre dicha lista aplicando en cada caso lo siguiene:
- *
- *
- * 		list_iterate(lista_metadatos,escribir_metadato);
- *
- * 		int offset = 0;
- * 		int pos_mem = 0;
- * 		int nro_frame = frame_obtenido_con_bitmap;
- *
- *
- * 		void escribir_metadato(t_heap_metadata * unMetadato) // recorre la lista
- * 		{
- * 		 pos_mem = tam_pag/frame * nro_frame + offset;
- * 		 memcpy(memoria + pos_mem,unMetadato,sizeof(lista_metadatos)); // Escribo en memoria la estructura para hacer las validaciones
- * 		 offset += sizeof(lista_metadatos) + unMetadato->offset;
- * 		}
- *
-	Parte Logica/administrativa:
- * 		=> 1° MUSE agrega una entrada al dictionario de procesos
- * 		=> 2° Se prosiguen a crear las paginas necesarias con los valores de frame obtenidos: (en este caso 1 sola)
- *
- * 		t_pagina una_pagina =
- * 		{
- * 			nroPagina = 0, // La idea es ir validando, empezando desde 0 para ver si ya existe alguna pagina con ese nro. (me ahorro el bitmap)
- * 			nroMarco = 5 // el que ya obtuve antes. Luego deberia aplicar una logica para determinar el marco de la lista de marcos que obtuve
- * 			//bit presencia = 1
-			//bit modificado = 0
- * 		}
- *
- * 		=> 3° Se prosigue a crear un segmento con los siguientes datos:
- * 				{
- * 					id_seg = 0, // Misma logica que para determinar el nro de pag
- * 					posicionInicial = 0hx // Posicion logica del segmento
- * 					tamanio = 20 // Extension del segmento => siempre sera multiplo del tam de pag
- * 					esCompartido = falso // Por defecto no, ya que no es segmento mmap
- * 					paginas = [0];
- * 				}
- * 		=> 4° Finalmente, se prosigue a retorna la direccion:
- *
- * 		*Comentarios:
- * 		En ningun momento se retornar las direcciones reales de las paginas/frames, siempre se retorna la direccion del segmento como una abstraccion a la memoria.
- *
- * 		Dicho esto, la direccion de retorno es = 0 (primera posicision del segmento) + 4 (el tamanio de la estructura metadata) + 0 (offset = bytes ya utilizados del segmento)
- *
- * 		*Podria haber otro proceso con la direccion 4, ya que seria un proceso 2 con segmento 0 recien creado. Esto no implica que comparta memoria con P1 ya que al momento de desrefenciar ambas direcciones tendras
- * 		distintas direcciones fisicas.
- *
- * 	B) Luego P1 desea desrefenciar dicha memoria (ya sea para hacer un cpy, get o free). Llamemos dir_deseada a dicha direccion = 4.
- *
- * 		1° Parte de indexacion:
- * 			a) Busco en el diccionario el ID del proceso y obtengo la lista de segmentos asociada.
- * 			b) Busco en el segmento 0 ya que la dir_deseada cae dentro del rango [pos_inicial-tamanio] de dicho segmento = [0-20]
- * 			c) Busco las paginas de dicho segmento, y valido en que pag cae esa dir_deseada, como la pag 0 [0-20] se que la info se encuentra en dicha pagina
- * 			d) Busco el frame asociado a dicha pagina (si dicha pagina esta en MP) => dir_inicial = nro_frame * tam_frame
- * 			e) Busco pararme luego del heap_metadata => se analizan 2 situaciones:
- *
- * 					1.e.1) Si la dir_deseada < tam_pag (cae en la pagina 0)
- * 					=> accedo a la posicion de dicho frame, 4 en este caso (sabiendo que si o si tengo una estructura metadata atras)
- * 					=> offset = 4
- 	 	 	 	 	=> dir_final_memoria = dir_inicial + offset
- *
- * 					1.e.2) Si la dir deseada > tam_pag (cae en las paginas [1-n])
- * 					=> realizo la operacion: dir_deseada - tam_pag * nro_pag_obtenido y obtengo la primera direccion que esta luego del heap_metadata
- * 					=> offset = dir_deseada - tam_pag * nro_pag [nunca sera negativa]
- 	 	 	 	 	=> dir_final_memoria = dir_inicial + offset
-
- *
- * 					EJ: si tengo toda la pag 0 ocupada y quiero acceder a la dir deseada 30 (asumiendo que ya se realizo el malloc correspondiente) y suponiendo que estoy en el frame 8,
- * 					=> para leer los datos debo realizar la operacion descripta arriba => 30 - 20*1 = 10, 10 es el desplazamiento que debo realizar en el frame 8 para leer el primer dato del heap_metada a acceder
- * 					=> Entonces, mi direccion final de memoria (la fisica) es = nro_frame*tam_pag + offset => 20*8 + 10 = 170. A partir de la dir 170 hay datos
-
- *
- * 			f) Obtengo los valores del heap_metadata que estan justo antes de la direccion obtenida en e), esto lo necesito para validar que el free/cpy/get sea valido
- * 			g) Una vez accedi a la primera posicion fisica donde estan los datos:
- * 			 Realizo lo que corresponda en cada caso y retorno un valor:
- * 				caso free:
- * 					Me paro en la posicion indicada y realizo un memset del offset del heap_metadata(HM) (desde donde esto parado resto sizeof(HM) y libero sizeof(HM)
- * 					Por ultimo valido si toda la pagina esta libre => actualizo el bitmap de frames
- * 				caso cpy:
-					Me paro en la posicion indicada y realizo un memcpy con los datos recibidos por el tamanio pedido
-				caso get:
-					Me paro en la posicion indicada y realizo un memcpy a una variable char * la cantidad de bytes que se quieran leer, por ultimo retorno dicha variable
- */
-
-/*
- * MALLOC: Pasos a seguir
- * 1° Buscar en el diccionario el proceso correspondiente
- * 2° Calcular cuantos frames necesito para asignar la memoria correspondiente ()
- * 3° Analizar si el segmento del proceso existe .Si no existe lo creo, si no evalua lo siguiente:
- *  	3A) Puedo agrandar el segmento => lo agrando, busco los frames que necesito, los escribo (considero la estructura HeapMetadata) y retorno la direccion del segmento
- *  	3B) No puedo agrandar mas el segmento por un mmap => Creo un nuevo segmento en la lista de segmentos (Por ahora no va a pasar)
- *
- */
-
-/*
- * funcion para escribir el heap metadata en la memoria:
- * 			0 - Creo un heap metadata con el tamanio a escribir (tam del malloc) y el estado en ocupado
- * 			1 - Escribo siempre el heap metadata en la primera posicion de memoria del primerMarco
- * 			Luego calculo lo siguiente
- *
- * 				A) Cantidad de espacio reservado en memoria = cantidad_marcos_pedidos * tam_marco/pag
- * 				B) Cantidad de espacio usado realmente = tam_malloc + tam_heap_metadata
- * 				C) El tamanio que me sobro = A - B
- * 			2- Analizo si C > tam_heap_metadata
- * 					=> Verdadero: entonces creo un nuevo heap metadata en la posicion: (tamanio total - C)
- * 					=> Falso: No creo nada, asumo fragmentacion interna en la ultima pagina
- */
-
-/*
- * 1- Obtiene el ultimo segmento
- * 2- Escribe la cantidad de paginas necesaria
- *
- * Por ahora, no valida:
- * 			Que pasa si no hay mas lugar en la memoria principal => Esquema memoria virtual y algoritmo
-*/
