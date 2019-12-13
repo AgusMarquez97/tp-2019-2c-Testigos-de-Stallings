@@ -136,7 +136,7 @@ uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 				escribirHeapMetadata(segmento->paginas, offsetAnterior, tamanio,tam_heap_metadata + heapMetadata->offset); // validado
 			else
 				escribirHeapMetadata(segmento->paginas, offsetAnterior, tamanio,false); // validado
-			return offsetAnterior + tam_heap_metadata;
+			return segmento->posicionInicial + offsetAnterior + tam_heap_metadata;
 		}
 
 	}
@@ -150,13 +150,18 @@ uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 
 	int nuevaCantidadFrames = obtenerCantidadMarcos(tamPagina, tamanio + tam_heap_metadata - sobrante); // Frames necesarios para escribir en memoria
 
-	estirarSegmento(idProceso, segmento, tamanio, nuevaCantidadFrames, offset, sobrante);
+	int retorno = estirarSegmento(idProceso, segmento, tamanio, nuevaCantidadFrames, offset, sobrante);
 
-	return offset + tam_heap_metadata;
+	free(heapMetadata); // testear!!
+
+	return segmento->posicionInicial + retorno;
 
 }
 
-void estirarSegmento(char* idProceso, t_segmento* segmento, int tamanio, int nuevaCantidadFrames, int offset, int sobrante) {
+// offset anterior al heap!
+int estirarSegmento(char* idProceso, t_segmento* segmento, int tamanio, int nuevaCantidadFrames, int offset, int sobrante) {
+
+	int retorno = 0;
 
 	t_list* listaPaginas = segmento->paginas;
 	int nroUltimaPagina = list_size(listaPaginas);
@@ -167,6 +172,17 @@ void estirarSegmento(char* idProceso, t_segmento* segmento, int tamanio, int nue
 
 	segmento->tamanio = list_size(listaPaginas) * tamPagina; // ver si es necesario un mutex por cada operacion con el segmento
 
+	if(sobrante > tam_heap_metadata)
+	{
+		retorno = offset + tam_heap_metadata;
+	}
+	else
+	{
+		t_pagina * unaPagina = list_get(listaPaginas,nroUltimaPagina);
+		retorno = unaPagina->nroMarco*tamPagina + (tam_heap_metadata - sobrante);
+	}
+
+	return retorno;
 }
 
 
@@ -494,9 +510,7 @@ void liberarConUnmap(char * idProceso, t_segmento * unSegmento)
 	char msj[100];
 	char aux[30];
 
-	t_list * paginas = unSegmento->paginas;
-
-	if(list_size(paginas)==1) {
+	if(list_size(unSegmento->paginas)==1) {
 		sprintf(msj, "Para el proceso %s, se ha liberado la página ", idProceso);
 	} else {
 		sprintf(msj, "Para el proceso %s, se han liberado las páginas [ ", idProceso);
@@ -508,9 +522,11 @@ void liberarConUnmap(char * idProceso, t_segmento * unSegmento)
 				strcat(msj, aux);
 				free(pagina);
 		}
-	list_destroy_and_destroy_elements(paginas, (void*)liberarPagina);
+	list_destroy_and_destroy_elements(unSegmento->paginas, (void*)liberarPagina);
 
 	strcat(msj, "]");
+
+	unSegmento->paginas=NULL;
 
 	loggearInfo(msj);
 }

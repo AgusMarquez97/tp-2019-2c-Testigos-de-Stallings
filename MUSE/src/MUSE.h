@@ -167,7 +167,7 @@ t_list* crearListaPaginas(int tamanio, int cantidadMarcos);
 t_segmento* instanciarSegmento(int tamanio, int cantidadFrames, int idSegmento, bool esCompartido, int posicionInicial);
 void crearSegmento(char* idProceso, int tamanio, int cantidadFrames, t_list* listaSegmentos, int idSegmento, bool esCompartido, int posicionInicial);
 uint32_t completarSegmento(char* idProceso, t_segmento* ultimoSegmento, int tamanio);
-void estirarSegmento(char * idProceso,t_segmento * segmento,int tamanio,int nuevaCantidadFrames,int offset, int sobrante);
+int estirarSegmento(char* idProceso, t_segmento* segmento, int tamanio, int nuevaCantidadFrames, int offset, int sobrante);
 int cantidadPaginasPedidas(int offset);
 void* leerDeMemoria(int posicionInicial, int tamanio);
 void escribirEnMemoria(void* contenido, int posicionInicial, int tamanio);

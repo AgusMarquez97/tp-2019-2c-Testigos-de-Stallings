@@ -42,6 +42,8 @@ uint32_t procesarMalloc(char* idProceso, int32_t tamanio) {
 
 	if(existeEnElDiccionario(idProceso)) {
 		cantidadFrames = obtenerCantidadMarcos(tamPagina, tamanio + tam_heap_metadata);
+		if(tamanio == 100)
+			loggearInfo("acaca");
 		posicionRetorno = analizarSegmento(idProceso, tamanio, cantidadFrames,false);
 		if(posicionRetorno == 0)
 			sprintf(msj,"Error en el malloc del proceso %s: memoria llena",idProceso);
@@ -152,7 +154,7 @@ void compactarSegmento(char* idProceso, t_segmento* segmento) {
 			nroMarco++;
 		tamanioPaginaRestante = (tamPagina * nroMarco) - posUltimoHeapMetadata;
 
-		heapMetadata->offset = tamanioPaginaRestante - tam_heap_metadata;
+		heapMetadata->offset = tamanioPaginaRestante - tam_heap_metadata; // ver de restar uno
 		escribirUnHeapMetadata(paginas, paginaUltimoHeapMetadata, heapMetadata, &posUltimoHeapMetadata, tamanioPaginaRestante);
 
 		liberarPaginas(idProceso, paginaUltimoHeapMetadata, segmento);
@@ -186,7 +188,7 @@ int32_t procesarFree(char* idProceso, uint32_t posicionSegmento) {
 		}
 		paginas = segmento->paginas;
 
-		uint32_t posicionMemoria = obtenerDireccionMemoria(paginas, posicionSegmento);
+		uint32_t posicionMemoria = obtenerDireccionMemoria(paginas, posicionSegmento - segmento->posicionInicial);
 
 		posicionMemoria = obtenerPosicionPreviaHeap(paginas, posicionMemoria);
 
@@ -251,7 +253,7 @@ void* procesarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio) {
 		segmento = obtenerSegmento(segmentos, posicionSegmento); // ver de hacer validacion por el nulo
 		paginas = segmento->paginas;
 
-		uint32_t posicionPosteriorHeap = obtenerDireccionMemoria(paginas,posicionSegmento);
+		uint32_t posicionPosteriorHeap = obtenerDireccionMemoria(paginas,posicionSegmento  - segmento->posicionInicial);
 
 		uint32_t posicionAnteriorHeap = obtenerPosicionPreviaHeap(paginas,posicionPosteriorHeap);
 
@@ -296,7 +298,13 @@ int procesarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, voi
 
 	if(poseeSegmentos(idProceso))
 		{
-			t_list * paginas = obtenerPaginas(idProceso, posicionSegmento); // normalizar para free,get,etc
+
+			pthread_mutex_lock(&mutex_diccionario);
+			t_list * segmentos = dictionary_get(diccionarioProcesos,idProceso);
+			pthread_mutex_unlock(&mutex_diccionario);
+
+			t_segmento * segmento = obtenerSegmento(segmentos, posicionSegmento); // ver de hacer validacion por el nulo
+			t_list * paginas = segmento->paginas;
 
 			if(paginas == NULL)
 			{
@@ -305,7 +313,7 @@ int procesarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, voi
 				return -1;
 			}
 
-			uint32_t posicionPosteriorHeap = obtenerDireccionMemoria(paginas,posicionSegmento);
+			uint32_t posicionPosteriorHeap = obtenerDireccionMemoria(paginas,posicionSegmento  - segmento->posicionInicial);
 
 			uint32_t posicionAnteriorHeap = obtenerPosicionPreviaHeap(paginas,posicionPosteriorHeap);
 
@@ -482,19 +490,23 @@ int procesarClose(char* idProceso) {
 	if(segmentos != NULL) {
 		if(!list_is_empty(segmentos)) {
 			void liberarSegmento(t_segmento* unSegmento) {
+				if(unSegmento)
+				{
+						if(unSegmento->paginas)
+						{
+							void liberarPaginas(t_pagina* unaPagina) {
+								liberarMarcoBitarray(unaPagina->nroMarco);
+								free(unaPagina);
+							}
 
-				void liberarPaginas(t_pagina* unaPagina) {
-					liberarMarcoBitarray(unaPagina->nroMarco);
-					free(unaPagina);
+							list_destroy_and_destroy_elements(unSegmento->paginas, (void*)liberarPaginas);
+						}
+
+					free(unSegmento);
 				}
-
-				list_iterate(unSegmento->paginas, (void*)liberarPaginas);
-				list_destroy(unSegmento->paginas);
-
-				free(unSegmento);
 			}
-			list_iterate(segmentos, (void*)liberarSegmento);
-			list_destroy(segmentos);
+
+			list_destroy_and_destroy_elements(segmentos, (void*)liberarSegmento);
 		}
 	}
 
