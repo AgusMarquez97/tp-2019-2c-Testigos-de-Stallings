@@ -440,7 +440,7 @@ static int hacer_write(const char* path, const char* buffer, size_t size, off_t 
 	{
 		memcpy(bufferWrite + offsetWrite, buffer, size);
 		//bufferWrite[offsetWrite+size] = '\0';
-		tamBufferLocal = strlen(bufferWrite);
+		//tamBufferLocal = strlen(bufferWrite);
 		offsetWrite = offsetWrite + size;
 		tamACopiar = size;
 
@@ -459,7 +459,7 @@ static int hacer_write(const char* path, const char* buffer, size_t size, off_t 
 		memcpy(bufferEnviar + sizeof(int) + sizeof(int), nombre, tamNombre );
 		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre, &offsetWrite, sizeof(size_t) );
 		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t), bufferWrite, offsetWrite);
-		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + tamBufferLocal, &offsetPrimero, sizeof(off_t) );
+		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + offsetWrite, &offsetPrimero, sizeof(off_t) );
 		enviar(socketConexion, bufferEnviar, sizeof(int) + tamEnviar );
 
 		free(bufferEnviar);

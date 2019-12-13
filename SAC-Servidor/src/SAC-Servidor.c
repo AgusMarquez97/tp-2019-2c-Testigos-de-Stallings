@@ -809,9 +809,18 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 					}
 
 					offset = offset % BLOCK_SIZE;
-				}
 
-				if(suma < tablaNodos[indArch].file_size)
+					if(suma < tablaNodos[indArch].file_size)
+						cantALeer = BLOCK_SIZE - offset;
+					else
+					{
+						if( (suma - tablaNodos[indArch].file_size) < BLOCK_SIZE)
+							cantALeer = BLOCK_SIZE - (suma - tablaNodos[indArch].file_size);
+						else
+							cantALeer = BLOCK_SIZE - ( (suma - tablaNodos[indArch].file_size) % BLOCK_SIZE );
+					}
+				}
+				else
 					cantALeer = BLOCK_SIZE - offset;
 
 
