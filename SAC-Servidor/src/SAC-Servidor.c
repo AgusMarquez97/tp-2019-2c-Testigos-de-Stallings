@@ -132,16 +132,6 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 		memset(tablaNodos[indiceArch].bloques_ind[0]->bloquesDatos[0]->bytes + tamanioNuevo, 0, BLOCK_SIZE - tamanioNuevo);
 	else
 	{
-		//busco cuantos bloques tiene este archivo
-		/*while(tablaNodos[indiceArch].bloques_ind[bloqInd] != NULL)
-		{
-			while(tablaNodos[indiceArch].bloques_ind[bloqInd]->bloquesDatos[bloqDatos] != NULL)
-				bloqDatos++;
-			bloqInd++;
-		}
-		bloqDatos--;
-		bloqInd--;*/
-
 		if(tamActual > (BLOCK_SIZE-1) )
 		{
 			bloqDatos = tamActual / BLOCK_SIZE;
@@ -170,7 +160,7 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 		}
 	}
 
-/*
+ /*
 	//recorre el bitmap y pone en 0 los bloques que estan vacios
 	GBlock* bloqueActual;
 	IndBlock* bloqueIndActual;
@@ -191,7 +181,7 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 		}
 
 	}
-*/
+	*/
 	tablaNodos[indiceArch].file_size = tamanioNuevo;
 
 }
@@ -204,8 +194,8 @@ void escribir(int indArchivo, char* contenido, size_t tamanio, off_t offset)
 	int bloqDatos = 0;
 	int cantAEscribir;
 
-	//if(offset == 0)
-	offset = tablaNodos[indArchivo].file_size;
+	if(offset == 0)
+		offset = tablaNodos[indArchivo].file_size;
 
 	sem_wait(&mutWrite);
 
@@ -246,6 +236,7 @@ void escribir(int indArchivo, char* contenido, size_t tamanio, off_t offset)
 	if(tamanio + offset < BLOCK_SIZE)
 	{
 		memcpy(tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[0]->bytes + offset, contenido, tamanio);
+		cantidadEscrita = tamanio;
 	}
 	else
 	{
@@ -263,6 +254,12 @@ void escribir(int indArchivo, char* contenido, size_t tamanio, off_t offset)
 		}
 
 		cantAEscribir = BLOCK_SIZE - offset;
+
+
+		/////
+
+		if(tamanio < BLOCK_SIZE)
+			cantAEscribir = tamanio;
 
 		while(cantidadEscrita < tamanio && bloqInd < BLOQUES_INDIRECTOS)
 		{
@@ -304,7 +301,8 @@ void escribir(int indArchivo, char* contenido, size_t tamanio, off_t offset)
 					}
 					bitarray_set_bit(bitmap, indBloque);
 
-					tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos] = (GBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN + bloqDatos;
+					//tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos] = (GBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN + bloqDatos;
+					tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos] = (GBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN;
 					memset(tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes, 0, BLOCK_SIZE);
 					if(bloqDatos < (BLOQUES_DATOS - 1) )
 						tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos + 1] = NULL;
@@ -324,7 +322,7 @@ void escribir(int indArchivo, char* contenido, size_t tamanio, off_t offset)
 		}
 	}
 
-	tablaNodos[indArchivo].file_size = tablaNodos[indArchivo].file_size + tamanio;
+	tablaNodos[indArchivo].file_size = tablaNodos[indArchivo].file_size + cantidadEscrita;//tamanio;
 
 	msync(disco - 1 - BITMAP_SIZE_IN_BLOCKS, tamDisco, MS_SYNC);
 
@@ -809,18 +807,18 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 					}
 
 					offset = offset % BLOCK_SIZE;
-
+/*
 					if(suma < tablaNodos[indArch].file_size)
 						cantALeer = BLOCK_SIZE - offset;
 					else
-					{
+
 						if( (suma - tablaNodos[indArch].file_size) < BLOCK_SIZE)
 							cantALeer = BLOCK_SIZE - (suma - tablaNodos[indArch].file_size);
 						else
 							cantALeer = BLOCK_SIZE - ( (suma - tablaNodos[indArch].file_size) % BLOCK_SIZE );
-					}
+					}*/
 				}
-				else
+				//else
 					cantALeer = BLOCK_SIZE - offset;
 
 
@@ -829,11 +827,21 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 
 					while( cantidadLeida < size && bloqDatos < BLOQUES_DATOS)
 					{
+						if(suma > tablaNodos[indArch].file_size && (tablaNodos[indArch].file_size - offset - BLOCK_SIZE) < 0)
+						{//>=
+							if( (suma - tablaNodos[indArch].file_size) < BLOCK_SIZE)
+								cantALeer = BLOCK_SIZE - (suma - tablaNodos[indArch].file_size);
+							else
+								cantALeer = BLOCK_SIZE - ( (suma - tablaNodos[indArch].file_size) % BLOCK_SIZE );
+						}
+
 						memcpy(contAEnviar + cantidadLeida, tablaNodos[indArch].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes + offset, cantALeer);
 						cantidadLeida = cantidadLeida + cantALeer;
 						cantALeer = BLOCK_SIZE;
+
 						if( (size-cantidadLeida) < BLOCK_SIZE)
 							cantALeer = size-cantidadLeida;
+
 						bloqDatos++;
 						offset = 0;
 
@@ -1009,19 +1017,19 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 
 			padreEHijo(pathUnlink, nombre, padre);
 
-			if(esDirectorio(nombre) == 1)//si no es directorio tira error
+			if(esDirectorio(nombre) == 1)//si es directorio tira error
 			{
 				error = EISDIR;
 				enviarInt(socketRespuesta, error);
 				break;
 			}
 
-			if(esArchivo(pathUnlink) == 0)//si no esta vacio tira error
+			/*if(esArchivo(pathUnlink) == 0)//si no es archivo tira error
 			{
 				error = ENOENT;
 				enviarInt(socketRespuesta, error);
 				break;
-			}
+			}*/
 
 			eliminarObjeto(nombre);
 
