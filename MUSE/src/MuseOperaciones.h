@@ -74,14 +74,17 @@ int defragmentarSegmento(t_segmento* segmento)
 	int contador = 0;
 	int heapsLeidos = 0;
 	int primerHeapMetadataLibre = 0;
+	int primeraPaginaLibre = 0;
 	int acumulador = 0;
 	int cantidadBytesAgrupados = 0;
+	int paginaUltimoHeapMetadata = 0;
 
 	int offsetAnterior = 0;
 
 	while(tamMaximo - bytesLeidos > tam_heap_metadata)
 	{
 		offsetAnterior = offset;
+		paginaUltimoHeapMetadata = contador;
 		leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset, listaPaginas, &contador);
 
 		if(heapMetadata->estaLibre)
@@ -90,6 +93,7 @@ int defragmentarSegmento(t_segmento* segmento)
 
 			if(heapsLeidos == 1)
 			{
+				primeraPaginaLibre = paginaUltimoHeapMetadata;
 				primerHeapMetadataLibre = offsetAnterior;
 			}
 
@@ -108,7 +112,7 @@ int defragmentarSegmento(t_segmento* segmento)
 
 				int tamanioRestante = tamPagina*cantidadMarcos - primerHeapMetadataLibre;
 
-				escribirUnHeapMetadata(listaPaginas, contador, heapMetadata, &primerHeapMetadataLibre, tamanioRestante);
+				escribirUnHeapMetadata(listaPaginas, primeraPaginaLibre, heapMetadata, &primerHeapMetadataLibre, tamanioRestante);
 				cantidadBytesAgrupados = heapMetadata->offset;
 
 				break;
