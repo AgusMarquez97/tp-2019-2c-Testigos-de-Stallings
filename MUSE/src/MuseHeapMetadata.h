@@ -118,7 +118,7 @@ void leerHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* byt
 	free(paginaDummy);
 
 	if(*bytesLeidosPagina > tamPagina) { // se paso de la pagina en la que estaba
-		paginasSalteadas = cantidadPaginasPedidas(*bytesLeidosPagina);
+		paginasSalteadas = obtenerCantidadMarcos(tamPagina,*bytesLeidosPagina)-1;
 		incremento = *bytesLeidosPagina - tamPagina*(paginasSalteadas);
 		(*nroPagina) += paginasSalteadas;
 
