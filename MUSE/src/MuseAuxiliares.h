@@ -224,9 +224,20 @@ bool estaLibreMarco(int nroMarco) {
 	return bitarray_test_bit(marcosMemoriaPrincipal, nroMarco) == 0;
 
 }
+int asignarMarcoLibreSwap()
+{
+	for(int i = 0; i < cantidadMarcosMemoriaVirtual; i++) {
+			if(estaLibreMarco(i)) {
+				pthread_mutex_lock(&mutex_marcos_libres);
+				bitarray_set_bit(marcosMemoriaSwap, i);
+				pthread_mutex_unlock(&mutex_marcos_libres);
+				return i;
+			}
+		}
+	return -1;
+}
 
 int asignarMarcoLibre() {
-
 	for(int i = 0; i < cantidadMarcosMemoriaPrincipal; i++) {
 		if(estaLibreMarco(i)) {
 			pthread_mutex_lock(&mutex_marcos_libres);
@@ -238,7 +249,9 @@ int asignarMarcoLibre() {
 
 	// Si sale del bucle, llamar al algoritmo de reemplazo
 
-	return -1;
+	int victima = ejecutarAlgoritmoReemplazo();
+
+	return victima;
 
 }
 
@@ -504,7 +517,7 @@ int copiarDatosEnArchivo(char * path, int tamanio, void * buffer)
 }
 
 
-void liberarConUnmap(char * idProceso, t_segmento * unSegmento)
+void liberarConUnmap(char * idProceso, t_segmento * unSegmento,bool sinParticipantes)
 {
 
 	char msj[100];
@@ -517,6 +530,7 @@ void liberarConUnmap(char * idProceso, t_segmento * unSegmento)
 	}
 
 	void liberarPagina(t_pagina* pagina) {
+				if(sinParticipantes)
 				liberarMarcoBitarray(pagina->nroMarco); // Agregar validacion para liberar memoria virtual tambien
 				sprintf(aux, "%d ",pagina->nroPagina);
 				strcat(msj, aux);
@@ -552,6 +566,106 @@ void reducirArchivoCompartido(char * path)
 	pthread_mutex_unlock(&mutex_lista_archivos);
 }
 
+int obtenerCantidadParticipantes(char * path)
+{
+	t_archivo_compartido * unArchivoCompartido = obtenerArchivoCompartido(path);
 
+	return unArchivoCompartido->nroParticipantes;
+}
+
+int ejecutarAlgoritmoReemplazo()
+{
+
+	int victima = -1;
+	int contador = 0;
+	int contador2  =0;
+	t_pagina * unaPaginaAux = NULL;
+	t_pagina * unaPaginaAux2 = NULL;
+
+	void iterarDiccionario(char * proceso,t_list * segmentos)
+	{
+		void iteradorSegmentos(t_segmento * unSegmento)
+		{
+			void iteradorPaginas(t_pagina * unaPagina)
+			{
+				if(unaPagina->presencia == 1 && unaPagina->modificado == 0 && unaPagina->uso == 0)
+				{
+					unaPagina->presencia = 0;
+					victima = unaPagina->nroMarco;
+				}
+				else if(unaPagina->presencia == 1 && unaPagina->modificado == 0 && unaPagina->uso == 1 && contador2 == 0)
+				{
+					unaPaginaAux2 = unaPagina;
+					contador2++;
+				}
+				else if(unaPagina->presencia == 1 && unaPagina->modificado == 1 && unaPagina->uso == 0 && contador == 0)
+				{
+					unaPaginaAux = unaPagina;
+					unaPagina->uso = 0;
+					contador++;
+				}
+				else
+				{
+					unaPagina->uso = 0;
+				}
+
+			}
+			list_iterate(unSegmento->paginas,(void*)iteradorPaginas);
+		}
+		list_iterate(segmentos,(void*)iteradorSegmentos);
+	}
+
+	dictionary_iterator(diccionarioProcesos,(void*)iterarDiccionario);
+
+	if((contador == 1 || contador2 == 1) && victima!=-1)
+	{
+		if(contador2 == 1)
+		{
+			victima = unaPaginaAux2->nroMarco;
+			unaPaginaAux2->presencia = 0;
+		}
+		else
+		{
+			victima = unaPaginaAux->nroMarco;
+			bajarASwap(unaPaginaAux->nroMarco);
+			unaPaginaAux->presencia = 0;
+		}
+
+	}
+
+	//se bloquea TODOO!
+	dictionary_iterator(diccionarioProcesos,(void*)iterarDiccionario);
+
+	pthread_mutex_lock(&mutex_marcos_swap_libres);
+	bitarray_set_bit(marcosMemoriaSwap,victima);
+	pthread_mutex_unlock(&mutex_marcos_swap_libres);
+
+	return victima;
+}
+//Marco en memoria
+void bajarASwap(int nroMarco)
+{
+	FILE * fd = fopen("Memoria Swap","r+");
+	int fd_num = fileno(fd);
+
+	int offset = asignarMarcoLibreSwap()*tamPagina;
+
+	if(offset<0)
+	{
+		loggearInfo("Memoria completa...POR FAVOR REINCIARLA");
+		exit(-1);
+	}
+
+	char * buffer = malloc(tamPagina);
+	memcpy(buffer,memoria + nroMarco*tamPagina,tamPagina);
+
+	void * bufferAuxiliar = mmap(NULL,tamSwap,PROT_READ|PROT_WRITE,MAP_SHARED,fd_num,0);
+
+	memcpy(bufferAuxiliar + offset,buffer,tamPagina);
+
+	msync(bufferAuxiliar,tamPagina,MS_SYNC);
+
+	munmap(bufferAuxiliar,tamSwap);
+}
 
 #endif /* MUSEAUXILIARES_H_ */

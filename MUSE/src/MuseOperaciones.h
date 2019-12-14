@@ -42,8 +42,6 @@ uint32_t procesarMalloc(char* idProceso, int32_t tamanio) {
 
 	if(existeEnElDiccionario(idProceso)) {
 		cantidadFrames = obtenerCantidadMarcos(tamPagina, tamanio + tam_heap_metadata);
-		if(tamanio == 100)
-			loggearInfo("acaca");
 		posicionRetorno = analizarSegmento(idProceso, tamanio, cantidadFrames,false);
 		if(posicionRetorno == 0)
 			sprintf(msj,"Error en el malloc del proceso %s: memoria llena",idProceso);
@@ -466,7 +464,9 @@ int procesarUnmap(char* idProceso, uint32_t posicionMemoria) {
 
 	t_segmento* unSegmento = obtenerSegmento(segmentos, posicionMemoria);
 
-	liberarConUnmap(idProceso,unSegmento);
+	int cantidadParticipantes = obtenerCantidadParticipantes(unSegmento->archivo);
+
+	liberarConUnmap(idProceso,unSegmento,cantidadParticipantes==1);
 
 	reducirArchivoCompartido(unSegmento->archivo);
 

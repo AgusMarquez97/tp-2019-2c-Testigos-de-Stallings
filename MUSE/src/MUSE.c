@@ -39,6 +39,13 @@ void levantarMemoria() {
 
 	levantarMarcos(&marcosMemoriaPrincipal, tamMemoria, &cantidadMarcosMemoriaPrincipal);
 	levantarMarcos(&marcosMemoriaSwap, tamSwap, &cantidadMarcosMemoriaVirtual);
+/*
+	bitarray_set_bit(marcosMemoriaPrincipal, 0);
+	bitarray_set_bit(marcosMemoriaPrincipal, 2);
+	bitarray_set_bit(marcosMemoriaPrincipal, 3);
+	bitarray_set_bit(marcosMemoriaPrincipal, 7);
+	bitarray_set_bit(marcosMemoriaPrincipal, 0);
+*/
 
 }
 
@@ -59,12 +66,14 @@ void crearMemoriaSwap() {
 
 	remove("Memoria Swap"); // Analizar si la MS debe ser persistida
 	FILE* f_MS =  txt_open_for_append("Memoria Swap");
+	int fd_num = fileno(f_MS);
+	ftruncate(fd_num,tamSwap); // lo que habia volo!
 	txt_close_file(f_MS);
 
 }
 
 void inicializarSemaforos() {
-
+	pthread_mutex_init(&mutex_marcos_swap_libres, NULL);
 	pthread_mutex_init(&mutex_marcos_libres, NULL);
 	pthread_mutex_init(&mutex_diccionario, NULL);
 	pthread_mutex_init(&mutex_memoria, NULL);

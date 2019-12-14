@@ -49,6 +49,7 @@ char puerto[10];
 
 pthread_mutex_t mutex_memoria;
 pthread_mutex_t mutex_marcos_libres;
+pthread_mutex_t mutex_marcos_swap_libres;
 pthread_mutex_t mutex_diccionario;
 pthread_mutex_t mutex_lista_archivos;
 
@@ -118,8 +119,9 @@ typedef struct {
 typedef struct {
 	int nroPagina;
 	int nroMarco;// permite calcular la direccion inicial en MP;
-	//bit presencia
-	//bit modificado
+	bool presencia;
+	bool modificado;
+	bool uso;
 } t_pagina;
 
 typedef struct {
@@ -174,6 +176,7 @@ void escribirEnMemoria(void* contenido, int posicionInicial, int tamanio);
 void liberarMarcoBitarray(int nroMarco);
 bool estaLibreMarco(int nroMarco);
 int asignarMarcoLibre();
+int asignarMarcoLibreSwap(); // ver de reemplazarlo por un ṕarametro
 int obtenerPaginaActual(t_list * paginas, int offset);
 uint32_t obtenerDireccionMemoria(t_list* listaPaginas,uint32_t posicionSegmento);
 t_segmento * buscarSegmento(t_list * segmentos, uint32_t posicionSegmento);
@@ -186,8 +189,11 @@ uint32_t agregarPaginasSinMemoria(char * idProceso,t_archivo_compartido * unArch
 t_list * crearPaginasSinMemoria(t_archivo_compartido * unArchivoCompartido,int cantidadFramesTeoricos);
 t_segmento * crearSegmentoSinMemoria(t_list * listaPaginas,int idSegmento,uint32_t posicionInicial,int cantidadFramesTeoricos);
 int copiarDatosEnArchivo(char * path, int tamanio, void * buffer);
-void liberarConUnmap(char * idProceso, t_segmento * unSegmento);
+void liberarConUnmap(char * idProceso, t_segmento * unSegmento,bool sinParticipantes);
 void reducirArchivoCompartido(char * path);
+int obtenerCantidadParticipantes(char * path);
+void bajarASwap(int nroMarco);
+int ejecutarAlgoritmoReemplazo();
 
 //MuseHeapMetadata
 int leerUnHeapMetadata(t_list * paginas, int posicionAnteriorHeap,int posicionPosteriorHeap, void ** buffer, int tamanio);
