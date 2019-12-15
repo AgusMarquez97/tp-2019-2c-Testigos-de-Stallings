@@ -108,12 +108,7 @@ int defragmentarSegmento(t_segmento* segmento)
 				heapMetadata->estaLibre = true;
 				heapMetadata->offset = acumulador + tam_heap_metadata;
 
-				int cantidadMarcos = obtenerCantidadMarcos(tamPagina, primerHeapMetadataLibre);
-
-				if(cantidadMarcos == 0)
-					cantidadMarcos++;
-
-				int tamanioRestante = tamPagina*cantidadMarcos - primerHeapMetadataLibre;
+				int tamanioRestante = tamPagina - primerHeapMetadataLibre%tamPagina;
 
 				escribirUnHeapMetadata(listaPaginas, primeraPaginaLibre, heapMetadata, &primerHeapMetadataLibre, tamanioRestante);
 				cantidadBytesAgrupados = heapMetadata->offset;
@@ -150,7 +145,6 @@ void compactarSegmento(char* idProceso, t_segmento* segmento) {
 	int cantPaginas = list_size(paginas);
 	int tamMaximo = tamPagina * cantPaginas;
 	int nroPagina = 0;
-	int nroMarco = 0;
 
 	int posUltimoHeapMetadata = 0;
 	int paginaUltimoHeapMetadata = 0;
@@ -163,10 +157,7 @@ void compactarSegmento(char* idProceso, t_segmento* segmento) {
 	}
 
 	if(heapMetadata->estaLibre && nroPagina > paginaUltimoHeapMetadata) {
-		nroMarco = obtenerCantidadMarcos(tamPagina, posUltimoHeapMetadata);
-		if(nroMarco == 0)
-			nroMarco++;
-		tamanioPaginaRestante = (tamPagina * nroMarco) - posUltimoHeapMetadata;
+		tamanioPaginaRestante = tamPagina - posUltimoHeapMetadata%tamPagina;
 
 		if(tamanioPaginaRestante>tam_heap_metadata)
 		{

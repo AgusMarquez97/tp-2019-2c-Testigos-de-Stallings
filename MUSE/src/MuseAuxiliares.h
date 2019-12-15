@@ -124,10 +124,12 @@ uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 	int contador = 0;
 	int bytesLeidosPagina = 0;
 	int offsetAnterior = 0;
+	int auxBytesLeidos;
 
 
 	while(tamMaximo - bytesLeidos > tam_heap_metadata) {
 		offsetAnterior = offset;
+		auxBytesLeidos = bytesLeidos;
 		leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset,segmento->paginas,&contador);
 
 		if(heapMetadata->estaLibre && heapMetadata->offset >= (tamanio + tam_heap_metadata)) {
@@ -138,7 +140,7 @@ uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 				escribirHeapMetadata(segmento->paginas, offsetAnterior, tamanio,tam_heap_metadata + heapMetadata->offset); // validado
 			else
 				escribirHeapMetadata(segmento->paginas, offsetAnterior, tamanio,false); // validado
-			return segmento->posicionInicial + offsetAnterior + tam_heap_metadata;
+			return segmento->posicionInicial + auxBytesLeidos + tam_heap_metadata;
 		}
 
 	}
