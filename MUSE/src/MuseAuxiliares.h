@@ -71,7 +71,7 @@ t_list* crearListaPaginas(int tamanio, int cantidadMarcos) {
 
 	agregarPaginas(&listaPaginas,cantidadMarcos,0);
 
-	int primerMarco = ((t_pagina*)list_get(listaPaginas, 0))->nroMarco;
+	int primerMarco = ((t_pagina*)list_get(listaPaginas, 0))->nroMarco; // ver si en el medio
 
 	escribirHeapMetadata(listaPaginas, primerMarco*tamPagina, tamanio,false);
 

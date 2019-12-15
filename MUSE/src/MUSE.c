@@ -33,7 +33,6 @@ void levantarConfig() {
 void levantarMemoria() {
 
 	diccionarioProcesos = dictionary_create();
-	diccionarioSwap = dictionary_create();
 	listaArchivosCompartidos = list_create();
 	memoria = malloc(tamMemoria);
 	crearMemoriaSwap();

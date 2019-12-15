@@ -81,6 +81,11 @@ void leerDatosHeap(t_list * paginas, int posicionPosteriorHeap, void ** buffer, 
 
 			free(unaPagina);
 			paginaActual++;
+
+			t_pagina* pagina_auxiliar = list_get(paginas,paginaActual); // ver posibles problemas de concurrencia!
+			if(!estaEnMemoria(paginas,paginaActual))
+				rutinaReemplazoPaginasSwap(&pagina_auxiliar);
+
 			unaPagina = obtenerPaginaAuxiliar(paginas,paginaActual);
 
 			posicionPosteriorHeap = unaPagina->nroMarco*tamPagina; // me paro en la primera posicion de la siguiente pagina
@@ -102,11 +107,6 @@ void leerHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* byt
 	int sobrantePaginaInicial = tamPagina - (*bytesLeidosPagina);
 	int nroMarco = 0;
 
-	t_pagina* pagina_auxiliar = list_get(paginas,*nroPagina); // ver posibles problemas de concurrencia!
-
-	if(!estaEnMemoria(paginas,*nroPagina))
-		rutinaReemplazoPaginasSwap(&pagina_auxiliar);
-
 	if(sobrantePaginaInicial<tam_heap_metadata) { // esta partido el proximo heap
 		leerHeapPartido(heapMetadata, offset, sobrantePaginaInicial, nroPagina, paginas, &paginaDummy);
 		incremento = (tam_heap_metadata - sobrantePaginaInicial) + (*heapMetadata)->offset;
@@ -127,6 +127,12 @@ void leerHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* byt
 		paginasSalteadas = obtenerCantidadMarcos(tamPagina,*bytesLeidosPagina)-1;
 		incremento = *bytesLeidosPagina - tamPagina*(paginasSalteadas);
 		(*nroPagina) += paginasSalteadas;
+
+		if(!estaEnMemoria(paginas,(*nroPagina)))
+		{
+			t_pagina * paginaAux = list_get(paginas,(*nroPagina));
+			rutinaReemplazoPaginasSwap(&paginaAux);
+		}
 
 		if(paginasSalteadas == list_size(paginas)) {
 			nroMarco = list_size(paginas);
@@ -153,13 +159,16 @@ void leerHeapPartido(t_heap_metadata** heapMetadata, int* offset, int sobrante, 
 
 	(*nroPagina)++;
 
+	if(!estaEnMemoria(paginas,*nroPagina))
+	{
+		t_pagina * paginaAux = list_get(paginas,*nroPagina);
+		rutinaReemplazoPaginasSwap(&paginaAux);
+	}
+
 	free(*paginaDummy);
 
 	(*paginaDummy) = obtenerPaginaAuxiliar(paginas, (*nroPagina));
 	*offset = (*paginaDummy)->nroMarco * tamPagina;
-
-	if(!estaEnMemoria(paginas,*nroPagina))
-		rutinaReemplazoPaginasSwap(paginaDummy);
 
 	pthread_mutex_lock(&mutex_memoria);
 	memcpy(buffer + sobrante, memoria + (*offset), tam_heap_metadata - sobrante);
@@ -279,6 +288,12 @@ int escribirHeapMetadata(t_list * listaPaginas, int offset, int tamanio, int off
 
 		if(bytesSobrantesUltimaPagina >= tam_heap_metadata || offsetMaximo!=0)
 		{
+			if(!estaEnMemoria(listaPaginas,paginaActual + paginasPedidas))
+			{
+				t_pagina * paginaAux = list_get(listaPaginas,paginaActual + paginasPedidas);
+				rutinaReemplazoPaginasSwap(&paginaAux);
+			}
+
 			t_pagina * pagina = obtenerPaginaAuxiliar(listaPaginas,paginaActual + paginasPedidas); // La idea es ir siempre a la ultima pagina donde este el heap
 
 			offset = pagina->nroMarco*tamPagina + (tamPagina - bytesSobrantesUltimaPagina);
@@ -346,6 +361,13 @@ void escribirDatosHeap(t_list * paginas, int posicionPosteriorHeap, void ** buff
 
 		free(unaPagina);
 		paginaActual++;
+
+		if(!estaEnMemoria(paginas,paginaActual))
+		{
+			t_pagina * paginaAux = list_get(paginas,paginaActual);
+			rutinaReemplazoPaginasSwap(&paginaAux);
+		}
+
 		unaPagina = obtenerPaginaAuxiliar(paginas,paginaActual);
 
 		posicionPosteriorHeap = unaPagina->nroMarco*tamPagina; // me paro en la primera posicion de la siguiente pagina
@@ -392,6 +414,13 @@ t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offset)
 
 		offsetBuffer+=tamanioPaginaRestante;
 		free(pagina);
+
+		if(!estaEnMemoria(listaPaginas,nroPagina+1))
+		{
+			t_pagina * paginaAux = list_get(listaPaginas,nroPagina+1);
+			rutinaReemplazoPaginasSwap(&paginaAux);
+		}
+
 		pagina = obtenerPaginaAuxiliar(listaPaginas,nroPagina+1);
 		offset = pagina->nroMarco*tamPagina; //Obtengo la pagina siguiente
 
@@ -423,7 +452,7 @@ uint32_t obtenerPosicionPreviaHeap(t_list * paginas, int offset) // agarra la ul
 
 	if(tamanioPaginaUsado >= tam_heap_metadata)
 	{
-		posicionRetorno = (offset - tam_heap_metadata);
+		posicionRetorno = (offset - tam_heap_metadata); // ver!
 	}
 	else
 	{
