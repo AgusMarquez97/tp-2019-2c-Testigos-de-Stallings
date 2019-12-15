@@ -33,12 +33,14 @@ void levantarConfig() {
 void levantarMemoria() {
 
 	diccionarioProcesos = dictionary_create();
+	diccionarioSwap = dictionary_create();
 	listaArchivosCompartidos = list_create();
 	memoria = malloc(tamMemoria);
 	crearMemoriaSwap();
 
 	levantarMarcos(&marcosMemoriaPrincipal, tamMemoria, &cantidadMarcosMemoriaPrincipal);
 	levantarMarcos(&marcosMemoriaSwap, tamSwap, &cantidadMarcosMemoriaVirtual);
+
 /*
 	bitarray_set_bit(marcosMemoriaPrincipal, 0);
 	bitarray_set_bit(marcosMemoriaPrincipal, 2);
@@ -78,7 +80,7 @@ void inicializarSemaforos() {
 	pthread_mutex_init(&mutex_diccionario, NULL);
 	pthread_mutex_init(&mutex_memoria, NULL);
 	pthread_mutex_init(&mutex_lista_archivos, NULL);
-
+	pthread_mutex_init(&mutex_algoritmo_reemplazo, NULL);
 }
 
 void levantarServidorMUSE() {

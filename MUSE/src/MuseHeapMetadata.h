@@ -8,7 +8,7 @@
 #ifndef MUSEHEAPMETADATA_H_
 #define MUSEHEAPMETADATA_H_
 
-#include "MuseAuxiliares.h"
+#include "MuseMemoriaSwap.h"
 
 /*
  * LECTURA HM
@@ -57,6 +57,7 @@ int liberarUnHeapMetadata(t_list * paginas, int offset)
 
 void leerDatosHeap(t_list * paginas, int posicionPosteriorHeap, void ** buffer, int tamanio)
 {
+
 		int paginaActual = obtenerPaginaActual(paginas, posicionPosteriorHeap);
 		t_pagina * unaPagina = obtenerPaginaAuxiliar(paginas,paginaActual);
 		int bytesLeidos = 0;
@@ -100,6 +101,11 @@ void leerHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* byt
 	t_pagina* paginaDummy = malloc(sizeof(*paginaDummy));
 	int sobrantePaginaInicial = tamPagina - (*bytesLeidosPagina);
 	int nroMarco = 0;
+
+	t_pagina* pagina_auxiliar = list_get(paginas,*nroPagina); // ver posibles problemas de concurrencia!
+
+	if(!estaEnMemoria(paginas,*nroPagina))
+		rutinaReemplazoPaginasSwap(&pagina_auxiliar);
 
 	if(sobrantePaginaInicial<tam_heap_metadata) { // esta partido el proximo heap
 		leerHeapPartido(heapMetadata, offset, sobrantePaginaInicial, nroPagina, paginas, &paginaDummy);
@@ -152,6 +158,9 @@ void leerHeapPartido(t_heap_metadata** heapMetadata, int* offset, int sobrante, 
 	(*paginaDummy) = obtenerPaginaAuxiliar(paginas, (*nroPagina));
 	*offset = (*paginaDummy)->nroMarco * tamPagina;
 
+	if(!estaEnMemoria(paginas,*nroPagina))
+		rutinaReemplazoPaginasSwap(paginaDummy);
+
 	pthread_mutex_lock(&mutex_memoria);
 	memcpy(buffer + sobrante, memoria + (*offset), tam_heap_metadata - sobrante);
 	pthread_mutex_unlock(&mutex_memoria);
@@ -187,6 +196,13 @@ int escribirUnHeapMetadata(t_list * listaPaginas,int paginaActual,t_heap_metadat
 		offsetBuffer+=tamanioPaginaRestante;
 		paginaActual++;
 		t_pagina * pagina = obtenerPaginaAuxiliar(listaPaginas,paginaActual);
+
+		if(!estaEnMemoria(listaPaginas,paginaActual))
+		{
+			t_pagina * paginaAux = list_get(listaPaginas,paginaActual);
+			rutinaReemplazoPaginasSwap(&paginaAux);
+		}
+
 		*offset = pagina->nroMarco*tamPagina; //Obtengo la pagina siguiente
 
 		pthread_mutex_lock(&mutex_memoria);
@@ -294,7 +310,7 @@ int escribirDatosHeapMetadata(t_list * paginas, int posicionAnteriorHeap,int pos
 		t_heap_metadata * unHeap = obtenerHeapMetadata(paginas, posicionAnteriorHeap);
 		if(unHeap->estaLibre)
 			return HM_YA_LIBERADO;
-		if(unHeap->offset < tamanio) // Para hacer esto infalible => pasar el segmento, todo para evitar el caso de memoria compartida (NO LO PIDEN)
+		if(unHeap->offset < tamanio) // Para hacer esto infalible => pasar el segmento, to do para evitar el caso de memoria compartida (NO LO PIDEN)
 			return TAMANIO_SOBREPASADO;
 
 		escribirDatosHeap(paginas,posicionPosteriorHeap,buffer,tamanio);
@@ -318,6 +334,7 @@ void escribirDatosHeap(t_list * paginas, int posicionPosteriorHeap, void ** buff
 
 	while(bytesEscritos < tamanio)
 	{
+
 		pthread_mutex_lock(&mutex_memoria);
 		memcpy(memoria + posicionPosteriorHeap,*buffer + bytesEscritos,bytesRestantesPagina);
 		pthread_mutex_unlock(&mutex_memoria);

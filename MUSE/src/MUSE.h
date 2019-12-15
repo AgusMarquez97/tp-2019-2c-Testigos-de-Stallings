@@ -53,6 +53,8 @@ pthread_mutex_t mutex_marcos_swap_libres;
 pthread_mutex_t mutex_diccionario;
 pthread_mutex_t mutex_lista_archivos;
 
+pthread_mutex_t mutex_algoritmo_reemplazo;
+
 /*
  * Estructura de la memoria principal:
  * 1° Tamanio de la memoria principal
@@ -94,7 +96,7 @@ int tamSwap;
 char* path_archivo_swap;
 t_bitarray * marcosMemoriaSwap;
 int cantidadMarcosMemoriaVirtual;
-
+t_dictionary * diccionarioSwap;
 /*
  * Estructuras para acceder y administrar la memoria principal y la memoria swap:
  * 1° Un diccionario de procesos y archivos, donde cada proceso/archivo posee una lista de segmentos y cada segmento una lista de paginas
@@ -118,9 +120,8 @@ typedef struct {
 
 typedef struct {
 	int nroPagina;
+	int nroPaginaSwap;
 	int nroMarco;// permite calcular la direccion inicial en MP;
-	bool presencia;
-	bool modificado;
 	bool uso;
 } t_pagina;
 
@@ -193,7 +194,18 @@ void liberarConUnmap(char * idProceso, t_segmento * unSegmento,bool sinParticipa
 void reducirArchivoCompartido(char * path);
 int obtenerCantidadParticipantes(char * path);
 void bajarASwap(int nroMarco);
-int ejecutarAlgoritmoReemplazo();
+t_pagina * ejecutarAlgoritmoReemplazo();
+
+//Memoria Principal y Memoria Swap
+void moverMarcosASwap();
+void rutinaReemplazoPaginasSwap(t_pagina** unaPagina);
+t_pagina * ejecutarAlgoritmoReemplazo();
+void reemplazarVictima(t_pagina ** paginaVictima, bool bloqueoMarco);
+void recuperarPaginaSwap(t_pagina ** paginaActualmenteEnSwap,int marcoObjetivo);
+bool estaEnMemoria(t_list * paginas, int nroPagina);
+void escribirSwap(int nroPagina, void * buffer);
+void * leerSwap(int nroPagina);
+
 
 //MuseHeapMetadata
 int leerUnHeapMetadata(t_list * paginas, int posicionAnteriorHeap,int posicionPosteriorHeap, void ** buffer, int tamanio);
