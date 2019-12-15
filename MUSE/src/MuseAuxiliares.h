@@ -33,11 +33,11 @@ t_segmento* obtenerSegmento(t_list* segmentos, uint32_t posicionMemoria) {
 	return list_find(segmentos, (void*)segmentoCorrespondiente);
 }
 
-t_pagina* obtenerPagina(t_list* paginas, uint32_t posicionMemoria) {
+t_pagina* obtenerPagina(t_list* paginas, uint32_t posicionSegmento) {
 
 	bool paginaCorrespondiente(t_pagina* pagina) {
-		return (posicionMemoria >= pagina->nroPagina*tamPagina
-				&& posicionMemoria <= (pagina->nroPagina + 1) * tamPagina);
+		return (posicionSegmento >= pagina->nroPagina*tamPagina
+				&& posicionSegmento <= (pagina->nroPagina + 1) * tamPagina);
 	}
 	return list_find(paginas, (void*)paginaCorrespondiente);
 
@@ -59,6 +59,8 @@ void agregarPaginas(t_list** listaPaginas, int cantidadMarcos, int nroUltimaPagi
 
 		pagina->nroMarco = asignarMarcoLibre(); // Agregar logica del algoritmo de reemplazo de pags
 		pagina->nroPagina = i + nroUltimaPagina;
+		pagina->nroPaginaSwap = -1;
+		pagina->uso = 1;
 
 		list_add(*listaPaginas, pagina);
 	}
@@ -141,16 +143,19 @@ uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 
 	}
 
+	int baseSegmento = bytesLeidos;
+
 	sobrante = (tamMaximo - bytesLeidos);
 
 	if(heapMetadata->estaLibre) {
 		sobrante = heapMetadata->offset + tam_heap_metadata; // me sobro un hm entero
 		offset = offsetAnterior; // Pongo el offset en la primera posicion libre
+		baseSegmento -= sobrante;
 	}
 
 	int nuevaCantidadFrames = obtenerCantidadMarcos(tamPagina, tamanio + tam_heap_metadata - sobrante); // Frames necesarios para escribir en memoria
 
-	int retorno = estirarSegmento(idProceso, segmento, tamanio, nuevaCantidadFrames, offset, sobrante);
+	int retorno = estirarSegmento(baseSegmento,idProceso, segmento, tamanio, nuevaCantidadFrames, offset, sobrante);
 
 	free(heapMetadata); // testear!!
 
@@ -159,9 +164,7 @@ uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 }
 
 // offset anterior al heap!
-int estirarSegmento(char* idProceso, t_segmento* segmento, int tamanio, int nuevaCantidadFrames, int offset, int sobrante) {
-
-	int retorno = 0;
+int estirarSegmento(int baseSegmento,char* idProceso, t_segmento* segmento, int tamanio, int nuevaCantidadFrames, int offset, int sobrante) {
 
 	t_list* listaPaginas = segmento->paginas;
 	int nroUltimaPagina = list_size(listaPaginas);
@@ -172,17 +175,7 @@ int estirarSegmento(char* idProceso, t_segmento* segmento, int tamanio, int nuev
 
 	segmento->tamanio = list_size(listaPaginas) * tamPagina; // ver si es necesario un mutex por cada operacion con el segmento
 
-	if(sobrante > tam_heap_metadata)
-	{
-		retorno = offset + tam_heap_metadata;
-	}
-	else
-	{
-		t_pagina * unaPagina = list_get(listaPaginas,nroUltimaPagina);
-		retorno = unaPagina->nroMarco*tamPagina + (tam_heap_metadata - sobrante);
-	}
-
-	return retorno;
+	return baseSegmento + tam_heap_metadata;
 }
 
 

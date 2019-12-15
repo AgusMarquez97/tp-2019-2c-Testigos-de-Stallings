@@ -1,7 +1,6 @@
 #include "MuseOperaciones.h"
 
 int main(void) {
-
 	remove("Linuse.log");
 	iniciarLog("MUSE");
 	loggearInfo("Se inicia el proceso MUSE...");
@@ -40,13 +39,12 @@ void levantarMemoria() {
 	levantarMarcos(&marcosMemoriaPrincipal, tamMemoria, &cantidadMarcosMemoriaPrincipal);
 	levantarMarcos(&marcosMemoriaSwap, tamSwap, &cantidadMarcosMemoriaVirtual);
 
-/*
+
 	bitarray_set_bit(marcosMemoriaPrincipal, 0);
 	bitarray_set_bit(marcosMemoriaPrincipal, 2);
 	bitarray_set_bit(marcosMemoriaPrincipal, 3);
 	bitarray_set_bit(marcosMemoriaPrincipal, 7);
-	bitarray_set_bit(marcosMemoriaPrincipal, 0);
-*/
+
 
 }
 

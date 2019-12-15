@@ -162,7 +162,7 @@ uint32_t analizarSegmento (char* idProceso, int tamanio, int cantidadFrames, boo
 int obtenerCantidadMarcos(int tamanioPagina, int tamanioMemoria);
 t_segmento* obtenerUnSegmento(char * idProceso, uint32_t posicionMemoria);
 t_segmento* obtenerSegmento(t_list* segmentos, uint32_t posicionMemoria);
-t_pagina* obtenerPagina(t_list* paginas, uint32_t posicionMemoria);
+t_pagina* obtenerPagina(t_list* paginas, uint32_t posicionSegmento);
 bool paginaCorrespondiente(t_pagina* pagina);
 bool poseeSegmentos(char* idProceso);
 void agregarPaginas(t_list** listaPaginas, int cantidadMarcos, int nroUltimaPagina);
@@ -170,7 +170,7 @@ t_list* crearListaPaginas(int tamanio, int cantidadMarcos);
 t_segmento* instanciarSegmento(int tamanio, int cantidadFrames, int idSegmento, bool esCompartido, int posicionInicial);
 void crearSegmento(char* idProceso, int tamanio, int cantidadFrames, t_list* listaSegmentos, int idSegmento, bool esCompartido, int posicionInicial);
 uint32_t completarSegmento(char* idProceso, t_segmento* ultimoSegmento, int tamanio);
-int estirarSegmento(char* idProceso, t_segmento* segmento, int tamanio, int nuevaCantidadFrames, int offset, int sobrante);
+int estirarSegmento(int baseSegmento,char* idProceso, t_segmento* segmento, int tamanio, int nuevaCantidadFrames, int offset, int sobrante);
 int cantidadPaginasPedidas(int offset);
 void* leerDeMemoria(int posicionInicial, int tamanio);
 void escribirEnMemoria(void* contenido, int posicionInicial, int tamanio);

@@ -60,14 +60,19 @@ uint32_t procesarMalloc(char* idProceso, int32_t tamanio) {
 
 int defragmentarSegmento(t_segmento* segmento)
 {
-
 	t_list* listaPaginas = segmento->paginas;
+
+	t_pagina* paginaAuxiliar = obtenerPaginaAuxiliar(listaPaginas, 0);
+
+	int offset = paginaAuxiliar->nroMarco * tamPagina;
+
+	free(paginaAuxiliar);
 
 	int cantPaginas = list_size(listaPaginas);
 	int tamMaximo = tamPagina * cantPaginas;
 	int bytesLeidos = 0;
 	t_heap_metadata* heapMetadata = malloc(tam_heap_metadata);
-	int offset = 0;
+
 	int bytesLeidosPagina = 0;
 	int contador = 0;
 	int heapsLeidos = 0;
@@ -130,10 +135,17 @@ int defragmentarSegmento(t_segmento* segmento)
 
 void compactarSegmento(char* idProceso, t_segmento* segmento) {
 
+	t_list* listaPaginas = segmento->paginas;
+
+	t_pagina* paginaAuxiliar = obtenerPaginaAuxiliar(listaPaginas, 0);
+
+	int offset = paginaAuxiliar->nroMarco * tamPagina;
+
+	free(paginaAuxiliar);
+
 	t_heap_metadata* heapMetadata = malloc(tam_heap_metadata);
 	int bytesLeidos = 0;
 	int bytesLeidosPagina = 0;
-	int offset = 0;
 	t_list* paginas = segmento->paginas;
 	int cantPaginas = list_size(paginas);
 	int tamMaximo = tamPagina * cantPaginas;
