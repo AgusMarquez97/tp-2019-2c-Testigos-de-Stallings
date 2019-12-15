@@ -96,7 +96,7 @@ int tamSwap;
 char* path_archivo_swap;
 t_bitarray * marcosMemoriaSwap;
 int cantidadMarcosMemoriaVirtual;
-t_dictionary * diccionarioSwap;
+
 /*
  * Estructuras para acceder y administrar la memoria principal y la memoria swap:
  * 1° Un diccionario de procesos y archivos, donde cada proceso/archivo posee una lista de segmentos y cada segmento una lista de paginas
