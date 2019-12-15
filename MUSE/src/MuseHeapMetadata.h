@@ -303,6 +303,7 @@ int escribirHeapMetadata(t_list * listaPaginas, int offset, int tamanio, int off
 
 			if(offsetMaximo!=0)
 			{
+				if(offsetMaximo<tamPagina)
 				offset = pagina->nroMarco*tamPagina + (offsetMaximo - bytesSobrantesUltimaPagina) + posicionActual%tamPagina;
 				unHeapMetadata->offset = (offsetMaximo - bytesEscritos) - tam_heap_metadata; // PUEDE ESTAR PARTIDO => ANDA BUSCANDO LA 9mm
 			}
