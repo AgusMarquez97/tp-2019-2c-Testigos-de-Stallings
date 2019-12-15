@@ -411,7 +411,10 @@ uint32_t procesarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
 
 	t_list * paginas = obtenerPaginas(idProceso, posicionRetorno); // normalizar para free,get,etc
 	t_pagina * unaPagina;
-	escribirDatosHeap(paginas, posicionRetorno, &buffer, tamanio);
+
+	uint32_t posicionMemoria = obtenerDireccionMemoria(paginas, posicionRetorno);
+
+	escribirDatosHeap(paginas, posicionMemoria, &buffer, tamanio);
 
 	/*
 	 * Aca la idea seria agregar al diccionario!
@@ -493,7 +496,7 @@ int procesarUnmap(char* idProceso, uint32_t posicionMemoria) {
 		sprintf(msj,"Unmap ejecutado correctamente para el proceso %s direccion %d",idProceso,unSegmento->id_segmento);
 	}*/
 
-	sprintf(msj,"Unmap ejecutado correctamente para el proceso %s direccion %d",idProceso,unSegmento->id_segmento);
+	sprintf(msj,"Unmap ejecutado correctamente para el proceso %s direccion [%d-%d]",idProceso,unSegmento->id_segmento,unSegmento->tamanio);
 	loggearInfo(msj);
 
 	return 0;

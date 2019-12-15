@@ -344,7 +344,7 @@ void escribirDatosHeap(t_list * paginas, int posicionPosteriorHeap, void ** buff
 	int bytesRestantesPagina = 0;
 
 	if(tamanio > tamPagina)
-		bytesRestantesPagina = (tamPagina)*(unaPagina->nroMarco+1) - posicionPosteriorHeap;
+		bytesRestantesPagina = tamPagina - posicionPosteriorHeap%tamPagina;
 	else
 		bytesRestantesPagina = tamanio;
 
