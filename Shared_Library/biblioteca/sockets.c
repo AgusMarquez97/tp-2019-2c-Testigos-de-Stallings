@@ -349,8 +349,8 @@ int aceptarConexion(int socketServidor)
 	    	return -1;
 	    }
 
-	    loggearInfo("\n-----------------Se acepta al cliente: ------------------- \n\n");
-	    imprimirDatosCliente(conexionEntrante,direc_tam);
+	    //loggearInfo("\n-----------------Se acepta al cliente: ------------------- \n\n");
+	    //imprimirDatosCliente(conexionEntrante,direc_tam);
 
 	    return socketCliente; // Retorna el socket asociado a un cliente que quiere conectarse al servidor
 }
@@ -430,7 +430,7 @@ void loggearNuevaConexion(int socket)
 	  strcat(info,aux);
 	  strcat(info,"\n");
 
-	  loggearInfo(info);
+	  //loggearInfo(info);
 
 	  free(info);
       free(aux);

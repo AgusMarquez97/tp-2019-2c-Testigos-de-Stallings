@@ -5,15 +5,20 @@
 
 bool existeEnElDiccionario(char* idProceso) {
 
+	bool retorno = false;
+
+	pthread_mutex_lock(&mutex_diccionario);
+
 	if(diccionarioProcesos) {
 		if(!dictionary_is_empty(diccionarioProcesos)) {
 			if(dictionary_has_key(diccionarioProcesos, idProceso)) {
-				return true;
+				retorno = true;
 			}
 		}
 	}
+	pthread_mutex_unlock(&mutex_diccionario);
 
-	return false;
+	return retorno;
 }
 
 int procesarHandshake(char* idProceso) {
@@ -26,7 +31,11 @@ int procesarHandshake(char* idProceso) {
 		return -1;
 	}
 
+	pthread_mutex_lock(&mutex_diccionario);
 	dictionary_put(diccionarioProcesos, idProceso, NULL);
+	pthread_mutex_unlock(&mutex_diccionario);
+
+
 	sprintf(msj, "Handshake exitoso. Proceso %s agregado al diccionario de procesos correctamente", idProceso);
 	loggearInfo(msj);
 
@@ -420,17 +429,20 @@ uint32_t procesarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
 	 * Aca la idea seria agregar al diccionario!
 	 */
 
-	unArchivoCompartido = agregarArchivoLista(path,unArchivoCompartido); // me devuelve el nuevo archivo compartido
+	if(flag == MUSE_MAP_SHARED)
+		{
+			unArchivoCompartido = agregarArchivoLista(path,unArchivoCompartido); // me devuelve el nuevo archivo compartido
 
-	unArchivoCompartido->marcosMapeados = malloc(sizeof(int32_t)*cantidadFrames);
-	unArchivoCompartido->nroPaginaSwap = malloc(sizeof(int32_t)*cantidadFrames);
+			unArchivoCompartido->marcosMapeados = malloc(sizeof(int32_t)*cantidadFrames);
+			unArchivoCompartido->nroPaginaSwap = malloc(sizeof(int32_t)*cantidadFrames);
 
-	for(int i = 0; i < cantidadFrames;i++)
-	{
-		unaPagina = list_get(paginas,i);
-		*(unArchivoCompartido->marcosMapeados + i) = unaPagina->nroMarco;
-		*(unArchivoCompartido->nroPaginaSwap + i) = unaPagina->nroPaginaSwap;
-	}
+			for(int i = 0; i < cantidadFrames;i++)
+			{
+				unaPagina = list_get(paginas,i);
+				*(unArchivoCompartido->marcosMapeados + i) = unaPagina->nroMarco;
+				*(unArchivoCompartido->nroPaginaSwap + i) = unaPagina->nroPaginaSwap;
+			}
+		}
 
 		t_segmento* unSegmento = obtenerUnSegmento(idProceso, posicionRetorno);
 		unSegmento->archivo = strdup(path);
@@ -509,9 +521,9 @@ int procesarClose(char* idProceso) {
 
  	char msj[120];
 	t_list* segmentos;
-
+	pthread_mutex_lock(&mutex_diccionario);
 	segmentos = dictionary_get(diccionarioProcesos, idProceso);
-
+	pthread_mutex_unlock(&mutex_diccionario);
 	if(segmentos != NULL) {
 		if(!list_is_empty(segmentos)) {
 			void liberarSegmento(t_segmento* unSegmento) {
@@ -526,7 +538,8 @@ int procesarClose(char* idProceso) {
 
 							list_destroy_and_destroy_elements(unSegmento->paginas, (void*)liberarPaginas);
 						}
-
+						if(unSegmento->esCompartido)
+							reducirArchivoCompartido(unSegmento->archivo);
 					free(unSegmento);
 				}
 			}
@@ -534,8 +547,9 @@ int procesarClose(char* idProceso) {
 			list_destroy_and_destroy_elements(segmentos, (void*)liberarSegmento);
 		}
 	}
-
+	pthread_mutex_lock(&mutex_diccionario);
 	dictionary_remove(diccionarioProcesos, idProceso);
+	pthread_mutex_unlock(&mutex_diccionario);
 
 	sprintf(msj, "Proceso %s eliminado del diccionario de procesos", idProceso);
 	loggearInfo(msj);
