@@ -186,8 +186,26 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 
 }
 
-void escribir(int indArchivo, char* contenido, size_t tamanio, off_t offset)
+void escribir(void* bufferWrite)//(int indArchivo, char* contenido, size_t tamanio, off_t offset)
 {
+	char* nombre = malloc(MAX_FILENAME_LENGTH);
+	int tamNom;
+	size_t tamanio;
+
+	off_t offset;
+
+
+	memcpy(&tamNom, bufferWrite, sizeof(int) );
+	memcpy(nombre, bufferWrite + sizeof(int), tamNom);
+	memcpy(&tamanio, bufferWrite + sizeof(int) + tamNom, sizeof(size_t) );
+
+	char* contenido = malloc(tamanio);
+	memcpy(contenido, bufferWrite + sizeof(int) + tamNom + sizeof(size_t), tamanio);
+	memcpy(&offset, bufferWrite + sizeof(int) + tamNom + sizeof(size_t) + tamanio, sizeof(off_t) );
+
+
+	int indArchivo = indiceObjeto(nombre);
+
 
 	int cantidadEscrita = 0;
 	int bloqInd = 0;
@@ -197,7 +215,7 @@ void escribir(int indArchivo, char* contenido, size_t tamanio, off_t offset)
 	if(offset == 0)
 		offset = tablaNodos[indArchivo].file_size;
 
-	sem_wait(&mutWrite);
+	//sem_wait(&mutWrite);
 
 	if(tablaNodos[indArchivo].file_size == 0)
 	{
@@ -326,7 +344,11 @@ void escribir(int indArchivo, char* contenido, size_t tamanio, off_t offset)
 
 	msync(disco - 1 - BITMAP_SIZE_IN_BLOCKS, tamDisco, MS_SYNC);
 
-	sem_post(&mutWrite);
+	free(contenido);
+	free(nombre);
+	free(bufferWrite);
+
+	//sem_post(&mutWrite);
 
 }
 
@@ -508,7 +530,7 @@ void eliminarObjeto(char* nombre)
 	}
 
 	//recorre el bitmap y pone en 0 los bloques que estan vacios
-	GBlock* bloqueActual;
+	/*GBlock* bloqueActual;
 	IndBlock* bloqueIndActual;
 	for(int indiceBloque = ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER; indiceBloque < (ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER + cantBloqueDatos); indiceBloque++)
 	{
@@ -526,7 +548,7 @@ void eliminarObjeto(char* nombre)
 			}
 		}
 
-	}
+	}*/
 
 	tablaNodos[indObjeto].estado = 0;
 	memset(tablaNodos[indObjeto].nombre, 0, MAX_FILENAME_LENGTH);
@@ -894,7 +916,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 			void* bufferWrite = malloc(tamARecibir);
 			recibir(socketRespuesta, bufferWrite, tamARecibir);
 
-			char* nombre = malloc(MAX_FILENAME_LENGTH);
+		/*	char* nombre = malloc(MAX_FILENAME_LENGTH);
 			int tamNom;
 			size_t tamContenido;
 
@@ -910,15 +932,18 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 			memcpy(&offset, bufferWrite + sizeof(int) + tamNom + sizeof(size_t) + tamContenido, sizeof(off_t) );
 
 
-			indArch = indiceObjeto(nombre);
-			if (indArch == -1)//ver
-					break;
+			indArch = indiceObjeto(nombre);*/
+		//	if (indArch == -1)//ver
+		//			break;
 
-			escribir(indArch, contenido, tamContenido, offset);
+			int hiloWrite = 0;
+			//escribir(indArch, contenido, tamContenido, offset);
+			if( ( hiloWrite = makeDetachableThread(escribir, bufferWrite) ) == 0)
+				loggearError("Error al crear un nuevo hilo");
 
-			free(contenido);
-			free(nombre);
-			free(bufferWrite);
+		//	free(contenido);
+		//	free(nombre);
+			//free(bufferWrite);
 
 			break;
 
@@ -1224,6 +1249,7 @@ size_t tamArchivo(char* archivo)
 
 int main( int argc, char *argv[] )
 {
+
 
 	remove("Linuse.log");
 	iniciarLog("FUSE");

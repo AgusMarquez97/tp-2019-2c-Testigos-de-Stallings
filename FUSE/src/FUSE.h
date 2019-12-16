@@ -64,6 +64,14 @@ typedef struct archivo
 	struct archivo* padre;
 }GFile;
 
+struct datosWrite
+{
+	char* path;
+	char* buffer;
+	size_t size;
+	off_t offset;
+};
+
 
 /*
  * Levanta los datos de la estructura config y los guarda en las variables globales que corresponda

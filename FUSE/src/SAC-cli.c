@@ -11,6 +11,7 @@
 #include <limits.h>
 #include <time.h>
 #include <sys/types.h>
+#include <semaphore.h>
 
 #include "FUSE.h"
 
@@ -25,6 +26,8 @@ char* bufferWrite;
 size_t offsetWrite = 0;
 int contadorWrite = 0;
 off_t offsetPrimero = 0;
+char* pathWrite;
+sem_t mutWrite;
 
 struct t_runtime_options {
 	char* disco;
@@ -162,17 +165,84 @@ void agregarArchivo(char *nombreArch, char* padre)
 }
 
 
-//busca el indice del archivo y copia el nuevo contenido. Si no existe el archivo, no hace nada
-void escribirEnArchivo(const char *path, const char *contenido)
+
+int escribirEnArchivo(void* datosWrite)//(const char *path, const char *contenido)
 {
-	char* nombre = nombreObjeto(path);
+	struct datosWrite* datos = (struct datosWrite*) datosWrite;
+	char* path = strdup(datos->path);
+	char* buffer = strdup(datos->buffer);
+	size_t size = datos->size;
+	off_t offset = datos->offset;
 
-	int indArch = indiceObjeto(nombre);
+	size_t tamBufferLocal;
 
-	if (indArch == -1)
-		return;
+	if(pathWrite == NULL || strcmp(pathWrite, path) != 0 )
+	{
+		sem_wait(&mutWrite);
+		pathWrite = strdup(path);
+	}
 
-	strcpy(tablaNodos[indArch]->contenido, contenido);
+
+	if(bufferWrite == NULL)
+	{
+		bufferWrite = malloc(size);
+		tamBufferLocal = 0;
+		offsetPrimero = offset;
+	}
+	else
+		tamBufferLocal = strlen(bufferWrite);
+
+	size_t tamACopiar = strlen(buffer);
+
+	if(buffer[0] == '\0')
+		tamACopiar = 1;
+
+	if(size > tamACopiar)
+	{
+		memcpy(bufferWrite + offsetWrite, buffer, tamACopiar);
+		tamBufferLocal = strlen(bufferWrite);
+		offsetWrite = offsetWrite + tamACopiar;
+
+	}
+	else
+	{
+		memcpy(bufferWrite + offsetWrite, buffer, size);
+		offsetWrite = offsetWrite + size;
+		tamACopiar = size;
+
+		enviarInt(socketConexion, WRITE);
+
+
+		char* nombre = nombreObjeto(path);
+		int tamNombre = strlen(nombre) + 1;
+
+		void* bufferEnviar = malloc(sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + offsetWrite + sizeof(off_t) );//tamBufferLocal
+
+		int tamEnviar = sizeof(int) + tamNombre + sizeof(size_t) + offsetWrite + sizeof(off_t);
+
+		memcpy(bufferEnviar, &tamEnviar, sizeof(int) );
+		memcpy(bufferEnviar + sizeof(int), &tamNombre, sizeof(int) );
+		memcpy(bufferEnviar + sizeof(int) + sizeof(int), nombre, tamNombre );
+		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre, &offsetWrite, sizeof(size_t) );
+		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t), bufferWrite, offsetWrite);
+		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + offsetWrite, &offsetPrimero, sizeof(off_t) );
+		enviar(socketConexion, bufferEnviar, sizeof(int) + tamEnviar );
+
+		free(bufferEnviar);
+
+		free(bufferWrite);
+		bufferWrite = NULL;
+		offsetWrite = 0;
+
+		free(pathWrite);
+		pathWrite = NULL;
+		sem_post(&mutWrite);
+
+	}
+
+
+	return tamACopiar;
+
 }
 
 //ve si un directorio esta vacio. Devuelve 1 si esta vacio, 0 si tiene algo
@@ -399,79 +469,24 @@ static int hacer_mknod(const char *path, mode_t modo, dev_t dispositivo)
 static int hacer_write(const char* path, const char* buffer, size_t size, off_t offset, struct fuse_file_info* info)
 {
 
-	size_t tamBufferLocal;
-	//off_t offsetPrimero = 0;
+	pthread_t hiloWrite = 0;
+	int tamStruct = strlen(path) + 1 + strlen(buffer) + 1 + sizeof(size_t) + sizeof(off_t);
+	struct datosWrite* datos = malloc(tamStruct);
 
+	datos->path = strdup(path);
+	datos->buffer = strdup(buffer);
+	datos->size = size;
+	datos->offset = offset;
 
-	if(bufferWrite == NULL)
-	{
-		bufferWrite = malloc(size);
-		tamBufferLocal = 0;
-		offsetPrimero = offset;
-	}
-	else
-		tamBufferLocal = strlen(bufferWrite);
+	hiloWrite = crearHilo(escribirEnArchivo, (void*) datos);
+	if( hiloWrite == 0)
+		loggearError("Error al crear un nuevo hilo");
 
-	size_t tamACopiar = strlen(buffer);// + 1;
+	void* retorno;
+	pthread_join(hiloWrite, &retorno);
 
-	if(buffer[0] == '\0')
-		tamACopiar = 1;
-
-	if(size > tamACopiar)
-	{
-		/*if(buffer[0] == '\0')
-		{
-			tamACopiar = 1;
-			memcpy(bufferWrite + offsetWrite, "", tamACopiar);
-			tamBufferLocal = strlen(bufferWrite);
-			offsetWrite = offsetWrite + tamACopiar;
-		}
-		else
-		{*/
-			memcpy(bufferWrite + offsetWrite, buffer, tamACopiar);
-			tamBufferLocal = strlen(bufferWrite);
-			offsetWrite = offsetWrite + tamACopiar;
-		//}
-
-			//if(buffer[0] == '\0')
-				//offsetWrite--;
-	}
-	else
-	{
-		memcpy(bufferWrite + offsetWrite, buffer, size);
-		//bufferWrite[offsetWrite+size] = '\0';
-		//tamBufferLocal = strlen(bufferWrite);
-		offsetWrite = offsetWrite + size;
-		tamACopiar = size;
-
-		enviarInt(socketConexion, WRITE);
-
-
-		char* nombre = nombreObjeto(path);
-		int tamNombre = strlen(nombre) + 1;
-
-		void* bufferEnviar = malloc(sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + offsetWrite + sizeof(off_t) );//tamBufferLocal
-
-		int tamEnviar = sizeof(int) + tamNombre + sizeof(size_t) + offsetWrite + sizeof(off_t);
-
-		memcpy(bufferEnviar, &tamEnviar, sizeof(int) );
-		memcpy(bufferEnviar + sizeof(int), &tamNombre, sizeof(int) );
-		memcpy(bufferEnviar + sizeof(int) + sizeof(int), nombre, tamNombre );
-		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre, &offsetWrite, sizeof(size_t) );
-		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t), bufferWrite, offsetWrite);
-		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + offsetWrite, &offsetPrimero, sizeof(off_t) );
-		enviar(socketConexion, bufferEnviar, sizeof(int) + tamEnviar );
-
-		free(bufferEnviar);
-
-		free(bufferWrite);
-		bufferWrite = NULL;
-		offsetWrite = 0;
-
-	}
-
-
-	return tamACopiar;
+	free(datos);
+	return (int)retorno;
 
 }
 
@@ -695,6 +710,7 @@ int main( int argc, char *argv[] )
 	loggearInfo("Se inicia el proceso FUSE...");
 	levantarConfig();
 	//levantarClienteFUSE();
+	sem_init(&mutWrite, 1, 1);
 	socketConexion = levantarCliente(ip,puerto);
 
 	int ret = fuse_main(argc, argv, &operaciones, NULL);
