@@ -129,7 +129,12 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 	int offset = 0;
 
 	if(tamActual < BLOCK_SIZE)
+	{
 		memset(tablaNodos[indiceArch].bloques_ind[0]->bloquesDatos[0]->bytes + tamanioNuevo, 0, BLOCK_SIZE - tamanioNuevo);
+		tablaNodos[indiceArch].bloques_ind[0]->bloquesDatos[0] = NULL;
+		tablaNodos[indiceArch].bloques_ind[0] = NULL;
+	}
+
 	else
 	{
 		if(tamActual > (BLOCK_SIZE-1) )
@@ -154,14 +159,17 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 				memset(tablaNodos[indiceArch].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes + offset, 0, BLOCK_SIZE - offset);
 				aRecortar = aRecortar - BLOCK_SIZE;
 				offset = 0;
+				tablaNodos[indiceArch].bloques_ind[bloqInd]->bloquesDatos[bloqDatos] = NULL;
 				bloqDatos--;
 			}
 			bloqInd--;
 		}
 	}
 
- /*
-	//recorre el bitmap y pone en 0 los bloques que estan vacios
+	if(aRecortar == tablaNodos[indiceArch].file_size)
+		tablaNodos[indiceArch].bloques_ind[0] = NULL;
+
+	/*//recorre el bitmap y pone en 0 los bloques que estan vacios
 	GBlock* bloqueActual;
 	IndBlock* bloqueIndActual;
 	for(int indiceBloque = ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER; indiceBloque < (ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER + cantBloqueDatos); indiceBloque++)
@@ -180,8 +188,8 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 			}
 		}
 
-	}
-	*/
+	}*/
+
 	tablaNodos[indiceArch].file_size = tamanioNuevo;
 
 }
@@ -253,7 +261,9 @@ void escribir(void* bufferWrite)//(int indArchivo, char* contenido, size_t taman
 
 	if(tamanio + offset < BLOCK_SIZE)
 	{
-		memcpy(tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[0]->bytes + offset, contenido, tamanio);
+		GBlock* bloqueNuevo = tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[0];
+		memcpy(bloqueNuevo->bytes + offset, contenido, tamanio);
+		//memcpy(tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[0]->bytes + offset, contenido, tamanio);
 		cantidadEscrita = tamanio;
 	}
 	else
@@ -530,7 +540,7 @@ void eliminarObjeto(char* nombre)
 	}
 
 	//recorre el bitmap y pone en 0 los bloques que estan vacios
-	/*GBlock* bloqueActual;
+	GBlock* bloqueActual;
 	IndBlock* bloqueIndActual;
 	for(int indiceBloque = ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER; indiceBloque < (ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER + cantBloqueDatos); indiceBloque++)
 	{
@@ -548,7 +558,7 @@ void eliminarObjeto(char* nombre)
 			}
 		}
 
-	}*/
+	}
 
 	tablaNodos[indObjeto].estado = 0;
 	memset(tablaNodos[indObjeto].nombre, 0, MAX_FILENAME_LENGTH);
@@ -1269,8 +1279,8 @@ int main( int argc, char *argv[] )
 
 	tamBitmap = tamDisco/BLOCK_SIZE/8; //tamanio del bitmap
 
-	void* punteroBitmap = (void*) disco + 1;
-	bitmap = bitarray_create_with_mode( punteroBitmap, tamBitmap, LSB_FIRST);//(char*) disco + BLOCK_SIZE
+	void* punteroBitmap = (char*) disco + BLOCK_SIZE;//(void*) disco + 1;
+	bitmap = bitarray_create_with_mode(punteroBitmap, tamBitmap, MSB_FIRST);//(char*) disco + BLOCK_SIZE
 
 
 	/*			tabla de nodos			*/
