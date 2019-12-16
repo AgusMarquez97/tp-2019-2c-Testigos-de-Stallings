@@ -1,77 +1,47 @@
-#include <stdio.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <hilolay/hilolay.h>
 #include <unistd.h>
 
-#define CANT_ITERACIONES 10000
+#define CANT_NOTAS 420
 
-void *tocar_solo()
-{
-	int i;
-
-	printf("\nCAMPO: Golpeandose para entrar...\n");
-	hilolay_yield();
-	printf("\nCAMPO: Luchando para llegar al frente...\n");
-	hilolay_yield();
-	for(i=0;i<CANT_ITERACIONES;i++)
-	{
-		int accion = rand() % 5;
-		if(!accion)
-		{
-			printf("CAMPO: POGO!!!!\n");
-			hilolay_yield();
-		}
-		else
-		{
-			printf("CAMPO: Singing Along\n");
-			hilolay_yield();
-		}
-	}
-	return 0;
-}
+struct hilolay_sem_t* solo_hiper_mega_piola;
+struct hilolay_sem_t* afinado;
+int fin = 0;
 
 void *preparar_solo()
 {
 	int i;
-
-	printf("\nPALCO: Estacionando el auto...\n");
-	hilolay_yield();
-	printf("\nPALCO: Haciendo fila para entrar...\n");
-	hilolay_yield();
-	for(i=0;i<CANT_ITERACIONES/100;i++)
-	{
-		int accion = rand() % 4;
-		if(accion)
-		{
-			printf("PALCO: Aplaudiendo\n");
-			hilolay_yield();
-		}
-		else
-		{
-			printf("PALCO: Singing Along\n");
-			hilolay_yield();
-		}
-		usleep(100000);
+	for(i = 0;i<20;i++){
+		sleep(1);
+		hilolay_yield();
 	}
+
+	for(i = 0; i < CANT_NOTAS; i++)
+	{
+		hilolay_wait(solo_hiper_mega_piola);
+		hilolay_signal(afinado);
+		hilolay_signal(solo_hiper_mega_piola);
+	}
+	printf("\nPude afinar %d veces en el tiempo que tuve\n", i);
 	return 0;
 }
 
 int main(void)
 {
-	struct hilolay_t palco;
-	struct hilolay_t campo[3];
+	struct hilolay_t afinador;
 
 	hilolay_init();
 
-	hilolay_create(&palco, NULL, &preparar_solo, NULL);
-	hilolay_create(&campo[0], NULL, &tocar_solo, NULL);
-	hilolay_create(&campo[1], NULL, &tocar_solo, NULL);
-	hilolay_create(&campo[2], NULL, &tocar_solo, NULL);
+	solo_hiper_mega_piola = hilolay_sem_open("solo_hiper_mega_piola");
+	afinado = hilolay_sem_open("afinado");
 
-	hilolay_join(&campo[0]);
-	hilolay_join(&campo[1]);
-	hilolay_join(&campo[2]);
-	hilolay_join(&palco);
+	hilolay_create(&afinador, NULL, &preparar_solo, NULL);
+
+	hilolay_join(&afinador);
+
+	hilolay_sem_close(solo_hiper_mega_piola);
+	hilolay_sem_close(afinado);
 
 
 return hilolay_return(0);
