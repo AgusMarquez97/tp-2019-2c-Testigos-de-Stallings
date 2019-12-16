@@ -63,6 +63,10 @@ void agregarPaginas(t_list** listaPaginas, int cantidadMarcos, int nroUltimaPagi
 		pagina->uso = 1;
 
 		list_add(*listaPaginas, pagina);
+
+		pthread_mutex_lock(&mutex_algoritmo_reemplazo);
+		list_add(listaPaginasClockModificado,pagina);
+		pthread_mutex_unlock(&mutex_algoritmo_reemplazo);
 	}
 
 }

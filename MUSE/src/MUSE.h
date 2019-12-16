@@ -54,6 +54,7 @@ pthread_mutex_t mutex_diccionario;
 pthread_mutex_t mutex_lista_archivos;
 
 pthread_mutex_t mutex_algoritmo_reemplazo;
+pthread_mutex_t mutex_lista_paginas;
 
 /*
  * Estructura de la memoria principal:
@@ -108,6 +109,9 @@ int cantidadMarcosMemoriaVirtual;
 
 t_dictionary * diccionarioProcesos;
 t_list * listaArchivosCompartidos;
+t_list * listaPaginasClockModificado;
+
+int contadorPaginasAnalizadas;
 
 typedef struct {
 	int id_segmento;
@@ -129,6 +133,7 @@ typedef struct {
 	char * nombreArchivo;
 	int nroParticipantes;
 	int32_t * marcosMapeados;
+	int32_t * nroPaginaSwap;
 } t_archivo_compartido;
 
 // MUSE

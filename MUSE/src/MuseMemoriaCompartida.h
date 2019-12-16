@@ -126,8 +126,13 @@ t_list * crearPaginasSinMemoria(t_archivo_compartido * unArchivoCompartido,int c
 
 		unaPagina->nroPagina = i;
 		unaPagina->nroMarco = *(unArchivoCompartido->marcosMapeados + i);
+		unaPagina->nroPaginaSwap = *(unArchivoCompartido->nroPaginaSwap + i);
 
 		list_add(listaPaginas,unaPagina);
+
+		pthread_mutex_lock(&mutex_algoritmo_reemplazo);
+		list_add(listaPaginasClockModificado,unaPagina);
+		pthread_mutex_unlock(&mutex_algoritmo_reemplazo);
 	}
 	return listaPaginas;
 }

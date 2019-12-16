@@ -400,10 +400,19 @@ uint32_t procesarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
 		return 0;
 	}
 
-	t_list * paginas = obtenerPaginas(idProceso, posicionRetorno); // normalizar para free,get,etc
+	t_list * segmentos;
+	t_segmento* segmento;
+
+	pthread_mutex_lock(&mutex_diccionario);
+	segmentos = dictionary_get(diccionarioProcesos,idProceso);
+	pthread_mutex_unlock(&mutex_diccionario);
+
+	segmento = obtenerSegmento(segmentos, posicionRetorno); // ver de hacer validacion por el nulo
+
+	t_list * paginas = segmento->paginas;
 	t_pagina * unaPagina;
 
-	uint32_t posicionMemoria = obtenerDireccionMemoria(paginas, posicionRetorno);
+	uint32_t posicionMemoria = obtenerDireccionMemoria(paginas, posicionRetorno - segmento->posicionInicial);
 
 	escribirDatosHeap(paginas, posicionMemoria, &buffer, tamanio);
 
@@ -412,12 +421,15 @@ uint32_t procesarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
 	 */
 
 	unArchivoCompartido = agregarArchivoLista(path,unArchivoCompartido); // me devuelve el nuevo archivo compartido
+
 	unArchivoCompartido->marcosMapeados = malloc(sizeof(int32_t)*cantidadFrames);
+	unArchivoCompartido->nroPaginaSwap = malloc(sizeof(int32_t)*cantidadFrames);
 
 	for(int i = 0; i < cantidadFrames;i++)
 	{
 		unaPagina = list_get(paginas,i);
 		*(unArchivoCompartido->marcosMapeados + i) = unaPagina->nroMarco;
+		*(unArchivoCompartido->nroPaginaSwap + i) = unaPagina->nroPaginaSwap;
 	}
 
 		t_segmento* unSegmento = obtenerUnSegmento(idProceso, posicionRetorno);

@@ -33,25 +33,19 @@ void levantarMemoria() {
 
 	diccionarioProcesos = dictionary_create();
 	listaArchivosCompartidos = list_create();
+	listaPaginasClockModificado = list_create();
+	contadorPaginasAnalizadas = 0;
 	memoria = malloc(tamMemoria);
 	crearMemoriaSwap();
 
 	levantarMarcos(&marcosMemoriaPrincipal, tamMemoria, &cantidadMarcosMemoriaPrincipal);
 	levantarMarcos(&marcosMemoriaSwap, tamSwap, &cantidadMarcosMemoriaVirtual);
-
-
-	bitarray_set_bit(marcosMemoriaPrincipal, 0);
-	bitarray_set_bit(marcosMemoriaPrincipal, 2);
-	bitarray_set_bit(marcosMemoriaPrincipal, 3);
-	bitarray_set_bit(marcosMemoriaPrincipal, 7);
-
-
 }
 
 void levantarMarcos(t_bitarray** unBitArray, int tamanio, int* cantidadMarcos) {
 
 	*cantidadMarcos = obtenerCantidadMarcos(tamPagina, tamanio);
-	char* bitmap = calloc(1, *cantidadMarcos); // Cuando se libera??
+	char* bitmap = calloc(1, *cantidadMarcos); // Cuando se libera?? => no se libera
 	// Array de bits para consultar marcos libres
 	*unBitArray = bitarray_create_with_mode(bitmap, (*cantidadMarcos)/8, LSB_FIRST);
 
@@ -78,6 +72,7 @@ void inicializarSemaforos() {
 	pthread_mutex_init(&mutex_memoria, NULL);
 	pthread_mutex_init(&mutex_lista_archivos, NULL);
 	pthread_mutex_init(&mutex_algoritmo_reemplazo, NULL);
+	pthread_mutex_init(&mutex_lista_paginas, NULL);
 }
 
 void levantarServidorMUSE() {
