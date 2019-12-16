@@ -12,5 +12,6 @@
 #include <stdlib.h>
 
 #include <biblioteca/libmuse.h>
+#include <biblioteca/libsuse.h>
 
 #endif /* LINUSE_H_ */
