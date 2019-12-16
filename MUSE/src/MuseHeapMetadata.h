@@ -59,7 +59,11 @@ void leerDatosHeap(t_list * paginas, int posicionPosteriorHeap, void ** buffer, 
 {
 
 		int paginaActual = obtenerPaginaActual(paginas, posicionPosteriorHeap);
+
+		usarPagina(paginas,paginaActual);
+
 		t_pagina * unaPagina = obtenerPaginaAuxiliar(paginas,paginaActual);
+
 		int bytesLeidos = 0;
 		int bytesRestantesPagina = 0;
 

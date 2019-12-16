@@ -179,8 +179,8 @@ int copiarDatosEnArchivo(char * path, int tamanio, void * buffer)
 void liberarConUnmap(char * idProceso, t_segmento * unSegmento,bool sinParticipantes)
 {
 
-	char msj[100];
-	char aux[30];
+	char msj[450];
+	char aux[100];
 
 	if(list_size(unSegmento->paginas)==1) {
 		sprintf(msj, "Para el proceso %s, se ha liberado la página ", idProceso);
@@ -189,11 +189,19 @@ void liberarConUnmap(char * idProceso, t_segmento * unSegmento,bool sinParticipa
 	}
 
 	void liberarPagina(t_pagina* pagina) {
-				if(sinParticipantes)
-				liberarMarcoBitarray(pagina->nroMarco); // Agregar validacion para liberar memoria virtual tambien
-				sprintf(aux, "%d ",pagina->nroPagina);
-				strcat(msj, aux);
-				free(pagina);
+			pthread_mutex_lock(&mutex_lista_paginas);
+			bool condicion(t_pagina * unaPaginaAlgoritmo)
+			{
+				return unaPaginaAlgoritmo == pagina;
+			}
+			list_remove_by_condition(listaPaginasClockModificado,(void*)condicion);
+			pthread_mutex_unlock(&mutex_lista_paginas);
+
+			if(sinParticipantes)
+			liberarMarcoBitarray(pagina->nroMarco); // Agregar validacion para liberar memoria virtual tambien
+			sprintf(aux, "%d ",pagina->nroPagina);
+			strcat(msj, aux);
+			free(pagina);
 		}
 	list_destroy_and_destroy_elements(unSegmento->paginas, (void*)liberarPagina);
 
@@ -220,8 +228,15 @@ void reducirArchivoCompartido(char * path)
 			return false;
 	}
 
+	void destructor(t_archivo_compartido * unArchivoCompartido)
+	{
+		free(unArchivoCompartido->marcosMapeados);
+		free(unArchivoCompartido->nroPaginaSwap);
+		free(unArchivoCompartido);
+	}
+
 	pthread_mutex_lock(&mutex_lista_archivos);
-	list_remove_and_destroy_by_condition(listaArchivosCompartidos,(void*)condicion,free);
+	list_remove_and_destroy_by_condition(listaArchivosCompartidos,(void*)condicion,(void*)destructor);
 	pthread_mutex_unlock(&mutex_lista_archivos);
 }
 
@@ -231,5 +246,6 @@ int obtenerCantidadParticipantes(char * path)
 
 	return unArchivoCompartido->nroParticipantes;
 }
+
 
 #endif /* MUSEMEMORIACOMPARTIDA_H_ */

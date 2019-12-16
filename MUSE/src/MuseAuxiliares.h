@@ -119,8 +119,13 @@ uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 	int cantPaginas = list_size(segmento->paginas);
 	int tamMaximo = tamPagina * cantPaginas;
 	t_pagina* unaPagina = list_get(segmento->paginas, 0);
+
+	if(unaPagina->nroPaginaSwap > 0)
+			rutinaReemplazoPaginasSwap(&unaPagina);
+
 	int offset = unaPagina->nroMarco * tamPagina;
 	int bytesLeidos = 0;
+
 	t_heap_metadata* heapMetadata = malloc(tam_heap_metadata); // liberar
 
 	int sobrante = 0;
@@ -289,8 +294,8 @@ t_pagina * obtenerPaginaAuxiliar(t_list * paginas, int nroPagina)
 
 void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento) {
 
-	char msj[100];
-	char aux[30];
+	char msj[450];
+	char aux[100];
 
 	t_list * paginas = segmento->paginas;
 
@@ -341,6 +346,12 @@ t_list * obtenerPaginas(char* idProceso, uint32_t posicionSegmento)
 		return segmento->paginas;
 	return NULL;
 
+}
+
+void usarPagina(t_list * paginas, int nroPagina)
+{
+	t_pagina * unaPagina = list_get(paginas,nroPagina);
+	unaPagina->uso=1;
 }
 
 
