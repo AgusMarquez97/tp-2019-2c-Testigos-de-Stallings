@@ -7,23 +7,30 @@ int main(void) {
 
 	muse_init(getpid(),"127.0.0.1",5003);
 
-	uint32_t xxi = muse_alloc(21);
-	uint32_t ix = muse_alloc(9);
-	uint32_t xvii = muse_alloc(17);
-	uint32_t v = muse_alloc(5);
-	muse_free(xvii);
-	uint32_t x = muse_alloc(10);
-	uint32_t xl = muse_alloc(40);
-	muse_free(xxi);
-	uint32_t c = muse_alloc(100);
-	muse_free(x);
-	muse_free(v);
-	muse_free(c);
-	muse_free(ix);
-	muse_free(xl);
-	uint32_t cxi = muse_alloc(111);
-	muse_free(cxi);
+	size_t tamArchivoMax = 250;
+    
+	char* homero = malloc(tamArchivoMax);
+	char* bart = malloc(tamArchivoMax);
+	char* maggie = malloc(tamArchivoMax);
+	void* todos = malloc(tamArchivoMax*3);
 
+	uint32_t direccionMemoria1 = muse_map("archivos/homero.txt", tamArchivoMax, MUSE_MAP_SHARED);
+	uint32_t direccionMemoria2 = muse_map("archivos/bart.txt", tamArchivoMax, MUSE_MAP_SHARED);
+	uint32_t direccionMemoria3 = muse_map("archivos/maggie.txt", tamArchivoMax, MUSE_MAP_SHARED);
+
+	muse_get(homero, direccionMemoria1, tamArchivoMax);
+	muse_get(bart, direccionMemoria2, tamArchivoMax);
+	muse_get(maggie, direccionMemoria3, tamArchivoMax);
+
+	muse_unmap(direccionMemoria1);
+	muse_unmap(direccionMemoria2);
+	muse_unmap(direccionMemoria3);
+	
+	printf("%s\n", homero);
+	printf("%s\n", bart);
+	printf("%s\n", maggie);
+
+	
 	muse_close();
 
 	return EXIT_SUCCESS;
