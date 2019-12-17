@@ -70,6 +70,9 @@ void rellenarArchivo(int indiceArch, int tamanioNuevo)
 
 		tablaNodos[indiceArch].bloques_ind[0] =  (IndBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN;
 
+		loggearInfo("Puntero a bloque indirecto seteado");
+		loggearInfo("Bit seteado");
+
 		//bloque de datos
 		while(valorBit != 0 && indBloque < (ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER + cantBloqueDatos) )
 		{
@@ -80,6 +83,8 @@ void rellenarArchivo(int indiceArch, int tamanioNuevo)
 
 		tablaNodos[indiceArch].bloques_ind[0]->bloquesDatos[0] = (GBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN;
 
+		loggearInfo("Puntero a bloque de datos seteado");
+		loggearInfo("Bit seteado");
 	}
 
 	if(tamanioNuevo < BLOCK_SIZE && offset != 0)//en este caso tam actual siempre va a ser < block size
@@ -109,7 +114,10 @@ void rellenarArchivo(int indiceArch, int tamanioNuevo)
 					}
 					bitarray_set_bit(bitmap, indBloque);
 
-					tablaNodos[indiceArch].bloques_ind[0]->bloquesDatos[bloqDatos] = (GBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN + bloqDatos;
+					tablaNodos[indiceArch].bloques_ind[0]->bloquesDatos[bloqDatos] = (GBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN;// + bloqDatos;
+
+					loggearInfo("Puntero a bloque de datos seteado");
+					loggearInfo("Bit seteado");
 				}
 
 			}
@@ -117,6 +125,12 @@ void rellenarArchivo(int indiceArch, int tamanioNuevo)
 		}
 	}
 
+	char* aux = malloc(50);
+	sprintf(aux, "%d bytes de padding agregados", cantidadPadding);
+	loggearInfo(aux);
+	free(aux);
+
+	tablaNodos[indiceArch].fecha_modif = time(NULL);
 	tablaNodos[indiceArch].file_size = tamanioNuevo;
 }
 
@@ -139,8 +153,11 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 		{
 			indiceBloque = tablaNodos[indiceArch].bloques_ind[0]->bloquesDatos[0] - (GBlock*)tablaNodos + ESTRUCTURAS_ADMIN;
 			bitarray_clean_bit(bitmap, indiceBloque);
+			loggearInfo("Bit limpiado");
+
 			indiceBloque = tablaNodos[indiceArch].bloques_ind[0] - (IndBlock*)tablaNodos + ESTRUCTURAS_ADMIN;
 			bitarray_clean_bit(bitmap, indiceBloque);
+			loggearInfo("Bit limpiado");
 
 			tablaNodos[indiceArch].bloques_ind[0]->bloquesDatos[0] = NULL;
 			tablaNodos[indiceArch].bloques_ind[0] = NULL;
@@ -173,7 +190,7 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 					offset = BLOCK_SIZE - aRecortar;
 				cortado = BLOCK_SIZE - offset;
 				memset(tablaNodos[indiceArch].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes + offset, 0, cortado);
-				aRecortar = aRecortar - BLOCK_SIZE;
+				aRecortar = aRecortar - cortado;
 				offset = 0;
 				totalCortado = totalCortado + cortado;
 
@@ -181,6 +198,8 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 				{
 					indiceBloque = tablaNodos[indiceArch].bloques_ind[bloqInd]->bloquesDatos[bloqDatos] - (GBlock*)tablaNodos + ESTRUCTURAS_ADMIN;
 					bitarray_clean_bit(bitmap, indiceBloque);
+					loggearInfo("Bit limpiado");
+
 					tablaNodos[indiceArch].bloques_ind[bloqInd]->bloquesDatos[bloqDatos] = NULL;
 				}
 				bloqDatos--;
@@ -190,6 +209,8 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 			{
 				indiceBloque = tablaNodos[indiceArch].bloques_ind[bloqInd] - (IndBlock*)tablaNodos + ESTRUCTURAS_ADMIN;
 				bitarray_clean_bit(bitmap, indiceBloque);
+				loggearInfo("Bit limpiado");
+
 				tablaNodos[indiceArch].bloques_ind[bloqInd] = NULL;
 			}
 			bloqInd--;
@@ -199,6 +220,12 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 	if(aRecortar == tablaNodos[indiceArch].file_size)
 		tablaNodos[indiceArch].bloques_ind[0] = NULL;
 
+	char* aux = malloc(50);
+	sprintf(aux, "%d bytes recortados", tamActual - tamanioNuevo);
+	loggearInfo(aux);
+	free(aux);
+
+	tablaNodos[indiceArch].fecha_modif = time(NULL);
 	tablaNodos[indiceArch].file_size = tamanioNuevo;
 
 }
@@ -251,6 +278,9 @@ void escribir(void* bufferWrite)//(int indArchivo, char* contenido, size_t taman
 
 		tablaNodos[indArchivo].bloques_ind[0] =  (IndBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN;
 
+		loggearInfo("Puntero a bloque indirecto seteado");
+		loggearInfo("Bit seteado");
+
 		//bloque de datos
 		while(valorBit != 0 && indBloque < (ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER + cantBloqueDatos) )
 		{
@@ -261,10 +291,19 @@ void escribir(void* bufferWrite)//(int indArchivo, char* contenido, size_t taman
 
 		tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[0] = (GBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN;
 
+		loggearInfo("Puntero a bloque de datos seteado");
+		loggearInfo("Bit seteado");
+
 		memset(tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[0]->bytes, 0, BLOCK_SIZE);
 
-		tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[1] = NULL;
 		tablaNodos[indArchivo].bloques_ind[1] = NULL;
+
+		int i = 1;
+		while(i < BLOQUES_DATOS)
+		{
+			tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[i] = NULL;
+			i++;
+		}
 
 	}
 
@@ -319,6 +358,9 @@ void escribir(void* bufferWrite)//(int indArchivo, char* contenido, size_t taman
 					i++;
 				}
 
+				loggearInfo("Puntero a bloque indirecto seteado");
+				loggearInfo("Bit seteado");
+
 				if(bloqInd < (BLOQUES_INDIRECTOS - 1) )
 					tablaNodos[indArchivo].bloques_ind[bloqInd + 1] = NULL;
 			}
@@ -337,9 +379,12 @@ void escribir(void* bufferWrite)//(int indArchivo, char* contenido, size_t taman
 					bitarray_set_bit(bitmap, indBloque);
 
 					tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos] = (GBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN;
+
+					loggearInfo("Puntero a bloque de datos seteado");
+					loggearInfo("Bit seteado");
+
 					memset(tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes, 0, BLOCK_SIZE);
-					if(bloqDatos < (BLOQUES_DATOS - 1) )
-						tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos + 1] = NULL;
+
 				}
 				memcpy(tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes + offset, contenido+cantidadEscrita, cantAEscribir);
 
@@ -356,6 +401,12 @@ void escribir(void* bufferWrite)//(int indArchivo, char* contenido, size_t taman
 		}
 	}
 
+	char* aux = malloc(50);
+	sprintf(aux, "%d bytes escritos", cantidadEscrita);
+	loggearInfo(aux);
+	free(aux);
+
+	tablaNodos[indArchivo].fecha_modif = time(NULL);
 	tablaNodos[indArchivo].file_size = tablaNodos[indArchivo].file_size + cantidadEscrita;//tamanio;
 
 	msync(disco - 1 - BITMAP_SIZE_IN_BLOCKS, tamDisco, MS_SYNC);
@@ -518,6 +569,7 @@ int estaVacio(char* nombre)
 void eliminarObjeto(char* nombre)
 {
 	int indObjeto = indiceObjeto(nombre);
+	int tam = tablaNodos[indObjeto].file_size;
 
 	int indiceBloque = 0;
 
@@ -537,6 +589,8 @@ void eliminarObjeto(char* nombre)
 					memset(tablaNodos[indObjeto].bloques_ind[cont]->bloquesDatos[contDatos]->bytes, 0, BLOCK_SIZE);
 					indiceBloque = tablaNodos[indObjeto].bloques_ind[cont]->bloquesDatos[contDatos] - (GBlock*)tablaNodos + ESTRUCTURAS_ADMIN;//como explicar esta asquerosidad
 					bitarray_clean_bit(bitmap, indiceBloque);
+					loggearInfo("Bit limpiado");
+
 					tablaNodos[indObjeto].bloques_ind[cont]->bloquesDatos[contDatos] = NULL;
 				}
 				contDatos++;
@@ -544,6 +598,8 @@ void eliminarObjeto(char* nombre)
 
 			indiceBloque = tablaNodos[indObjeto].bloques_ind[cont] - (IndBlock*)tablaNodos + ESTRUCTURAS_ADMIN;
 			bitarray_clean_bit(bitmap, indiceBloque);
+			loggearInfo("Bit limpiado");
+
 			tablaNodos[indObjeto].bloques_ind[cont] = NULL;
 			cont++;
 		}
@@ -556,6 +612,14 @@ void eliminarObjeto(char* nombre)
 	tablaNodos[indObjeto].file_size = 0;
 	tablaNodos[indObjeto].padre = 0;
 	bitarray_clean_bit(bitmap, ESTRUCTURAS_ADMIN + indObjeto);
+
+	char* aux = malloc(50);
+	sprintf(aux, "%d bytes eliminados", tam);
+	loggearInfo(aux);
+	free(aux);
+
+	loggearInfo("Elemento eliminado");
+	loggearInfo("Bit limpiado");
 
 }
 
@@ -599,6 +663,13 @@ void agregarObjeto(char* nombre, char* padre, int estado)
 	}
 	else
 		nodoNuevo->padre = 0;
+
+	if(estado == DIRECTORIO)
+		loggearInfo("Directorio creado");
+	else
+		loggearInfo("Archivo creado");
+
+	loggearInfo("Bit seteado");
 
 }
 
@@ -1030,6 +1101,13 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 			renombrar(oldpath, newpath);
 
 			enviarInt(socketRespuesta, 0);
+
+			char* nombreViejo = nombreObjeto(oldpath);
+
+			if(esDirectorio(nombreViejo) == 1)
+				loggearInfo("Directorio renombrado");
+			else
+				loggearInfo("Archivo renombrado");
 
 			free(oldpath);
 			free(newpath);
