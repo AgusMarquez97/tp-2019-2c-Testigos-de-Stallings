@@ -83,7 +83,7 @@ void rellenarArchivo(int indiceArch, int tamanioNuevo)
 	}
 
 	if(tamanioNuevo < BLOCK_SIZE && offset != 0)//en este caso tam actual siempre va a ser < block size
-		memset(tablaNodos[indiceArch].bloques_ind[0]->bloquesDatos[0]->bytes + offset - 1 , '@', cantidadPadding);
+		memset(tablaNodos[indiceArch].bloques_ind[0]->bloquesDatos[0]->bytes + offset , '@', cantidadPadding);
 	else
 	{
 		while(cantidadPadding > 0 && bloqInd < BLOQUES_INDIRECTOS)
@@ -127,12 +127,25 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 	int bloqDatos = 0;
 	int aRecortar = tamActual - tamanioNuevo;
 	int offset = 0;
+	int indiceBloque = 0;
+	int cortado = 0;
+	int totalCortado = 0;
 
 	if(tamActual < BLOCK_SIZE)
 	{
 		memset(tablaNodos[indiceArch].bloques_ind[0]->bloquesDatos[0]->bytes + tamanioNuevo, 0, BLOCK_SIZE - tamanioNuevo);
-		tablaNodos[indiceArch].bloques_ind[0]->bloquesDatos[0] = NULL;
-		tablaNodos[indiceArch].bloques_ind[0] = NULL;
+
+		if(aRecortar == tamActual)
+		{
+			indiceBloque = tablaNodos[indiceArch].bloques_ind[0]->bloquesDatos[0] - (GBlock*)tablaNodos + ESTRUCTURAS_ADMIN;
+			bitarray_clean_bit(bitmap, indiceBloque);
+			indiceBloque = tablaNodos[indiceArch].bloques_ind[0] - (IndBlock*)tablaNodos + ESTRUCTURAS_ADMIN;
+			bitarray_clean_bit(bitmap, indiceBloque);
+
+			tablaNodos[indiceArch].bloques_ind[0]->bloquesDatos[0] = NULL;
+			tablaNodos[indiceArch].bloques_ind[0] = NULL;
+		}
+
 	}
 
 	else
@@ -147,6 +160,8 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 			}
 
 			offset = tamActual % BLOCK_SIZE;
+			if(offset == 0 && bloqDatos != 0)
+				bloqDatos--;
 		}
 
 		while(aRecortar > 0 && bloqInd >= 0)
@@ -156,11 +171,26 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 			{
 				if(bloqDatos == 0)
 					offset = BLOCK_SIZE - aRecortar;
-				memset(tablaNodos[indiceArch].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes + offset, 0, BLOCK_SIZE - offset);
+				cortado = BLOCK_SIZE - offset;
+				memset(tablaNodos[indiceArch].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes + offset, 0, cortado);
 				aRecortar = aRecortar - BLOCK_SIZE;
 				offset = 0;
-				tablaNodos[indiceArch].bloques_ind[bloqInd]->bloquesDatos[bloqDatos] = NULL;
+				totalCortado = totalCortado + cortado;
+
+				if(cortado == BLOCK_SIZE)
+				{
+					indiceBloque = tablaNodos[indiceArch].bloques_ind[bloqInd]->bloquesDatos[bloqDatos] - (GBlock*)tablaNodos + ESTRUCTURAS_ADMIN;
+					bitarray_clean_bit(bitmap, indiceBloque);
+					tablaNodos[indiceArch].bloques_ind[bloqInd]->bloquesDatos[bloqDatos] = NULL;
+				}
 				bloqDatos--;
+			}
+
+			if( ( (tamActual - totalCortado) % BLOCK_SIZE ) == 0 )
+			{
+				indiceBloque = tablaNodos[indiceArch].bloques_ind[bloqInd] - (IndBlock*)tablaNodos + ESTRUCTURAS_ADMIN;
+				bitarray_clean_bit(bitmap, indiceBloque);
+				tablaNodos[indiceArch].bloques_ind[bloqInd] = NULL;
 			}
 			bloqInd--;
 		}
@@ -168,27 +198,6 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 
 	if(aRecortar == tablaNodos[indiceArch].file_size)
 		tablaNodos[indiceArch].bloques_ind[0] = NULL;
-
-	/*//recorre el bitmap y pone en 0 los bloques que estan vacios
-	GBlock* bloqueActual;
-	IndBlock* bloqueIndActual;
-	for(int indiceBloque = ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER; indiceBloque < (ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER + cantBloqueDatos); indiceBloque++)
-	{
-		int valorBit = bitarray_test_bit(bitmap, indiceBloque);
-		bloqueActual = (GBlock*)(tablaNodos + indiceBloque - ESTRUCTURAS_ADMIN);
-		if( valorBit == 1)
-		{
-			if( bloqueActual->bytes[0] == 0 )
-				bitarray_clean_bit(bitmap, indiceBloque);
-			else
-			{
-				bloqueIndActual = (IndBlock*)(tablaNodos + indiceBloque - ESTRUCTURAS_ADMIN);
-				if(bloqueIndActual->bloquesDatos == NULL)
-					bitarray_clean_bit(bitmap, indiceBloque);
-			}
-		}
-
-	}*/
 
 	tablaNodos[indiceArch].file_size = tamanioNuevo;
 
@@ -261,9 +270,7 @@ void escribir(void* bufferWrite)//(int indArchivo, char* contenido, size_t taman
 
 	if(tamanio + offset < BLOCK_SIZE)
 	{
-		GBlock* bloqueNuevo = tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[0];
-		memcpy(bloqueNuevo->bytes + offset, contenido, tamanio);
-		//memcpy(tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[0]->bytes + offset, contenido, tamanio);
+		memcpy(tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[0]->bytes + offset, contenido, tamanio);
 		cantidadEscrita = tamanio;
 	}
 	else
@@ -329,7 +336,6 @@ void escribir(void* bufferWrite)//(int indArchivo, char* contenido, size_t taman
 					}
 					bitarray_set_bit(bitmap, indBloque);
 
-					//tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos] = (GBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN + bloqDatos;
 					tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos] = (GBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN;
 					memset(tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes, 0, BLOCK_SIZE);
 					if(bloqDatos < (BLOQUES_DATOS - 1) )
@@ -509,11 +515,11 @@ int estaVacio(char* nombre)
 	return 1;
 }
 
-//"elimina" un objeto de la tabla
 void eliminarObjeto(char* nombre)
 {
 	int indObjeto = indiceObjeto(nombre);
 
+	int indiceBloque = 0;
 
 	int cont = 0;
 	int contDatos = 0;
@@ -529,35 +535,20 @@ void eliminarObjeto(char* nombre)
 				if(tablaNodos[indObjeto].bloques_ind[cont]->bloquesDatos[contDatos]->bytes[0] != 0)
 				{
 					memset(tablaNodos[indObjeto].bloques_ind[cont]->bloquesDatos[contDatos]->bytes, 0, BLOCK_SIZE);
+					indiceBloque = tablaNodos[indObjeto].bloques_ind[cont]->bloquesDatos[contDatos] - (GBlock*)tablaNodos + ESTRUCTURAS_ADMIN;//como explicar esta asquerosidad
+					bitarray_clean_bit(bitmap, indiceBloque);
+					tablaNodos[indObjeto].bloques_ind[cont]->bloquesDatos[contDatos] = NULL;
 				}
 				contDatos++;
 			}
-			(tablaNodos[indObjeto].bloques_ind[cont]->bloquesDatos[contDatos]) = NULL;
+
+			indiceBloque = tablaNodos[indObjeto].bloques_ind[cont] - (IndBlock*)tablaNodos + ESTRUCTURAS_ADMIN;
+			bitarray_clean_bit(bitmap, indiceBloque);
+			tablaNodos[indObjeto].bloques_ind[cont] = NULL;
 			cont++;
 		}
-		(tablaNodos[indObjeto].bloques_ind[cont]) = NULL;
+
 		memset(tablaNodos[indObjeto].bloques_ind, 0 , BLOQUES_INDIRECTOS);
-	}
-
-	//recorre el bitmap y pone en 0 los bloques que estan vacios
-	GBlock* bloqueActual;
-	IndBlock* bloqueIndActual;
-	for(int indiceBloque = ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER; indiceBloque < (ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER + cantBloqueDatos); indiceBloque++)
-	{
-		int valorBit = bitarray_test_bit(bitmap, indiceBloque);
-		bloqueActual = (GBlock*)(tablaNodos + indiceBloque - ESTRUCTURAS_ADMIN);
-		if( valorBit == 1)
-		{
-			if( bloqueActual->bytes[0] == 0 )
-				bitarray_clean_bit(bitmap, indiceBloque);
-			else
-			{
-				bloqueIndActual = (IndBlock*)(tablaNodos + indiceBloque - ESTRUCTURAS_ADMIN);
-				if(bloqueIndActual->bloquesDatos == NULL)
-					bitarray_clean_bit(bitmap, indiceBloque);
-			}
-		}
-
 	}
 
 	tablaNodos[indObjeto].estado = 0;
@@ -811,6 +802,21 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 			int cantALeer;
 			int cantidadLeida = 0;
 
+			if(tablaNodos[indArch].file_size == 0)
+			{
+				int tamAEnviar = 0;
+
+				char* cont = strdup("");
+				enviarInt(socketRespuesta, tamAEnviar);
+				enviar(socketRespuesta, cont, tamAEnviar);
+
+				free(nombreRead);
+				free(buffer);
+
+				break;
+			}
+
+
 			int suma = size + offset;
 
 			if(suma > tablaNodos[indArch].file_size)
@@ -839,19 +845,10 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 					}
 
 					offset = offset % BLOCK_SIZE;
-/*
-					if(suma < tablaNodos[indArch].file_size)
-						cantALeer = BLOCK_SIZE - offset;
-					else
 
-						if( (suma - tablaNodos[indArch].file_size) < BLOCK_SIZE)
-							cantALeer = BLOCK_SIZE - (suma - tablaNodos[indArch].file_size);
-						else
-							cantALeer = BLOCK_SIZE - ( (suma - tablaNodos[indArch].file_size) % BLOCK_SIZE );
-					}*/
 				}
-				//else
-					cantALeer = BLOCK_SIZE - offset;
+
+				cantALeer = BLOCK_SIZE - offset;
 
 
 				while(cantidadLeida < size && bloqInd < BLOQUES_INDIRECTOS)
@@ -860,7 +857,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 					while( cantidadLeida < size && bloqDatos < BLOQUES_DATOS)
 					{
 						if(suma > tablaNodos[indArch].file_size && (tablaNodos[indArch].file_size - offset - BLOCK_SIZE) < 0)
-						{//>=
+						{
 							if( (suma - tablaNodos[indArch].file_size) < BLOCK_SIZE)
 								cantALeer = BLOCK_SIZE - (suma - tablaNodos[indArch].file_size);
 							else
