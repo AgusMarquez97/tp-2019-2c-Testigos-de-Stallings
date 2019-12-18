@@ -20,13 +20,31 @@ int tamBitmap;
 int tamanioTotal = 0;
 off_t offsetWrite = 0;
 
+//devuelve el path del padre. Se debe verificar antes que el padre exista
+char* pathPadre(char* path)
+{
+
+	char** pathCortado = malloc( 10 * sizeof(char*) );
+
+	for(int i=0;i<=9;i++)
+		pathCortado[i] = malloc( sizeof(char*) );
+
+	char* reverso = string_reverse(path);
+	pathCortado = string_n_split(reverso, 2, "/");
+	char* pathAEnviar = string_reverse(pathCortado[1]);
+
+	return pathAEnviar;
+
+}
+
+//a partir de un path devuelve en nombre y padre los nombres correspondientes
 void padreEHijo(char* path, char* nombre, char* padre)
 {
 	int contador = 0;
-	char** pathCortado = malloc(10*sizeof(char*));
+	char** pathCortado = malloc( 10*sizeof(char*) );
 
 	for(int i=0;i<=9;i++)
-		pathCortado[i] = malloc(sizeof(char*));
+		pathCortado[i] = malloc( sizeof(char*) );
 
 	pathCortado = string_n_split(path, 10, "/");
 
@@ -232,23 +250,25 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 
 void escribir(void* bufferWrite)//(int indArchivo, char* contenido, size_t tamanio, off_t offset)
 {
-	char* nombre = malloc(MAX_FILENAME_LENGTH);
-	int tamNom;
+	//char* nombre = malloc(MAX_FILENAME_LENGTH);
+	char* path = malloc(200);
+	//int tamNom;
+	int tamPath;
 	size_t tamanio;
 
 	off_t offset;
 
 
-	memcpy(&tamNom, bufferWrite, sizeof(int) );
-	memcpy(nombre, bufferWrite + sizeof(int), tamNom);
-	memcpy(&tamanio, bufferWrite + sizeof(int) + tamNom, sizeof(size_t) );
+	memcpy(&tamPath, bufferWrite, sizeof(int) );
+	memcpy(path, bufferWrite + sizeof(int), tamPath);
+	memcpy(&tamanio, bufferWrite + sizeof(int) + tamPath, sizeof(size_t) );
 
 	char* contenido = malloc(tamanio);
-	memcpy(contenido, bufferWrite + sizeof(int) + tamNom + sizeof(size_t), tamanio);
-	memcpy(&offset, bufferWrite + sizeof(int) + tamNom + sizeof(size_t) + tamanio, sizeof(off_t) );
+	memcpy(contenido, bufferWrite + sizeof(int) + tamPath + sizeof(size_t), tamanio);
+	memcpy(&offset, bufferWrite + sizeof(int) + tamPath + sizeof(size_t) + tamanio, sizeof(off_t) );
 
 
-	int indArchivo = indiceObjeto(nombre);
+	int indArchivo = indiceObjeto(path);
 
 
 	int cantidadEscrita = 0;
@@ -412,7 +432,7 @@ void escribir(void* bufferWrite)//(int indArchivo, char* contenido, size_t taman
 	msync(disco - 1 - BITMAP_SIZE_IN_BLOCKS, tamDisco, MS_SYNC);
 
 	free(contenido);
-	free(nombre);
+	free(path);
 	free(bufferWrite);
 
 	//sem_post(&mutWrite);
@@ -421,8 +441,8 @@ void escribir(void* bufferWrite)//(int indArchivo, char* contenido, size_t taman
 
 void setearTiempo(char* path)
 {
-	char* nombre = nombreObjeto(path);
-	int indice = indiceObjeto(nombre);
+	//char* nombre = nombreObjeto(path);
+	int indice = indiceObjeto(path);
 
 	tablaNodos[indice].fecha_creacion = time(NULL);
 	tablaNodos[indice].fecha_modif = time(NULL);
@@ -439,14 +459,15 @@ void renombrar(char* oldpath, char* newpath)
 	padreEHijo(oldpath, nombreViejo, padreViejo);
 	padreEHijo(newpath, nombreNuevo, padreNuevo);
 
+	char* pathPad = pathPadre(newpath);
+
 	sem_wait(&mutRename);
 
-	int indiceViejo = indiceObjeto(nombreViejo);
+	int indiceViejo = indiceObjeto(oldpath);
 
 	if( esArchivo(newpath) == 1) //si el nuevo ya existe, se renombra el viejo y se borra el nuevo
 	{
-
-		eliminarObjeto(nombreNuevo);
+		eliminarObjeto(newpath);
 
 		memset(tablaNodos[indiceViejo].nombre, 0, MAX_FILENAME_LENGTH);
 
@@ -461,7 +482,7 @@ void renombrar(char* oldpath, char* newpath)
 		strcpy(tablaNodos[indiceViejo].nombre, nombreNuevo);
 
 		if(padreNuevo[0] != '\0')
-			tablaNodos[indiceViejo].padre = indiceObjeto(padreNuevo);
+			tablaNodos[indiceViejo].padre = indiceObjeto(pathPad);
 		else
 			tablaNodos[indiceViejo].padre = 0;
 
@@ -494,35 +515,86 @@ char* nombreObjeto(char* path)
 }
 
 //devuelve 1 si el directorio o archivo existe, 0 si no existe
-int existeObjeto(char* nombre)
+int existeObjeto(char* path)
 {
-	//char* nombre = nombreObjeto(path);
+	char* nombre = nombreObjeto(path);
 	if (nombre[0] == '.')
 		return 0;
 	if(strncmp(nombre, "autorun",7) == 0)
 		return 0;
-	for (int indActual = 0; indActual <= MAX_FILE_NUMBER; indActual++)
+	/*for (int indActual = 0; indActual <= MAX_FILE_NUMBER; indActual++)
 		if (tablaNodos[indActual].estado != 0 && strcmp(nombre,tablaNodos[indActual].nombre) == 0)
-			return 1;
+			return 1;*/
+	int indice = indiceObjeto(path);
+	if(indice < 0)
+		return 0;
 
-	return 0;
+	return 1;
 }
 
-//recibe un nombre y devuelve el indice de ese objeto en la tabla de nodos
-int indiceObjeto(char *nombre)
+//recibe un path y devuelve el indice de ese objeto en la tabla de nodos. Si no existe, retorna -1
+int indiceObjeto(char* path)
 {
+	char* nombre = malloc(MAX_FILENAME_LENGTH);
+	char* padre = malloc(MAX_FILENAME_LENGTH);
+	int indice = 0;
+
+	char* pathPad;
+
+	padreEHijo(path, nombre, padre);
+
+	if(padre[0] != '\0')
+		pathPad = pathPadre(path);
+
+	int indPadre = 0;
+	int noMasPadres = 0;
 
 	for (int indActual = 0; indActual < MAX_FILE_NUMBER; indActual++)
+	{
+		padreEHijo(path, nombre, padre);
+		indPadre = 0;
+		indice = 0;
+		if(padre[0] != '\0')
+			pathPad = pathPadre(path);
+
 		if (tablaNodos[indActual].estado != 0 && strcmp(nombre,tablaNodos[indActual].nombre) == 0)
-			return indActual;
+		{
+			indice = indActual;
+
+			while(indPadre >= 0 && noMasPadres == 0)
+			{
+				if(padre[0] != '\0')
+				{
+					indPadre = tablaNodos[indice].padre;
+
+					if( strcmp(tablaNodos[indPadre].nombre,padre) != 0 )
+						indPadre = -1;
+
+					indice = indPadre;
+					padreEHijo(pathPad, nombre, padre);
+
+					if(padre[0] != '\0')
+						pathPad = pathPadre(pathPad);
+				}
+				else
+				{
+					noMasPadres = 1;
+				}
+			}
+
+			if(indPadre >= 0)
+				return indActual;
+		}
+
+	}
 
 	return -1;
 }
 
 //devuelve 1 si existe y es un directorio, 0 si no
-int esDirectorio(char* nombre)
+int esDirectorio(char* path)
 {
-	int indiceDir = indiceObjeto(nombre);
+	int indiceDir = indiceObjeto(path);
 	if(indiceDir>=0 && indiceDir<=MAX_FILE_NUMBER)
 	{
 		if (tablaNodos[indiceDir].estado == DIRECTORIO)
@@ -535,17 +607,11 @@ int esDirectorio(char* nombre)
 //devuelve 1 si existe y es un archivo, 0 si no
 int esArchivo(char* path)
 {
-
-	char* nombre = malloc(MAX_FILENAME_LENGTH);
-	char* padre = malloc(MAX_FILENAME_LENGTH);
-	padreEHijo(path, nombre, padre);
-
-	int indicePadre = indiceObjeto(padre);
-	int indiceArch = indiceObjeto(nombre);
+	int indiceArch = indiceObjeto(path);
 
 	if(indiceArch>=0 && indiceArch<=MAX_FILE_NUMBER)
 	{
-		if (tablaNodos[indiceArch].estado == ARCHIVO && tablaNodos[indiceArch].padre == indicePadre)
+		if (tablaNodos[indiceArch].estado == ARCHIVO)
 			return 1;
 	}
 
@@ -553,22 +619,22 @@ int esArchivo(char* path)
 }
 
 //ve si un directorio esta vacio. Devuelve 1 si esta vacio, 0 si tiene algo
-int estaVacio(char* nombre)
+int estaVacio(char* path)
 {
 
-	int indiceArch = indiceObjeto(nombre);
+	int indiceArch = indiceObjeto(path);
 
 	for (int indActual = 0; indActual < MAX_FILE_NUMBER; indActual++)
 	{
 		if(tablaNodos[indActual].estado != 0 && tablaNodos[indActual].padre == indiceArch)
-		return 0;
+			return 0;
 	}
 	return 1;
 }
 
-void eliminarObjeto(char* nombre)
+void eliminarObjeto(char* path)
 {
-	int indObjeto = indiceObjeto(nombre);
+	int indObjeto = indiceObjeto(path);
 	int tam = tablaNodos[indObjeto].file_size;
 
 	int indiceBloque = 0;
@@ -624,11 +690,15 @@ void eliminarObjeto(char* nombre)
 }
 
 
-void agregarObjeto(char* nombre, char* padre, int estado)
+void agregarObjeto(char* path, int estado)
 {
 
-	int indActual = ESTRUCTURAS_ADMIN + 1; //se saltea los bits de estructuras administrativas y la raiz
+	char* nombre = malloc(MAX_FILENAME_LENGTH);
+	char* padre = malloc(MAX_FILENAME_LENGTH);
 
+	padreEHijo(path, nombre, padre);
+
+	int indActual = ESTRUCTURAS_ADMIN + 1; //se saltea los bits de estructuras administrativas y la raiz
 
 	int valorBit = bitarray_test_bit(bitmap, indActual);
 	while(valorBit != 0 && indActual < (ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER) )
@@ -673,12 +743,10 @@ void agregarObjeto(char* nombre, char* padre, int estado)
 
 }
 
-void crearObjeto(char *path, int estado)
+void crearObjeto(char* path, int estado)
 {
 
-	char nombre[MAX_FILENAME_LENGTH];
-	char padre[MAX_FILENAME_LENGTH];
-	int contador = 0;
+	/*int contador = 0;
 	char** pathCortado = malloc(10*sizeof(char*));
 
 	for(int i=0;i<=9;i++)
@@ -700,13 +768,14 @@ void crearObjeto(char *path, int estado)
 			strcpy(nombre,pathCortado[contador]);
 			contador++;
 		}
-	}
+	}*/
 
-	agregarObjeto(nombre, padre, estado);
+
+	agregarObjeto(path, estado);
 
 	msync(disco - 1 - BITMAP_SIZE_IN_BLOCKS, tamDisco, MS_SYNC);
 
-	free(pathCortado);
+	//free(pathCortado);
 
 }
 
@@ -789,13 +858,13 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 		case GETATTR:
 		{//hago los cases con llaves para declarar variables sin problemas
 
-			char* nombre = malloc(200);
-			recibirString(socketRespuesta, &nombre);//recibe nombre
+			char* path = malloc(200);
+			recibirString(socketRespuesta, &path);
 
-			if(existeObjeto(nombre) == 1)//si existe envia su estado y ultima modificacion
+			if(existeObjeto(path) == 1)//si existe envia su estado y ultima modificacion
 			{
 
-				int indice = indiceObjeto(nombre);
+				int indice = indiceObjeto(path);
 				uint8_t estado = tablaNodos[indice].estado;
 				time_t ultimaMod = tablaNodos[indice].fecha_modif;
 				uint32_t tamanio;
@@ -823,7 +892,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 				enviarInt(socketRespuesta, BORRADO);
 			}
 
-			free(nombre);
+			free(path);
 
 			break;
 		}
@@ -844,7 +913,8 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 			int tamNombre;
 			size_t size;
 			off_t offset;
-			char* nombreRead = malloc(MAX_FILENAME_LENGTH);
+			//char* nombreRead = malloc(MAX_FILENAME_LENGTH);
+			char* pathRead = malloc(200);
 			int tamBuffer;
 			int indArch;
 
@@ -855,12 +925,12 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 			recibir(socketRespuesta, buffer, tamBuffer);
 
 			memcpy(&tamNombre, buffer, sizeof(int) );
-			memcpy(nombreRead, buffer + sizeof(int), tamNombre );
+			memcpy(pathRead, buffer + sizeof(int), tamNombre );
 			memcpy(&size, buffer + sizeof(int) + tamNombre , sizeof(size_t) );
 			memcpy(&offset, buffer + sizeof(int) + tamNombre + sizeof(size_t), sizeof(off_t) );
 
 
-			indArch = indiceObjeto(nombreRead);
+			indArch = indiceObjeto(pathRead);
 
 			enviarInt(socketRespuesta, indArch);
 
@@ -881,7 +951,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 				enviarInt(socketRespuesta, tamAEnviar);
 				enviar(socketRespuesta, cont, tamAEnviar);
 
-				free(nombreRead);
+				free(pathRead);
 				free(buffer);
 
 				break;
@@ -956,7 +1026,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 			enviarInt(socketRespuesta, tamAEnviar);
 			enviar(socketRespuesta, contAEnviar, tamAEnviar);
 
-			free(nombreRead);
+			free(pathRead);
 			free(buffer);
 			//free(contAEnviar);
 
@@ -987,7 +1057,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 		case WRITE:
 		{
 
-			int indArch;
+			//int indArch;
 			int tamARecibir;
 			recibir(socketRespuesta, &tamARecibir, sizeof(int) );
 
@@ -1127,7 +1197,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 
 			padreEHijo(pathUnlink, nombre, padre);
 
-			if(esDirectorio(nombre) == 1)//si es directorio tira error
+			if(esDirectorio(pathUnlink) == 1)//si es directorio tira error
 			{
 				error = EISDIR;
 				enviarInt(socketRespuesta, error);
@@ -1141,7 +1211,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 				break;
 			}*/
 
-			eliminarObjeto(nombre);
+			eliminarObjeto(pathUnlink);
 
 
 			enviarInt(socketRespuesta, 0);//avisa que esta todo piola
@@ -1151,12 +1221,11 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 		}
 		case RMDIR:
 		{
-
-			/*revisar el caso de borrar 2 directorios con la misma id*/
 			int error;
-			char* nombreRmdir = malloc(200);
-			recibirString(socketRespuesta, &nombreRmdir);//recibe el nombre del directorio
+			char* pathRmdir = malloc(200);
+			recibirString(socketRespuesta, &pathRmdir);
 
+			char* nombreRmdir = nombreObjeto(pathRmdir);
 
 			if (strcmp(nombreRmdir,"/") == 0) //si es el punto de montaje tira error
 			{
@@ -1165,14 +1234,14 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 				break;
 			}
 
-			if(esDirectorio(nombreRmdir) == 0)//si no es directorio tira error
+			if(esDirectorio(pathRmdir) == 0)//si no es directorio tira error
 			{
 				error = ENOTDIR;
 				enviarInt(socketRespuesta, error);
 				break;
 			}
 
-			if(estaVacio(nombreRmdir) == 0)//si no esta vacio tira error
+			if(estaVacio(pathRmdir) == 0)//si no esta vacio tira error
 			{
 				error = ENOENT;
 				enviarInt(socketRespuesta, error);
@@ -1180,12 +1249,13 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 			}
 
 
-			eliminarObjeto(nombreRmdir);
+			eliminarObjeto(pathRmdir);
 
 
 			enviarInt(socketRespuesta, 0);
 
-			free(nombreRmdir);
+			//free(nombreRmdir);
+			free(pathRmdir);
 
 			break;
 		}
@@ -1216,8 +1286,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 			memcpy(pathTruncate, bufferWrite + sizeof(int), tamanioPath);
 			memcpy(&tamanioNuevo,bufferWrite + sizeof(int) + tamanioPath, sizeof(off_t) );
 
-			char* nombre = nombreObjeto(pathTruncate);
-			int indiceArch = indiceObjeto(nombre);
+			int indiceArch = indiceObjeto(pathTruncate);
 
 			if(tamanioNuevo == tablaNodos[indiceArch].file_size)
 			{

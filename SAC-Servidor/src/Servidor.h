@@ -98,7 +98,7 @@ int esDirectorio(char* nombre);
 int esArchivo(char* nombre);
 int estaVacio(char* nombre);
 void eliminarObjeto(char* nombre);
-void agregarObjeto(char* nombre, char* padre, int estado);
+void agregarObjeto(char* nombre, int estado);
 void crearObjeto(char *path, int estado);
 void readdir(char* path, int socketRespuesta);
 void recibirOperaciones(int* p_socket);

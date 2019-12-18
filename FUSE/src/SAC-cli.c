@@ -212,20 +212,18 @@ int escribirEnArchivo(void* datosWrite)//(const char *path, const char *contenid
 
 		enviarInt(socketConexion, WRITE);
 
+		int tamPath = strlen(path) + 1;
 
-		char* nombre = nombreObjeto(path);
-		int tamNombre = strlen(nombre) + 1;
+		void* bufferEnviar = malloc(sizeof(int) + sizeof(int) + tamPath + sizeof(size_t) + offsetWrite + sizeof(off_t) );//tamBufferLocal
 
-		void* bufferEnviar = malloc(sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + offsetWrite + sizeof(off_t) );//tamBufferLocal
-
-		int tamEnviar = sizeof(int) + tamNombre + sizeof(size_t) + offsetWrite + sizeof(off_t);
+		int tamEnviar = sizeof(int) + tamPath + sizeof(size_t) + offsetWrite + sizeof(off_t);
 
 		memcpy(bufferEnviar, &tamEnviar, sizeof(int) );
-		memcpy(bufferEnviar + sizeof(int), &tamNombre, sizeof(int) );
-		memcpy(bufferEnviar + sizeof(int) + sizeof(int), nombre, tamNombre );
-		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre, &offsetWrite, sizeof(size_t) );
-		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t), bufferWrite, offsetWrite);
-		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + offsetWrite, &offsetPrimero, sizeof(off_t) );
+		memcpy(bufferEnviar + sizeof(int), &tamPath, sizeof(int) );
+		memcpy(bufferEnviar + sizeof(int) + sizeof(int), path, tamPath );
+		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamPath, &offsetWrite, sizeof(size_t) );
+		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamPath + sizeof(size_t), bufferWrite, offsetWrite);
+		memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamPath + sizeof(size_t) + offsetWrite, &offsetPrimero, sizeof(off_t) );
 		enviar(socketConexion, bufferEnviar, sizeof(int) + tamEnviar );
 
 		free(bufferEnviar);
@@ -280,7 +278,7 @@ static int hacer_getattr(const char *path, struct stat *st)
 {
 
 
-	char* nombre = malloc(MAX_FILENAME_LENGTH);
+	//char* nombre = malloc(MAX_FILENAME_LENGTH);
 	int estadoNodo;
 	time_t ultimaMod;
 	void* bufferDestino = malloc( sizeof(int) + sizeof(time_t) + sizeof(uint32_t) );
@@ -297,11 +295,12 @@ static int hacer_getattr(const char *path, struct stat *st)
 		return 0;
 	}
 
-	nombre = nombreObjeto(path);
+	//nombre = nombreObjeto(path);
+	char* pathAEnviar = strdup(path);
 
 	enviarInt(socketConexion, GETATTR);
 
-	enviarString(socketConexion, nombre);
+	enviarString(socketConexion, pathAEnviar);
 
 	st->st_uid = getuid();		//el duenio del archivo
 	st->st_gid = getgid();
@@ -380,20 +379,22 @@ static int hacer_read(const char *path, char *buffer, size_t size, off_t offset,
 
 	int continuar;		//si llega un 0 continua, -1 sale
 
-	char* nombre = nombreObjeto(path);
-	int tamNombre = strlen(nombre) + 1;
+	//char* nombre = nombreObjeto(path);
+	//int tamNombre = strlen(nombre) + 1;
+	char* pathAEnviar = strdup(path);
+	int tamPath = strlen(pathAEnviar) + 1;
 
-	void* bufferEnviar = malloc( sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t) + sizeof(off_t) );
+	void* bufferEnviar = malloc( sizeof(int) + sizeof(int) + tamPath + sizeof(size_t) + sizeof(off_t) );
 
-	int tamARecibir = sizeof(int) + tamNombre + sizeof(size_t) + sizeof(off_t);
+	int tamARecibir = sizeof(int) + tamPath + sizeof(size_t) + sizeof(off_t);
 
 	enviarInt(socketConexion, READ);
 
 	memcpy(bufferEnviar, &tamARecibir, sizeof(int) );
-	memcpy(bufferEnviar + sizeof(int), &tamNombre, sizeof(int) );
-	memcpy(bufferEnviar + sizeof(int) + sizeof(int), nombre, tamNombre );
-	memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre, &size, sizeof(size_t) );
-	memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamNombre + sizeof(size_t), &offset, sizeof(off_t) );
+	memcpy(bufferEnviar + sizeof(int), &tamPath, sizeof(int) );
+	memcpy(bufferEnviar + sizeof(int) + sizeof(int), pathAEnviar, tamPath);
+	memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamPath, &size, sizeof(size_t) );
+	memcpy(bufferEnviar + sizeof(int) + sizeof(int) + tamPath + sizeof(size_t), &offset, sizeof(off_t) );
 
 	enviar(socketConexion, bufferEnviar, sizeof(int) + tamARecibir);
 
@@ -432,6 +433,7 @@ static int hacer_read(const char *path, char *buffer, size_t size, off_t offset,
 
 	free(contenido);
 	free(bufferEnviar);
+	free(pathAEnviar);
 	return tamBuffer;
 }
 
