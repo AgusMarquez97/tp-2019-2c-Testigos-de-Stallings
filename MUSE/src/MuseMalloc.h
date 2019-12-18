@@ -38,6 +38,7 @@ uint32_t analizarSegmento (char* idProceso, int tamanio, int cantidadFrames, boo
 		listaSegmentos = dictionary_get(diccionarioProcesos, idProceso);
 		pthread_mutex_unlock(&mutex_diccionario);
 
+		// mutex para las paginas del segmento
 		ultimoSegmento = list_get(listaSegmentos, list_size(listaSegmentos) - 1);
 
 		ultimaPosicionSegmento = ultimoSegmento->posicionInicial + ultimoSegmento->tamanio;
@@ -116,14 +117,14 @@ uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 // offset anterior al heap!
 int estirarSegmento(int baseSegmento,char* idProceso, t_segmento* segmento, int tamanio, int nuevaCantidadFrames, int offset, int sobrante) {
 
+	// seguramente aca necesite un mutex => nadie puede acceder a sus paginas temporalmente
 	t_list* listaPaginas = segmento->paginas;
 	int nroUltimaPagina = list_size(listaPaginas);
-
 	agregarPaginas(&listaPaginas, nuevaCantidadFrames, nroUltimaPagina,false);
+	segmento->tamanio = list_size(listaPaginas) * tamPagina; // ver si es necesario un mutex por cada operacion con el segmento
+	// hasta aca
 
 	escribirHeapMetadata(listaPaginas,offset,tamanio,false); // Escribir el heap nuevo en memoria. Considera heap partido
-
-	segmento->tamanio = list_size(listaPaginas) * tamPagina; // ver si es necesario un mutex por cada operacion con el segmento
 
 	return baseSegmento + tam_heap_metadata;
 }

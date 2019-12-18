@@ -43,9 +43,13 @@ int levantarCliente(char* servidorIP,char* servidorPuerto)
 
 int levantarSocketGenerico(char* servidorIP,char* servidorPuerto,estructuraConexion** servidor)
 {
+		if(!servidorIP || !servidorPuerto)
+			return  -1;
 //	loggearInfo("Creando estructuras para la conexion...");
 			instanciarConexion(servidorIP,servidorPuerto,servidor);
 			//imprimirDatosServidor(*servidor);
+			if(!servidor)
+				return -1;
 			return crearSocket(*servidor);
 }
 
@@ -60,7 +64,7 @@ void instanciarConexion(char * direcIP,char * puertoDesc,estructuraConexion** es
       {
 
           //perror("Error, no se pudieron crear las estructuras");
-          loggearError("Error, no se pudieron crear las estructuras");
+          //loggearError("Error, no se pudieron crear las estructuras");
       }
 
 }
@@ -77,12 +81,19 @@ void limpiarEstructuraInicial(estructuraConexion* estructuraInicial)
 
 int crearSocket(estructuraConexion* estructura)
 {
+		if(!estructura)
+		{
+			return -1;
+		}
+
 		int socketResultado = socket(estructura->ai_family,estructura->ai_socktype,estructura->ai_protocol);
+
 	    if(socketResultado == -1)
 	    {
 	        //perror("No se pudo asignar un socket");
-	        loggearError("Error al crear el socket");
-	        exit(1);
+	        //loggearError("Error al crear el socket");
+	        //exit(1);
+	    	return -1;
 	    }
 	    return socketResultado;
 }
@@ -90,12 +101,14 @@ int crearSocket(estructuraConexion* estructura)
 
 int conectarConServidor(int* socketCliente,estructuraConexion* estructuraServidor)
 {
+	if(!socketCliente || !estructuraServidor)
+		return -1;
 	int conexionAServidor;
 	conexionAServidor = connect(*socketCliente, estructuraServidor->ai_addr, estructuraServidor->ai_addrlen);
     if(conexionAServidor==-1)
         {
             //perror("No se pudo realizar la conexion");
-            loggearError("No se pudo realizar la conexion con el servidor");
+            //loggearError("No se pudo realizar la conexion con el servidor");
             //close(socketCliente);
             return -1;
         }

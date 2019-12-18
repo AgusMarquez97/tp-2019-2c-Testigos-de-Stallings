@@ -28,10 +28,6 @@ void * obtenerDatosArchivo(char * path, int tamanio)
 
 	void * bufferAuxiliar = mmap(NULL,tamanioArchivo,PROT_READ|PROT_WRITE,MAP_PRIVATE,fd_num,0);
 
-	/*
-	 * Validar con franco
-	 */
-
 	if(tamanio <= tamanioArchivo)
 		memcpy(buffer,bufferAuxiliar,tamanio);
 	else
