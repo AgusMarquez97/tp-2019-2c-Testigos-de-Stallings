@@ -89,6 +89,7 @@ uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 				escribirHeapMetadata(segmento->paginas, offsetAnterior, tamanio,tam_heap_metadata + heapMetadata->offset); // validado
 			else
 				escribirHeapMetadata(segmento->paginas, offsetAnterior, tamanio,false); // validado
+			free(heapMetadata);
 			return segmento->posicionInicial + auxBytesLeidos + tam_heap_metadata;
 		}
 
@@ -179,7 +180,7 @@ void agregarPaginas(t_list** listaPaginas, int cantidadMarcos, int nroUltimaPagi
 	t_pagina * pagina;
 
 	for(int i = 0; i < cantidadMarcos; i++) {
-		pagina = malloc(sizeof(pagina));
+		pagina = malloc(sizeof(*pagina));
 
 		pagina->nroMarco = asignarMarcoLibre(); // Agregar logica del algoritmo de reemplazo de pags
 		pagina->nroPagina = i + nroUltimaPagina;

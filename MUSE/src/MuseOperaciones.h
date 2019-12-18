@@ -273,7 +273,7 @@ uint32_t procesarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
 		if(unArchivoCompartido) // Entonces ya existe en memoria! Solo hay que agregarlo en las estructuras administrativas. Si no hay que agregarlo en memoria
 		{
 			agregarArchivoLista(path,unArchivoCompartido);
-			posicionRetorno = agregarPaginasSinMemoria(idProceso,unArchivoCompartido,cantidadFrames);
+			posicionRetorno = agregarPaginasSinMemoria(path,idProceso,unArchivoCompartido,cantidadFrames);
 			sprintf(msj, "El Proceso %s mapeo el archivo compartido %s en la posicion %u. El archivo ya se encontraba en memoria compartida", idProceso, path,posicionRetorno);
 			loggearInfo(msj);
 			return posicionRetorno;
@@ -307,6 +307,8 @@ uint32_t procesarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
 
 	escribirDatosHeap(paginas, posicionMemoria, &buffer, tamanio);
 
+	free(buffer);
+
 	/*
 	 * Aca la idea seria agregar al diccionario!
 	 */
@@ -336,8 +338,6 @@ uint32_t procesarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
 
 	loggearInfo(msj);
 
-	free(path);
-
 	return posicionRetorno;
 
 }
@@ -352,11 +352,10 @@ int procesarSync(char* idProceso, uint32_t posicionMemoria, int32_t tamanio) {
 	{
 	void * buffer = procesarGet(idProceso, posicionMemoria, tamanio);
 	if(!buffer)
-		return -1;
+		return -1;//agregar log
 	t_segmento* unSegmento = obtenerUnSegmento(idProceso, posicionMemoria);
-	if(!unSegmento)
-		return -1;
 	retorno = copiarDatosEnArchivo(unSegmento->archivo, tamanio, buffer);
+	free(buffer);
 	if(retorno == -1)
 		return -1;
 	sprintf(msj,"El Proceso %s descargo %d bytes en el archivo %s",idProceso,tamanio,unSegmento->archivo);
@@ -391,6 +390,8 @@ int procesarUnmap(char* idProceso, uint32_t posicionMemoria) {
 	reducirArchivoCompartido(unSegmento->archivo);
 
 	free(unSegmento->archivo);
+
+	unSegmento->archivo = NULL;
 
 	/*if(unSegmento->id_segmento == list_size(segmentos)-1)
 	{
@@ -429,7 +430,12 @@ int procesarClose(char* idProceso) {
 							list_destroy_and_destroy_elements(unSegmento->paginas, (void*)liberarPaginas);
 						}
 						if(unSegmento->esCompartido)
+							if(unSegmento->archivo)
+							{
 							reducirArchivoCompartido(unSegmento->archivo);
+							free(unSegmento->archivo);
+							unSegmento->archivo=NULL; // por las dudas
+							}
 					free(unSegmento);
 				}
 			}

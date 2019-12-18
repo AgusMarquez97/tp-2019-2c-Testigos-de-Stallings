@@ -143,6 +143,7 @@ t_mensajeMuse* recibirOperacion(int socketEmisor) {
 			buffer = malloc(mensajeRecibido->tamanio);
 			recibir(socketEmisor, buffer, mensajeRecibido->tamanio); //bytes a recibir
 			deserializarVoid(buffer, &mensajeRecibido->contenido, mensajeRecibido->tamanio, &desplazamiento); // OJO
+			free(buffer);
 			break;
 		case MAP:
 			recibirInt(socketEmisor, &mensajeRecibido->tamanio); // Este tamanio es el tam que se quiere leer!
@@ -151,6 +152,7 @@ t_mensajeMuse* recibirOperacion(int socketEmisor) {
 			recibir(socketEmisor, buffer, mensajeRecibido->flag); // recibe la candena del nombre del path y lo guarda en el buffer
 			deserializarVoid(buffer, &mensajeRecibido->contenido, mensajeRecibido->flag, &desplazamiento);
 			recibirInt(socketEmisor, &mensajeRecibido->flag); // Guarda el valor posta del flag
+			free(buffer);
 			break;
 		case SYNC:
 			recibirUint(socketEmisor, &mensajeRecibido->posicionMemoria);

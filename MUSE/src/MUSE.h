@@ -9,6 +9,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <signal.h>
+
 
 #include <biblioteca/sockets.h>
 #include <biblioteca/serializacion.h>
@@ -192,16 +194,16 @@ bool encontrarSegmento(t_segmento * unSegmento);
 void liberarPagina(int nroPagina, t_list* paginas);
 void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento);
 t_list * obtenerPaginas(char* idProceso, uint32_t posicionSegmento);
+
+// Memoria compartida
 t_archivo_compartido * agregarArchivoLista(char * unArchivo, t_archivo_compartido * archivoCompartido);
-uint32_t agregarPaginasSinMemoria(char * idProceso,t_archivo_compartido * unArchivoCompartido,int cantidadFramesTeoricos);
+uint32_t agregarPaginasSinMemoria(char * path, char * idProceso,t_archivo_compartido * unArchivoCompartido,int cantidadFramesTeoricos);
 t_list * crearPaginasSinMemoria(t_archivo_compartido * unArchivoCompartido,int cantidadFramesTeoricos);
-t_segmento * crearSegmentoSinMemoria(t_list * listaPaginas,int idSegmento,uint32_t posicionInicial,int cantidadFramesTeoricos);
+t_segmento * crearSegmentoSinMemoria(char * path,t_list * listaPaginas,int idSegmento,uint32_t posicionInicial,int cantidadFramesTeoricos);
 int copiarDatosEnArchivo(char * path, int tamanio, void * buffer);
 void liberarConUnmap(char * idProceso, t_segmento * unSegmento,bool sinParticipantes);
 void reducirArchivoCompartido(char * path);
 int obtenerCantidadParticipantes(char * path);
-void bajarASwap(int nroMarco);
-t_pagina * ejecutarAlgoritmoReemplazo();
 
 //Memoria Principal y Memoria Swap
 void moverMarcosASwap();
@@ -212,8 +214,8 @@ void recuperarPaginaSwap(t_pagina ** paginaActualmenteEnSwap,int marcoObjetivo);
 bool estaEnMemoria(t_list * paginas, int nroPagina);
 void escribirSwap(int nroPagina, void * buffer);
 void * leerSwap(int nroPagina);
-void actualizarMarcosPaginasCompartidas(char * path, int nroMarcoVictima, int viejoMarco);
-void actualizarMarcosSwapPaginasCompartidas(int nuevoMarcoSwap, int viejoMarco);
+void bajarASwap(int nroMarco);
+t_pagina * ejecutarAlgoritmoReemplazo();
 
 
 //MuseHeapMetadata
@@ -229,5 +231,7 @@ void escribirDatosHeap(t_list * paginas, int posicionPosteriorHeap, void ** buff
 t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offset);
 uint32_t obtenerPosicionPreviaHeap(t_list * paginas, int offset);
 bool existeHM(t_list * paginas, int offsetBuscado);
+
+void salirFuncion(int pid);
 
 #endif /* MUSE_H_ */

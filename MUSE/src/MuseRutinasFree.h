@@ -120,6 +120,8 @@ void compactarSegmento(char* idProceso, t_segmento* segmento) {
 		liberarPaginas(idProceso, paginaUltimoHeapMetadata, segmento);
 	}
 
+	free(heapMetadata);
+
 }
 
 
@@ -155,6 +157,8 @@ void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento) {
 
 	segmento->paginas = list_duplicate(lista_aux); //OJO! POSIBLE ML
 	segmento->tamanio = tamPagina*list_size(segmento->paginas);
+
+	list_destroy(lista_aux);
 
 	strcat(msj, "]");
 

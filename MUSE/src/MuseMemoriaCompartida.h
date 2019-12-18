@@ -72,11 +72,13 @@ t_archivo_compartido * obtenerArchivoCompartido(char * path)
 	{
 		return strcmp(unArchivoComp->nombreArchivo,path) == 0;
 	}
+	pthread_mutex_lock(&mutex_lista_archivos);
 	t_archivo_compartido * unArchivo =  list_find(listaArchivosCompartidos,(void*)existencia); // En este caso no me deberia importar lockear
+	pthread_mutex_unlock(&mutex_lista_archivos);
 	return unArchivo;
 }
 
-uint32_t agregarPaginasSinMemoria(char * idProceso,t_archivo_compartido * unArchivoCompartido,int cantidadFramesTeoricos)
+uint32_t agregarPaginasSinMemoria(char * path, char * idProceso,t_archivo_compartido * unArchivoCompartido,int cantidadFramesTeoricos)
 {
 	t_list * listaSegmentos;
 	t_segmento * segmentoNuevo;
@@ -100,7 +102,7 @@ uint32_t agregarPaginasSinMemoria(char * idProceso,t_archivo_compartido * unArch
 	}
 
 	t_list * paginas = crearPaginasSinMemoria(unArchivoCompartido, cantidadFramesTeoricos);
-	segmentoNuevo = crearSegmentoSinMemoria(paginas, idSegmento, posicionInicial, cantidadFramesTeoricos);
+	segmentoNuevo = crearSegmentoSinMemoria(path,paginas, idSegmento, posicionInicial, cantidadFramesTeoricos);
 
 	list_add(listaSegmentos,segmentoNuevo);
 
@@ -136,7 +138,7 @@ t_list * crearPaginasSinMemoria(t_archivo_compartido * unArchivoCompartido,int c
 	return listaPaginas;
 }
 
-t_segmento * crearSegmentoSinMemoria(t_list * listaPaginas,int idSegmento,uint32_t posicionInicial,int cantidadFramesTeoricos)
+t_segmento * crearSegmentoSinMemoria(char * path,t_list * listaPaginas,int idSegmento,uint32_t posicionInicial,int cantidadFramesTeoricos)
 {
 	t_segmento * segmentoNuevo = malloc(sizeof(*segmentoNuevo));
 
@@ -145,6 +147,7 @@ t_segmento * crearSegmentoSinMemoria(t_list * listaPaginas,int idSegmento,uint32
 	segmentoNuevo->posicionInicial = posicionInicial;
 	segmentoNuevo->tamanio = cantidadFramesTeoricos*tamPagina;
 	segmentoNuevo->paginas = listaPaginas;
+	segmentoNuevo->archivo = strdup(path);
 
 	return segmentoNuevo;
 }
@@ -231,6 +234,7 @@ void reducirArchivoCompartido(char * path)
 	{
 		free(unArchivoCompartido->marcosMapeados);
 		free(unArchivoCompartido->nroPaginaSwap);
+		free(unArchivoCompartido->nombreArchivo);
 		free(unArchivoCompartido);
 	}
 

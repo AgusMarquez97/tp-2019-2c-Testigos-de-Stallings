@@ -21,9 +21,15 @@ int leerUnHeapMetadata(t_list * paginas, int posicionAnteriorHeap,int posicionPo
 	{
 		t_heap_metadata * unHeap = obtenerHeapMetadata(paginas, posicionAnteriorHeap);
 		if(unHeap->estaLibre)
+		{
+			free(unHeap);
 			return HM_YA_LIBERADO;
+		}
 		if(unHeap->offset < tamanio)
+		{
+			free(unHeap);
 			return TAMANIO_SOBREPASADO;
+		}
 
 		leerDatosHeap(paginas,posicionPosteriorHeap,buffer,tamanio);
 		free(unHeap);
@@ -47,8 +53,12 @@ int liberarUnHeapMetadata(t_list * paginas, int offset)
 		if(!unHeap->estaLibre)
 		{
 			unHeap->estaLibre = true;
-			return escribirUnHeapMetadata(paginas, nroPagina, unHeap, &offset, tamanioPaginaRestante);
+			int tmp = escribirUnHeapMetadata(paginas, nroPagina, unHeap, &offset, tamanioPaginaRestante);
+			free(unHeap);
+			return tmp;
 		}
+
+		free(unHeap);
 		return HM_YA_LIBERADO;
 
 	}
@@ -62,9 +72,15 @@ int escribirDatosHeapMetadata(t_list * paginas, int posicionAnteriorHeap,int pos
 	{
 		t_heap_metadata * unHeap = obtenerHeapMetadata(paginas, posicionAnteriorHeap);
 		if(unHeap->estaLibre)
+		{
+			free(unHeap);
 			return HM_YA_LIBERADO;
+		}
 		if(unHeap->offset < tamanio) // Para hacer esto infalible => pasar el segmento, to do para evitar el caso de memoria compartida (NO LO PIDEN)
+		{
+			free(unHeap);
 			return TAMANIO_SOBREPASADO;
+		}
 
 		escribirDatosHeap(paginas,posicionPosteriorHeap,buffer,tamanio);
 		free(unHeap);
@@ -355,6 +371,8 @@ int escribirHeapMetadata(t_list * listaPaginas, int offset, int tamanio, int off
 
 			escribirUnHeapMetadata(listaPaginas,pagina->nroPagina,unHeapMetadata, &offset, bytesSobrantesUltimaPagina);
 			bytesEscritos += bytesSobrantesUltimaPagina;
+
+			free(pagina);
 		}
 
 		free(unHeapMetadata);
@@ -535,12 +553,15 @@ bool existeHM(t_list * paginas, int offsetBuscado)
 	while(tamMaximo - bytesLeidos > tam_heap_metadata)
 	{
 		if(offset == offsetBuscado)
+		{
+			free(heapMetadata);
 			return true;
+		}
 
 		leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset, paginas, &contador);
 	}
 
-
+	free(heapMetadata);
 
 	return false;
 }

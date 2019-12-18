@@ -1,6 +1,7 @@
 #include "MuseOperaciones.h"
 
 int main(void) {
+	//signal(SIGINT,salirFuncion); // si rompe con varios procesos => comentar
 	remove("Linuse.log");
 	iniciarLog("MUSE");
 	loggearInfo("Se inicia el proceso MUSE...");
@@ -8,7 +9,6 @@ int main(void) {
 	levantarMemoria();
 	inicializarSemaforos();
 	levantarServidorMUSE();
-	liberarVariablesGlobales();
 	return EXIT_SUCCESS;
 
 }
@@ -140,7 +140,7 @@ void rutinaServidor(int* p_socket) {
 				free(info);
 				void* retornoGet = procesarGet(id_proceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
 				enviarVoid(socketRespuesta, retornoGet, mensajeRecibido->tamanio);
-
+				if(retornoGet)
 				free(retornoGet);
 				break;
 			case CPY:
@@ -152,6 +152,7 @@ void rutinaServidor(int* p_socket) {
 				int retornoCpy = procesarCpy(id_proceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio, mensajeRecibido->contenido);
 
 				enviarInt(socketRespuesta, retornoCpy);
+				free(mensajeRecibido->contenido);
 				break;
 			case MAP:
 				info = malloc(strlen("Se_recibió_un_MAP del proceso 99999999999 ara el arcara el archivohivoara el archivo_con_el_flag_9999999999999999999999") + 1 + strlen((char*)mensajeRecibido->contenido) +1);
@@ -168,6 +169,8 @@ void rutinaServidor(int* p_socket) {
 				uint32_t retornoMap = procesarMap(id_proceso, (char*)mensajeRecibido->contenido, mensajeRecibido->tamanio, mensajeRecibido->flag);
 
 				enviarUint(socketRespuesta, retornoMap);
+
+				free(mensajeRecibido->contenido);
 				break;
 			case SYNC:
 				info = malloc(strlen("Se_recibió_un_SYNC_ del proceso 99999999999 sobre_la_dirección_de_memoria_9999999999999999999999") + 1);
@@ -193,6 +196,7 @@ void rutinaServidor(int* p_socket) {
 				info = malloc(strlen("Se_recibió_un_UNMAP del proceso 99999999999 _sobre_la_dirección_9999999999999999999999") + 1);
 				sprintf(info, "Se recibio una operacion CLOSE del proceso %d",mensajeRecibido->idProceso);
 				loggearInfo(info);
+				free(info);
 				int retornoClose = procesarClose(id_proceso); //funcion que debe liberar la memoria reservada tanto principal como swap y debe eliminar la entrada del diccionario
 				enviarInt(socketRespuesta, retornoClose);
 			break;
@@ -205,9 +209,25 @@ void rutinaServidor(int* p_socket) {
 
 }
 
-void liberarVariablesGlobales() {
+void liberarTodaLaMemoria()
+{
+	pthread_mutex_lock(&mutex_diccionario);
+	void liberar(char * id, t_list * bla)
+	{
+		procesarClose(id);
+	}
+	dictionary_iterator(diccionarioProcesos,(void*)liberar);
+	pthread_mutex_unlock(&mutex_diccionario);
+	dictionary_destroy(diccionarioProcesos);
+	bitarray_destroy(marcosMemoriaSwap);
+	bitarray_destroy(marcosMemoriaPrincipal);
+}
 
+void salirFuncion(int pid) {
+
+	liberarTodaLaMemoria();
 	destruirLog();
 	free(memoria);
+	exit(1);
 
 }
