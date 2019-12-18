@@ -210,8 +210,9 @@ int asignarMarcoLibre() {
 	}
 
 	// Si sale del bucle, llamar al algoritmo de reemplazo
-
+	pthread_mutex_lock(&mutex_memoria);
 	moverMarcosASwap();
+	pthread_mutex_unlock(&mutex_memoria);
 
 	return asignarMarcoLibre();
 

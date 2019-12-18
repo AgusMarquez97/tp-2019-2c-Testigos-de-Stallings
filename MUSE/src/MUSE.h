@@ -216,6 +216,7 @@ void escribirSwap(int nroPagina, void * buffer);
 void * leerSwap(int nroPagina);
 void bajarASwap(int nroMarco);
 t_pagina * ejecutarAlgoritmoReemplazo();
+bool estaLibreMarcoMemoriaSwap(int nroMarco);
 
 
 //MuseHeapMetadata

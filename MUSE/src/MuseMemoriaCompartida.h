@@ -173,6 +173,8 @@ int copiarDatosEnArchivo(char * path, int tamanio, void * buffer)
 
 			munmap(bufferAuxiliar,tamanio);
 
+			close(fd_num);
+
 			return 0;
 
 }

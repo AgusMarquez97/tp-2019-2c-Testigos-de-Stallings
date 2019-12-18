@@ -77,9 +77,7 @@ int cantidadPaginasPedidas(int offset) {
 void* leerDeMemoria(int posicionInicial, int tamanio) {
 
 	void* buffer = malloc(tamanio);
-	pthread_mutex_lock(&mutex_memoria);
-	memcpy(buffer, memoria + posicionInicial, tamanio);
-	pthread_mutex_unlock(&mutex_memoria);
+	memcpy(buffer, memoria + posicionInicial, tamanio); // no hacen falta los locks, ya estan puestos antes
 
 	return buffer;
 
@@ -87,9 +85,7 @@ void* leerDeMemoria(int posicionInicial, int tamanio) {
 
 void escribirEnMemoria(void* contenido, int posicionInicial, int tamanio) {
 
-	pthread_mutex_lock(&mutex_memoria);
 	memcpy(memoria + posicionInicial, contenido, tamanio);
-	pthread_mutex_unlock(&mutex_memoria);
 
 }
 
@@ -102,8 +98,10 @@ void liberarMarcoBitarray(int nroMarco) {
 }
 
 bool estaLibreMarco(int nroMarco) {
-
-	return bitarray_test_bit(marcosMemoriaPrincipal, nroMarco) == 0;
+	pthread_mutex_lock(&mutex_marcos_libres);
+	bool retorno = bitarray_test_bit(marcosMemoriaPrincipal, nroMarco) == 0;
+	pthread_mutex_unlock(&mutex_marcos_libres);
+	return retorno;
 
 }
 

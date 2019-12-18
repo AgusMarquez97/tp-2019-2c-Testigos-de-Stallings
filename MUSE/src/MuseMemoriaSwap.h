@@ -76,12 +76,12 @@ t_pagina * ejecutarAlgoritmoReemplazo()
 				{
 					t_pagina * paginaAnalizada = list_get(lista_analizar,ptrAlgoritmoPaginaSiguiente);
 
-					if(paginaAnalizada->uso == true && paginaAnalizada->modificada == true)
+					if(paginaAnalizada->uso == false && paginaAnalizada->modificada == false)
 					{
 						paginaVictima = paginaAnalizada; // caso feliz
 						break;
 					}
-					else if(paginaAnalizada->uso == true && paginaAnalizada->modificada == false && cantidadIntentos>=1)
+					else if(paginaAnalizada->uso == false && paginaAnalizada->modificada == true && cantidadIntentos>=1)
 					{
 						paginaVictima = paginaAnalizada;
 						break;
@@ -93,7 +93,11 @@ t_pagina * ejecutarAlgoritmoReemplazo()
 
 					ptrAlgoritmoPaginaSiguiente++;
 					contadorPaginas++;
+
+					if(ptrAlgoritmoPaginaSiguiente==list_size(lista_analizar))
+						ptrAlgoritmoPaginaSiguiente=0;// da la vuelta
 				}
+				contadorPaginas=0;
 				cantidadIntentos++;
 			}
 
@@ -118,6 +122,8 @@ void reemplazarVictima(t_pagina ** paginaVictima, bool bloqueoMarco)
 	void * bufferPagina = leerDeMemoria(offsetVictimaMemoriaPrincipal,tamPagina); // Leo lo que voy a sacar y lo guardo en el buffer (lo de la victima)
 
 	escribirSwap(nroPaginaSwapVictima,bufferPagina); //  Escribo en swap lo de la victima
+
+	free(bufferPagina);
 
 	(*paginaVictima)->nroPaginaSwap = nroPaginaSwapVictima; // Apunto la pagina swap al nro que obtuve
 
@@ -208,6 +214,8 @@ void escribirSwap(int nroPagina, void * buffer)
 	msync(bufferAuxiliar,tamPagina,MS_SYNC);
 
 	munmap(bufferAuxiliar,tamSwap);
+
+	close(fd_num);
 }
 
 void * leerSwap(int nroPagina)
@@ -225,13 +233,15 @@ void * leerSwap(int nroPagina)
 
 	munmap(bufferAuxiliar,tamSwap);
 
+	close(fd_num);
+
 	return buffer;
 }
 
 int asignarMarcoLibreSwap()
 {
 	for(int i = 0; i < cantidadMarcosMemoriaVirtual; i++) {
-			if(estaLibreMarco(i)) {
+			if(estaLibreMarcoMemoriaSwap(i)) {
 				pthread_mutex_lock(&mutex_marcos_libres);
 				bitarray_set_bit(marcosMemoriaSwap, i);
 				pthread_mutex_unlock(&mutex_marcos_libres);
@@ -239,6 +249,14 @@ int asignarMarcoLibreSwap()
 			}
 		}
 	return -1;
+}
+
+bool estaLibreMarcoMemoriaSwap(int nroMarco) {
+	pthread_mutex_lock(&mutex_marcos_swap_libres);
+	bool retorno = bitarray_test_bit(marcosMemoriaSwap, nroMarco) == 0;
+	pthread_mutex_unlock(&mutex_marcos_swap_libres);
+	return retorno;
+
 }
 
 #endif /* MUSEMEMORIASWAP_H_ */
