@@ -507,6 +507,8 @@ uint32_t obtenerPosicionPreviaHeap(t_list * paginas, int offset) // agarra la ul
 
 	int tamanioRestante = tam_heap_metadata - tamanioPaginaUsado;
 	free(unaPagina);
+	if(paginaActual==0)
+		return 0;
 	unaPagina = obtenerPaginaAuxiliar(paginas,paginaActual-1);
 	posicionRetorno = tamPagina*(unaPagina->nroMarco+1)-tamanioRestante;
 	}

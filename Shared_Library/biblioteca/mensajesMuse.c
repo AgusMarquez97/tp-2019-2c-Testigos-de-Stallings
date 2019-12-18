@@ -42,7 +42,7 @@ void enviarOperacion(int socket, int32_t proceso, int32_t operacion, uint32_t po
 	int32_t desplazamiento = 0;
 	int tamanioBuffer = sizeof(int32_t) * 2;
 
-	if(posicion != 0)
+	if(posicion!=0)
 		tamanioBuffer += sizeof(uint32_t);
 	if(tamanio != 0)
 		tamanioBuffer += sizeof(int32_t);

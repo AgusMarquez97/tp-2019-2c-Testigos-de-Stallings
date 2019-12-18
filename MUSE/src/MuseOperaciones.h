@@ -84,8 +84,8 @@ int32_t procesarFree(char* idProceso, uint32_t posicionSegmento) {
 		if(bytesLiberados > 0) {
 			sprintf(msj, "El Proceso %s libero %d bytes en la posicion %d", idProceso, (int)(bytesLiberados - tam_heap_metadata), posicionSegmento);
 			retorno = 1;
-		}
-
+		}else{
+		strcpy(msj,"");
 		switch(bytesLiberados) {
 			case HM_NO_EXISTENTE:
 				sprintf(msj, "El Proceso %s intento liberar un Heap Metadata no existente en la posicion %d", idProceso, posicionSegmento);
@@ -93,6 +93,9 @@ int32_t procesarFree(char* idProceso, uint32_t posicionSegmento) {
 			case HM_YA_LIBERADO:
 				sprintf(msj, "El Proceso %s intento liberar un Heap Metadata que ya estaba libre en la posicion %d", idProceso, posicionSegmento);
 				break;
+		}
+		loggearWarning(msj);
+		return -1;
 		}
 
 		loggearInfo(msj);
@@ -152,18 +155,23 @@ void* procesarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio) {
 		{
 			sprintf(msj, "El Proceso %s leyo %d bytes de la posicion %d", idProceso,bytesLeidos,posicionSegmento);
 		}
-
-		switch(bytesLeidos)
+		else
 		{
-		case HM_NO_EXISTENTE:
-			sprintf(msj, "El Proceso %s intento leer de un HM no existente en la posicion %d", idProceso, posicionSegmento);
-			break;
-		case HM_YA_LIBERADO:
-			sprintf(msj, "El Proceso %s intento leer de un HM que estaba libre en la posicion %d", idProceso, posicionSegmento);
-			break;
-		case TAMANIO_SOBREPASADO:
-			sprintf(msj, "El Proceso %s intento leer mas bytes (%d) de los permitidos en la posicion %d", idProceso,tamanio,posicionSegmento);
-			break;
+			strcpy(msj,"");
+			switch(bytesLeidos)
+			{
+			case HM_NO_EXISTENTE:
+				sprintf(msj, "El Proceso %s intento leer de un HM no existente en la posicion %d", idProceso, posicionSegmento);
+				break;
+			case HM_YA_LIBERADO:
+				sprintf(msj, "El Proceso %s intento leer de un HM que estaba libre en la posicion %d", idProceso, posicionSegmento);
+				break;
+			case TAMANIO_SOBREPASADO:
+				sprintf(msj, "El Proceso %s intento leer mas bytes (%d) de los permitidos en la posicion %d", idProceso,tamanio,posicionSegmento);
+				break;
+			}
+			loggearWarning(msj);
+			return NULL;
 		}
 
 		loggearInfo(msj);
@@ -212,19 +220,23 @@ int procesarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, voi
 			{
 				sprintf(msj, "El Proceso %s escribio %d bytes en la posicion %d", idProceso,bytesEscritos,posicionSegmento);
 				retorno = 0;
-			}
-
-			switch(bytesEscritos)
+			}else
 			{
-			case HM_NO_EXISTENTE:
-				sprintf(msj, "El Proceso %s intento escribir en un HM no existente en la posicion %d", idProceso, posicionSegmento);
-				break;
-			case HM_YA_LIBERADO:
-				sprintf(msj, "El Proceso %s intento escribir en un HM que estaba libre en la posicion %d", idProceso, posicionSegmento);
-				break;
-			case TAMANIO_SOBREPASADO:
-				sprintf(msj, "El Proceso %s intento escribir mas bytes (%d) de los permitidos en la posicion %d", idProceso,tamanio,posicionSegmento);
-				break;
+				strcpy(msj,"");
+				switch(bytesEscritos)
+				{
+				case HM_NO_EXISTENTE:
+					sprintf(msj, "El Proceso %s intento escribir en un HM no existente en la posicion %d", idProceso, posicionSegmento);
+					break;
+				case HM_YA_LIBERADO:
+					sprintf(msj, "El Proceso %s intento escribir en un HM que estaba libre en la posicion %d", idProceso, posicionSegmento);
+					break;
+				case TAMANIO_SOBREPASADO:
+					sprintf(msj, "El Proceso %s intento escribir mas bytes (%d) de los permitidos en la posicion %d", idProceso,tamanio,posicionSegmento);
+					break;
+				}
+				loggearWarning(msj);
+				return -1;
 			}
 
 			loggearInfo(msj);
@@ -339,8 +351,14 @@ int procesarSync(char* idProceso, uint32_t posicionMemoria, int32_t tamanio) {
 	if(existeEnElDiccionario(idProceso))
 	{
 	void * buffer = procesarGet(idProceso, posicionMemoria, tamanio);
+	if(!buffer)
+		return -1;
 	t_segmento* unSegmento = obtenerUnSegmento(idProceso, posicionMemoria);
+	if(!unSegmento)
+		return -1;
 	retorno = copiarDatosEnArchivo(unSegmento->archivo, tamanio, buffer);
+	if(retorno == -1)
+		return -1;
 	sprintf(msj,"El Proceso %s descargo %d bytes en el archivo %s",idProceso,tamanio,unSegmento->archivo);
 	}
 	else
@@ -362,6 +380,9 @@ int procesarUnmap(char* idProceso, uint32_t posicionMemoria) {
 	pthread_mutex_unlock(&mutex_diccionario);
 
 	t_segmento* unSegmento = obtenerSegmento(segmentos, posicionMemoria);
+
+	if(!unSegmento)
+			return -1;
 
 	int cantidadParticipantes = obtenerCantidadParticipantes(unSegmento->archivo);
 
