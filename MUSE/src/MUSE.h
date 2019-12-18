@@ -111,7 +111,7 @@ t_dictionary * diccionarioProcesos;
 t_list * listaArchivosCompartidos;
 t_list * listaPaginasClockModificado;
 
-int contadorPaginasAnalizadas;
+int ptrAlgoritmoPaginaSiguiente;
 
 typedef struct {
 	int id_segmento;
@@ -127,6 +127,8 @@ typedef struct {
 	int nroPaginaSwap;
 	int nroMarco;// permite calcular la direccion inicial en MP;
 	bool uso;
+	bool modificada;
+	bool esCompartida;
 } t_pagina;
 
 typedef struct {
@@ -170,8 +172,8 @@ t_segmento* obtenerSegmento(t_list* segmentos, uint32_t posicionMemoria);
 t_pagina* obtenerPagina(t_list* paginas, uint32_t posicionSegmento);
 bool paginaCorrespondiente(t_pagina* pagina);
 bool poseeSegmentos(char* idProceso);
-void agregarPaginas(t_list** listaPaginas, int cantidadMarcos, int nroUltimaPagina);
-t_list* crearListaPaginas(int tamanio, int cantidadMarcos);
+void agregarPaginas(t_list** listaPaginas, int cantidadMarcos, int nroUltimaPagina, bool esCompartido);
+t_list* crearListaPaginas(int tamanio, int cantidadMarcos,bool esCompartido);
 t_segmento* instanciarSegmento(int tamanio, int cantidadFrames, int idSegmento, bool esCompartido, int posicionInicial);
 void crearSegmento(char* idProceso, int tamanio, int cantidadFrames, t_list* listaSegmentos, int idSegmento, bool esCompartido, int posicionInicial);
 uint32_t completarSegmento(char* idProceso, t_segmento* ultimoSegmento, int tamanio);
@@ -210,21 +212,22 @@ void recuperarPaginaSwap(t_pagina ** paginaActualmenteEnSwap,int marcoObjetivo);
 bool estaEnMemoria(t_list * paginas, int nroPagina);
 void escribirSwap(int nroPagina, void * buffer);
 void * leerSwap(int nroPagina);
+void actualizarMarcosPaginasCompartidas(char * path, int nroMarcoVictima, int viejoMarco);
+void actualizarMarcosSwapPaginasCompartidas(int nuevoMarcoSwap, int viejoMarco);
 
 
 //MuseHeapMetadata
 int leerUnHeapMetadata(t_list * paginas, int posicionAnteriorHeap,int posicionPosteriorHeap, void ** buffer, int tamanio);
 int liberarUnHeapMetadata(t_list * paginas, int offset);
-void leerDatosHeap(t_list * paginas, int offset, void ** buffer, int tamanio);
+int escribirDatosHeapMetadata(t_list * paginas, int posicionAnteriorHeap,int posicionPosteriorHeap, void ** buffer, int tamanio);
+void leerDatosHeap(t_list * paginas, int posicionPosteriorHeap, void ** buffer, int tamanio);
 void leerHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* bytesLeidosPagina, int* offset, t_list * paginas, int* nroPagina);
 void leerHeapPartido(t_heap_metadata** heapMetadata, int* offset, int sobrante, int* nroPagina, t_list* paginas, t_pagina** paginaDummy);
+int escribirUnHeapMetadata(t_list * listaPaginas,int paginaActual,t_heap_metadata * unHeapMetadata, int * offset, int tamanioPaginaRestante);
 int escribirHeapMetadata(t_list * listaPaginas, int offset, int tamanio, int offsetMaximo);
-int escribirDatosHeapMetadata(t_list * paginas, int posicionAnteriorHeap,int posicionPosteriorHeap, void ** buffer, int tamanio);
 void escribirDatosHeap(t_list * paginas, int posicionPosteriorHeap, void ** buffer, int tamanio);
 t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offset);
 uint32_t obtenerPosicionPreviaHeap(t_list * paginas, int offset);
-t_pagina * obtenerPaginaAuxiliar(t_list * paginas, int nroPagina);
 bool existeHM(t_list * paginas, int offsetBuscado);
-int escribirUnHeapMetadata(t_list * listaPaginas,int paginaActual,t_heap_metadata * unHeapMetadata, int * offset, int tamanioPaginaRestante);
 
 #endif /* MUSE_H_ */

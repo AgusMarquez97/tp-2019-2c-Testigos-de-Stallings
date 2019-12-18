@@ -3,24 +3,6 @@
 
 #include "MuseHeapMetadata.h"
 
-bool existeEnElDiccionario(char* idProceso) {
-
-	bool retorno = false;
-
-	pthread_mutex_lock(&mutex_diccionario);
-
-	if(diccionarioProcesos) {
-		if(!dictionary_is_empty(diccionarioProcesos)) {
-			if(dictionary_has_key(diccionarioProcesos, idProceso)) {
-				retorno = true;
-			}
-		}
-	}
-	pthread_mutex_unlock(&mutex_diccionario);
-
-	return retorno;
-}
-
 int procesarHandshake(char* idProceso) {
 
 	char msj[120];
@@ -64,118 +46,6 @@ uint32_t procesarMalloc(char* idProceso, int32_t tamanio) {
 	}
 
 	return posicionRetorno;
-
-}
-
-int defragmentarSegmento(t_segmento* segmento)
-{
-	t_list* listaPaginas = segmento->paginas;
-
-	t_pagina* paginaAuxiliar = obtenerPaginaAuxiliar(listaPaginas, 0);
-
-	int offset = paginaAuxiliar->nroMarco * tamPagina;
-
-	free(paginaAuxiliar);
-
-	int cantPaginas = list_size(listaPaginas);
-	int tamMaximo = tamPagina * cantPaginas;
-	int bytesLeidos = 0;
-	t_heap_metadata* heapMetadata = malloc(tam_heap_metadata);
-
-	int bytesLeidosPagina = 0;
-	int contador = 0;
-	int heapsLeidos = 0;
-	int primerHeapMetadataLibre = 0;
-	int primeraPaginaLibre = 0;
-	int acumulador = 0;
-	int cantidadBytesAgrupados = 0;
-	int paginaUltimoHeapMetadata = 0;
-
-	int offsetAnterior = 0;
-
-	while(tamMaximo - bytesLeidos > tam_heap_metadata)
-	{
-		offsetAnterior = offset;
-		paginaUltimoHeapMetadata = contador;
-		leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset, listaPaginas, &contador);
-
-		if(heapMetadata->estaLibre)
-		{
-			heapsLeidos++;
-
-			if(heapsLeidos == 1)
-			{
-				primeraPaginaLibre = paginaUltimoHeapMetadata;
-				primerHeapMetadataLibre = offsetAnterior;
-			}
-
-
-			acumulador += heapMetadata->offset;
-
-			if(heapsLeidos > 1)
-			{
-				heapMetadata->estaLibre = true;
-				heapMetadata->offset = acumulador + tam_heap_metadata;
-
-				int tamanioRestante = tamPagina - primerHeapMetadataLibre%tamPagina;
-
-				escribirUnHeapMetadata(listaPaginas, primeraPaginaLibre, heapMetadata, &primerHeapMetadataLibre, tamanioRestante);
-				cantidadBytesAgrupados = heapMetadata->offset;
-
-				break;
-			}
-		}
-		else
-		{
-			heapsLeidos = 0;
-			acumulador = 0;
-		}
-	}
-	free(heapMetadata);
-
-	return cantidadBytesAgrupados;
-
-}
-
-void compactarSegmento(char* idProceso, t_segmento* segmento) {
-
-	t_list* listaPaginas = segmento->paginas;
-
-	t_pagina* paginaAuxiliar = obtenerPaginaAuxiliar(listaPaginas, 0);
-
-	int offset = paginaAuxiliar->nroMarco * tamPagina;
-
-	free(paginaAuxiliar);
-
-	t_heap_metadata* heapMetadata = malloc(tam_heap_metadata);
-	int bytesLeidos = 0;
-	int bytesLeidosPagina = 0;
-	t_list* paginas = segmento->paginas;
-	int cantPaginas = list_size(paginas);
-	int tamMaximo = tamPagina * cantPaginas;
-	int nroPagina = 0;
-
-	int posUltimoHeapMetadata = 0;
-	int paginaUltimoHeapMetadata = 0;
-	int tamanioPaginaRestante = 0;
-
-	while(tamMaximo - bytesLeidos > tam_heap_metadata) {
-		posUltimoHeapMetadata = offset;
-		paginaUltimoHeapMetadata = nroPagina;
-		leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset, paginas, &nroPagina);
-	}
-
-	if(heapMetadata->estaLibre && nroPagina > paginaUltimoHeapMetadata) {
-		tamanioPaginaRestante = tamPagina - posUltimoHeapMetadata%tamPagina;
-
-		if(tamanioPaginaRestante>tam_heap_metadata)
-		{
-		heapMetadata->offset = tamanioPaginaRestante - tam_heap_metadata; // ver de restar uno
-		escribirUnHeapMetadata(paginas, paginaUltimoHeapMetadata, heapMetadata, &posUltimoHeapMetadata, tamanioPaginaRestante);
-		}
-
-		liberarPaginas(idProceso, paginaUltimoHeapMetadata, segmento);
-	}
 
 }
 
@@ -444,8 +314,7 @@ uint32_t procesarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
 			}
 		}
 
-		t_segmento* unSegmento = obtenerUnSegmento(idProceso, posicionRetorno);
-		unSegmento->archivo = strdup(path);
+		segmento->archivo = strdup(path);
 
 		sprintf(msj,"El proceso %s escribio %d bytes en la posicion %d para el archivo %s con el flag %s",idProceso,tamanio,posicionRetorno,path,aux);
 	}else
@@ -558,50 +427,5 @@ int procesarClose(char* idProceso) {
 
 }
 
-/*
- * FUNCIONES MACRO DE OPERACIONES
- */
-
-// MACRO DE MALLOC
-
-uint32_t analizarSegmento (char* idProceso, int tamanio, int cantidadFrames, bool esCompartido) {
-	//Que pasa si en el medio de esta operacion el mismo proceso mediante otro hilo me inserta otro segmento al mismo tiempo = PROBLEMAS
-
-	uint32_t direccionRetorno = 0;
-	t_list* listaSegmentos;
-	int nroSegmento = 0;
-
-	if(!poseeSegmentos(idProceso)) // => Es el primer malloc
-	{
-		listaSegmentos = list_create();
-		crearSegmento(idProceso, tamanio, cantidadFrames, listaSegmentos, 0, esCompartido, 0);
-		direccionRetorno =  tam_heap_metadata;
-	}
-	else
-	{
-		t_segmento* ultimoSegmento;
-		uint32_t ultimaPosicionSegmento;
-
-		pthread_mutex_lock(&mutex_diccionario);
-		listaSegmentos = dictionary_get(diccionarioProcesos, idProceso);
-		pthread_mutex_unlock(&mutex_diccionario);
-
-		ultimoSegmento = list_get(listaSegmentos, list_size(listaSegmentos) - 1);
-
-		ultimaPosicionSegmento = ultimoSegmento->posicionInicial + ultimoSegmento->tamanio;
-		nroSegmento = ultimoSegmento->id_segmento + 1;
-
-		if(ultimoSegmento->esCompartido || esCompartido)
-		{
-			crearSegmento(idProceso, tamanio, cantidadFrames, listaSegmentos,nroSegmento, esCompartido, ultimaPosicionSegmento); // HACER
-			direccionRetorno = ultimaPosicionSegmento + tam_heap_metadata;
-		}
-		else
-			direccionRetorno = completarSegmento(idProceso, ultimoSegmento, tamanio);
-
-	}
-	return direccionRetorno;
-
-}
 
 #endif /* MUSEOPERACIONES_H_ */

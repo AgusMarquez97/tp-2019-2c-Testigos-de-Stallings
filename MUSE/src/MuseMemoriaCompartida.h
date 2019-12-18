@@ -8,7 +8,7 @@
 #ifndef MUSEMEMORIACOMPARTIDA_H_
 #define MUSEMEMORIACOMPARTIDA_H_
 
-#include "MuseAuxiliares.h"
+#include "MuseRutinasFree.h"
 
 
 void * obtenerDatosArchivo(char * path, int tamanio)
@@ -127,6 +127,9 @@ t_list * crearPaginasSinMemoria(t_archivo_compartido * unArchivoCompartido,int c
 		unaPagina->nroPagina = i;
 		unaPagina->nroMarco = *(unArchivoCompartido->marcosMapeados + i);
 		unaPagina->nroPaginaSwap = *(unArchivoCompartido->nroPaginaSwap + i);
+		unaPagina->uso = 1;
+		unaPagina->modificada = 0;
+		unaPagina->esCompartida = true;
 
 		list_add(listaPaginas,unaPagina);
 

@@ -34,7 +34,7 @@ void levantarMemoria() {
 	diccionarioProcesos = dictionary_create();
 	listaArchivosCompartidos = list_create();
 	listaPaginasClockModificado = list_create();
-	contadorPaginasAnalizadas = 0;
+	ptrAlgoritmoPaginaSiguiente = 0;
 	memoria = malloc(tamMemoria);
 	crearMemoriaSwap();
 

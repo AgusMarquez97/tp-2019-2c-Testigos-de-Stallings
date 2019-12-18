@@ -56,44 +56,50 @@ void rutinaReemplazoPaginasSwap(t_pagina** unaPagina)
 
 t_pagina * ejecutarAlgoritmoReemplazo()
 {
-	bool encontrePaginaVictima = true;
-	t_pagina * paginaRetorno = NULL;
+		int cantidadIntentos = 0;
+		int contadorPaginas = 0;
+		t_pagina * paginaVictima = NULL;
 
-	void iterarDiccionario(char * proceso,t_list * segmentos)
-	{
-		void iteradorSegmentos(t_segmento * unSegmento)
+
+		pthread_mutex_lock(&mutex_lista_paginas);
+
+		bool estaEnMemoria(t_pagina * unaPagina)
 		{
-			void iteradorPaginas(t_pagina * unaPagina)
-			{
-				if(unaPagina->uso == 0 && unaPagina->nroPaginaSwap!=-1 && encontrePaginaVictima)
-				{
-					paginaRetorno = unaPagina;
-					encontrePaginaVictima=false;
-				}
-				else
-				{
-					unaPagina->uso = 0;
-				}
-
-			}
-			list_iterate(unSegmento->paginas,(void*)iteradorPaginas);
+			return (unaPagina->nroPaginaSwap==-1);
 		}
-		list_iterate(segmentos,(void*)iteradorSegmentos);
-	}
 
-	dictionary_iterator(diccionarioProcesos,(void*)iterarDiccionario);
-	// Si es un buffer circular esto no va a server. No va a arrancar siempre desde la ultima posicion si no que desde el principio
-	// Esto complica las cosas => hay que ver como indexamos las paginas y recuperamos este nro!
+		t_list * lista_analizar = list_filter(listaPaginasClockModificado,(void*)estaEnMemoria);
 
-	if(!paginaRetorno)
-	{
-		paginaRetorno = ejecutarAlgoritmoReemplazo(); // vuelve a hacer una pasada
+		while(cantidadIntentos != 3 || !paginaVictima)
+			{
+				while(contadorPaginas<list_size(lista_analizar))
+				{
+					t_pagina * paginaAnalizada = list_get(lista_analizar,ptrAlgoritmoPaginaSiguiente);
 
-		if(!paginaRetorno) // nunca deberia pasar -> caso de error extremo
-			return NULL;
-	}
+					if(paginaAnalizada->uso == true && paginaAnalizada->modificada == true)
+					{
+						paginaVictima = paginaAnalizada; // caso feliz
+						break;
+					}
+					else if(paginaAnalizada->uso == true && paginaAnalizada->modificada == false && cantidadIntentos>=1)
+					{
+						paginaVictima = paginaAnalizada;
+						break;
+					}
+					else if(cantidadIntentos>=1)
+					{
+						paginaAnalizada->uso=false;
+					}
 
-	return paginaRetorno;
+					ptrAlgoritmoPaginaSiguiente++;
+					contadorPaginas++;
+				}
+				cantidadIntentos++;
+			}
+
+		pthread_mutex_unlock(&mutex_lista_paginas);
+
+	return paginaVictima;
 }
 
 /*
@@ -114,6 +120,20 @@ void reemplazarVictima(t_pagina ** paginaVictima, bool bloqueoMarco)
 	escribirSwap(nroPaginaSwapVictima,bufferPagina); //  Escribo en swap lo de la victima
 
 	(*paginaVictima)->nroPaginaSwap = nroPaginaSwapVictima; // Apunto la pagina swap al nro que obtuve
+
+	if((*paginaVictima)->esCompartida)
+	{
+		pthread_mutex_lock(&mutex_lista_paginas);
+		void modificarPaginaObjetivo(t_pagina * pagina)
+		{
+			if(pagina->esCompartida && pagina->nroPaginaSwap != -1 && pagina->nroMarco == marcoVictima)
+			{
+				(*paginaVictima)->nroPaginaSwap = nroPaginaSwapVictima;
+			}
+		}
+		list_iterate(listaPaginasClockModificado,(void*)modificarPaginaObjetivo);
+		pthread_mutex_unlock(&mutex_lista_paginas);
+	}
 
 	if(!bloqueoMarco)
 	{
@@ -140,7 +160,25 @@ void recuperarPaginaSwap(t_pagina ** paginaActualmenteEnSwap,int marcoObjetivo)
 
 	(*paginaActualmenteEnSwap)->nroMarco = marcoObjetivo; // actualizo la referencia al marco
 	(*paginaActualmenteEnSwap)->uso = 1; // pongo el uso en 1 ya que recien la traigo
+	(*paginaActualmenteEnSwap)->modificada = 0; // pongo el uso en 1 ya que recien la traigo
 	(*paginaActualmenteEnSwap)->nroPaginaSwap = -1; // Actualizo que no esta mas en archivo swap
+
+	if((*paginaActualmenteEnSwap)->esCompartida)
+	{
+		pthread_mutex_lock(&mutex_lista_paginas);
+		void modificarPaginaObjetivo(t_pagina * pagina)
+		{
+			if(pagina->esCompartida && pagina->nroPaginaSwap == nroPaginaSwap)
+			{
+				pagina->nroMarco = marcoObjetivo;
+				pagina->uso = 1;
+				pagina->modificada = 0;
+				pagina->nroPaginaSwap = -1;
+			}
+		}
+		list_iterate(listaPaginasClockModificado,(void*)modificarPaginaObjetivo);
+		pthread_mutex_unlock(&mutex_lista_paginas);
+	}
 }
 
 /*
@@ -202,6 +240,5 @@ int asignarMarcoLibreSwap()
 		}
 	return -1;
 }
-
 
 #endif /* MUSEMEMORIASWAP_H_ */
