@@ -81,7 +81,7 @@ void muse_free(uint32_t dir) {
 			close(socketCliente);
 			//Para mas adelante: Tenemos que definir un codigo de error que nos indique la razon por la que no se pudo realizar el free (y levantar raise si hace falta)
 			if(retorno != 0) {
-				sprintf(aux,"No se ha podido liberar la porción de memoria solicitada %u liberada con éxito para el proceso %d",dir,id_muse);
+				sprintf(aux,"Porción de memoria solicitada %u liberada con éxito para el proceso %d",dir,id_muse);
 				loggearInfo(aux);
 			} else {
 				sprintf(aux,"No se ha podido liberar la posicion de memoria %u liberada con éxito para el proceso %d",dir,id_muse);
