@@ -1,30 +1,70 @@
-UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S),Darwin)
-	CFLAGS := -D_XOPEN_SOURCE -Wno-deprecated-declarations
-endif
+#
+# 'make depend' uses makedepend to automatically generate dependencies 
+#               (dependencies are added to end of Makefile)
+# 'make'        build executable file 'mycc'
+# 'make clean'  removes all .o and executable files
+#
 
-CC := gcc
-NAME := hilolayex
-BUILD=bin
+# define the C compiler to use
+CC = gcc
 
-all: clean $(NAME).so
+# define any compile-time flags
+CFLAGS = -Wall -g
+
+# define any directories containing header files other than /usr/include
+#
+INCLUDES = -I"/home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/Shared_Library"
+
+# define library paths in addition to /usr/lib
+#   if I wanted to include libraries not in /usr/lib I'd specify
+#   their path using -Lpath, something like:
+LFLAGS = -L"/home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/Shared_Library/biblioteca" 
+
+# define any libraries to link into executable:
+#   if I want to link in libraries (libx.so or libx.a) I use the -llibname 
+#   option, something like (this will link in libmylib.so and libm.so:
+LIBS = -lShared_Library -lrt -lm -lreadline -lpthread -lcommons -lhilolay
+
+# define the C source files
+SRCS = revolucion_compartida.c #aca agregar demas .c 
+
+# define the C object files 
+#
+# This uses Suffix Replacement within a macro:
+#   $(name:string1=string2)
+#         For each word in 'name' replace 'string1' with 'string2'
+# Below we are replacing the suffix .c of all words in the macro SRCS
+# with the .o suffix
+#
+OBJS = $(SRCS:.c=.o)
+
+# define the executable file 
+MAIN = revolucion_compartida #Nombre final del ejecutable
+
+#
+# The following part of the makefile is generic; it can be used to 
+# build any executable just by changing the definitions above and by
+# deleting dependencies appended to the file from 'make depend'
+#
+
+.PHONY: depend clean
+
+all: $(MAIN)
+
+$(MAIN): $(OBJS) 
+	$(CC) $(CFLAGS) $(INCLUDES) -o $(MAIN) $(OBJS) $(LFLAGS) $(LIBS)
+
+# this is a suffix replacement rule for building .o's from .c's
+# it uses automatic variables $<: the name of the prerequisite of
+# the rule(a .c file) and $@: the name of the target of the rule (a .o file) 
+# (see the gnu make manual section about automatic variables)
+.c.o:
+	$(CC) $(CFLAGS) $(INCLUDES) -c $<  -o $@
 
 clean:
-	$(RM) *.o
-	$(RM) *.so
-	$(RM) -r bin/
-	mkdir -p bin
+	$(RM) *.o *~ $(MAIN)
 
-$(NAME).o:
-	$(CC) -c -Wall $(CFLAGS) -fpic hilolay_alumnos.c -o $(BUILD)/$(NAME).o -lhilolay
+depend: $(SRCS)
+	makedepend $(INCLUDES) $^
 
-$(NAME).so: $(NAME).o
-	$(CC) -shared -o $(BUILD)/lib$(NAME).so $(BUILD)/$(NAME).o -lhilolay
-
-entrega:
-
-	$(CC) -L"/home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/Shared_Library/biblioteca" -Wall $(CFLAGS) -o $(BUILD)/revolucion_compartida revolucion_compartida.c -lShared_Library -lhilolay -lcommons -lpthread
-
-revolucion_compartida:
-	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/Shared_Library/biblioteca ./$(BUILD)/revolucion_compartida
-
+# DO NOT DELETE THIS LINE -- make depend needs it
