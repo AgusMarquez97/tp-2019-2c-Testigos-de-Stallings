@@ -3,36 +3,76 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-int main(void) {
+#define CANT_ITERACIONES 10000
 
-	muse_init(getpid(),"127.0.0.1",5003);
+void *tocar_solo()
+{
+	int i;
 
-	size_t tamArchivoMax = 250;
-    
-	char* homero = malloc(tamArchivoMax);
-	char* bart = malloc(tamArchivoMax);
-	char* maggie = malloc(tamArchivoMax);
-	void* todos = malloc(tamArchivoMax*3);
+	printf("\nCAMPO: Golpeandose para entrar...\n");
+	hilolay_yield();
+	printf("\nCAMPO: Luchando para llegar al frente...\n");
+	hilolay_yield();
+	for(i=0;i<CANT_ITERACIONES;i++)
+	{
+		int accion = rand() % 5;
+		if(!accion)
+		{
+			printf("CAMPO: POGO!!!!\n");
+			hilolay_yield();
+		}
+		else
+		{
+			printf("CAMPO: Singing Along\n");
+			hilolay_yield();
+		}
+	}
+	return 0;
+}
 
-	uint32_t direccionMemoria1 = muse_map("archivos/homero.txt", tamArchivoMax, MUSE_MAP_SHARED);
-	uint32_t direccionMemoria2 = muse_map("archivos/bart.txt", tamArchivoMax, MUSE_MAP_SHARED);
-	uint32_t direccionMemoria3 = muse_map("archivos/maggie.txt", tamArchivoMax, MUSE_MAP_SHARED);
+void *preparar_solo()
+{
+	int i;
 
-	muse_get(homero, direccionMemoria1, tamArchivoMax);
-	muse_get(bart, direccionMemoria2, tamArchivoMax);
-	muse_get(maggie, direccionMemoria3, tamArchivoMax);
+	printf("\nPALCO: Estacionando el auto...\n");
+	hilolay_yield();
+	printf("\nPALCO: Haciendo fila para entrar...\n");
+	hilolay_yield();
+	for(i=0;i<CANT_ITERACIONES/100;i++)
+	{
+		int accion = rand() % 4;
+		if(accion)
+		{
+			printf("PALCO: Aplaudiendo\n");
+			hilolay_yield();
+		}
+		else
+		{
+			printf("PALCO: Singing Along\n");
+			hilolay_yield();
+		}
+		usleep(100000);
+	}
+	return 0;
+}
 
-	muse_unmap(direccionMemoria1);
-	muse_unmap(direccionMemoria2);
-	muse_unmap(direccionMemoria3);
-	
-	printf("%s\n", homero);
-	printf("%s\n", bart);
-	printf("%s\n", maggie);
+int main(void)
+{
+	struct hilolay_t palco;
+	struct hilolay_t campo[3];
 
-	
-	muse_close();
+	hilolay_init();
 
-	return EXIT_SUCCESS;
+	hilolay_create(&palco, NULL, &preparar_solo, NULL);
+	hilolay_create(&campo[0], NULL, &tocar_solo, NULL);
+	hilolay_create(&campo[1], NULL, &tocar_solo, NULL);
+	hilolay_create(&campo[2], NULL, &tocar_solo, NULL);
 
+	hilolay_join(&campo[0]);
+	hilolay_join(&campo[1]);
+	hilolay_join(&campo[2]);
+	hilolay_join(&palco);
+
+
+return hilolay_return(0);
 }

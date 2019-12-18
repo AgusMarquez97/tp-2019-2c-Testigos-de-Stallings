@@ -70,6 +70,9 @@ void rellenarArchivo(int indiceArch, int tamanioNuevo)
 
 		tablaNodos[indiceArch].bloques_ind[0] =  (IndBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN;
 
+		loggearInfo("Puntero a bloque indirecto seteado");
+		loggearInfo("Bit seteado");
+
 		//bloque de datos
 		while(valorBit != 0 && indBloque < (ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER + cantBloqueDatos) )
 		{
@@ -80,10 +83,12 @@ void rellenarArchivo(int indiceArch, int tamanioNuevo)
 
 		tablaNodos[indiceArch].bloques_ind[0]->bloquesDatos[0] = (GBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN;
 
+		loggearInfo("Puntero a bloque de datos seteado");
+		loggearInfo("Bit seteado");
 	}
 
 	if(tamanioNuevo < BLOCK_SIZE && offset != 0)//en este caso tam actual siempre va a ser < block size
-		memset(tablaNodos[indiceArch].bloques_ind[0]->bloquesDatos[0]->bytes + offset - 1 , '@', cantidadPadding);
+		memset(tablaNodos[indiceArch].bloques_ind[0]->bloquesDatos[0]->bytes + offset , '@', cantidadPadding);
 	else
 	{
 		while(cantidadPadding > 0 && bloqInd < BLOQUES_INDIRECTOS)
@@ -109,7 +114,10 @@ void rellenarArchivo(int indiceArch, int tamanioNuevo)
 					}
 					bitarray_set_bit(bitmap, indBloque);
 
-					tablaNodos[indiceArch].bloques_ind[0]->bloquesDatos[bloqDatos] = (GBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN + bloqDatos;
+					tablaNodos[indiceArch].bloques_ind[0]->bloquesDatos[bloqDatos] = (GBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN;// + bloqDatos;
+
+					loggearInfo("Puntero a bloque de datos seteado");
+					loggearInfo("Bit seteado");
 				}
 
 			}
@@ -117,6 +125,12 @@ void rellenarArchivo(int indiceArch, int tamanioNuevo)
 		}
 	}
 
+	char* aux = malloc(50);
+	sprintf(aux, "%d bytes de padding agregados", cantidadPadding);
+	loggearInfo(aux);
+	free(aux);
+
+	tablaNodos[indiceArch].fecha_modif = time(NULL);
 	tablaNodos[indiceArch].file_size = tamanioNuevo;
 }
 
@@ -127,9 +141,30 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 	int bloqDatos = 0;
 	int aRecortar = tamActual - tamanioNuevo;
 	int offset = 0;
+	int indiceBloque = 0;
+	int cortado = 0;
+	int totalCortado = 0;
 
 	if(tamActual < BLOCK_SIZE)
+	{
 		memset(tablaNodos[indiceArch].bloques_ind[0]->bloquesDatos[0]->bytes + tamanioNuevo, 0, BLOCK_SIZE - tamanioNuevo);
+
+		if(aRecortar == tamActual)
+		{
+			indiceBloque = tablaNodos[indiceArch].bloques_ind[0]->bloquesDatos[0] - (GBlock*)tablaNodos + ESTRUCTURAS_ADMIN;
+			bitarray_clean_bit(bitmap, indiceBloque);
+			loggearInfo("Bit limpiado");
+
+			indiceBloque = tablaNodos[indiceArch].bloques_ind[0] - (IndBlock*)tablaNodos + ESTRUCTURAS_ADMIN;
+			bitarray_clean_bit(bitmap, indiceBloque);
+			loggearInfo("Bit limpiado");
+
+			tablaNodos[indiceArch].bloques_ind[0]->bloquesDatos[0] = NULL;
+			tablaNodos[indiceArch].bloques_ind[0] = NULL;
+		}
+
+	}
+
 	else
 	{
 		if(tamActual > (BLOCK_SIZE-1) )
@@ -142,6 +177,8 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 			}
 
 			offset = tamActual % BLOCK_SIZE;
+			if(offset == 0 && bloqDatos != 0)
+				bloqDatos--;
 		}
 
 		while(aRecortar > 0 && bloqInd >= 0)
@@ -151,37 +188,44 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 			{
 				if(bloqDatos == 0)
 					offset = BLOCK_SIZE - aRecortar;
-				memset(tablaNodos[indiceArch].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes + offset, 0, BLOCK_SIZE - offset);
-				aRecortar = aRecortar - BLOCK_SIZE;
+				cortado = BLOCK_SIZE - offset;
+				memset(tablaNodos[indiceArch].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes + offset, 0, cortado);
+				aRecortar = aRecortar - cortado;
 				offset = 0;
+				totalCortado = totalCortado + cortado;
+
+				if(cortado == BLOCK_SIZE)
+				{
+					indiceBloque = tablaNodos[indiceArch].bloques_ind[bloqInd]->bloquesDatos[bloqDatos] - (GBlock*)tablaNodos + ESTRUCTURAS_ADMIN;
+					bitarray_clean_bit(bitmap, indiceBloque);
+					loggearInfo("Bit limpiado");
+
+					tablaNodos[indiceArch].bloques_ind[bloqInd]->bloquesDatos[bloqDatos] = NULL;
+				}
 				bloqDatos--;
+			}
+
+			if( ( (tamActual - totalCortado) % BLOCK_SIZE ) == 0 )
+			{
+				indiceBloque = tablaNodos[indiceArch].bloques_ind[bloqInd] - (IndBlock*)tablaNodos + ESTRUCTURAS_ADMIN;
+				bitarray_clean_bit(bitmap, indiceBloque);
+				loggearInfo("Bit limpiado");
+
+				tablaNodos[indiceArch].bloques_ind[bloqInd] = NULL;
 			}
 			bloqInd--;
 		}
 	}
 
- /*
-	//recorre el bitmap y pone en 0 los bloques que estan vacios
-	GBlock* bloqueActual;
-	IndBlock* bloqueIndActual;
-	for(int indiceBloque = ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER; indiceBloque < (ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER + cantBloqueDatos); indiceBloque++)
-	{
-		int valorBit = bitarray_test_bit(bitmap, indiceBloque);
-		bloqueActual = (GBlock*)(tablaNodos + indiceBloque - ESTRUCTURAS_ADMIN);
-		if( valorBit == 1)
-		{
-			if( bloqueActual->bytes[0] == 0 )
-				bitarray_clean_bit(bitmap, indiceBloque);
-			else
-			{
-				bloqueIndActual = (IndBlock*)(tablaNodos + indiceBloque - ESTRUCTURAS_ADMIN);
-				if(bloqueIndActual->bloquesDatos == NULL)
-					bitarray_clean_bit(bitmap, indiceBloque);
-			}
-		}
+	if(aRecortar == tablaNodos[indiceArch].file_size)
+		tablaNodos[indiceArch].bloques_ind[0] = NULL;
 
-	}
-	*/
+	char* aux = malloc(50);
+	sprintf(aux, "%d bytes recortados", tamActual - tamanioNuevo);
+	loggearInfo(aux);
+	free(aux);
+
+	tablaNodos[indiceArch].fecha_modif = time(NULL);
 	tablaNodos[indiceArch].file_size = tamanioNuevo;
 
 }
@@ -234,6 +278,9 @@ void escribir(void* bufferWrite)//(int indArchivo, char* contenido, size_t taman
 
 		tablaNodos[indArchivo].bloques_ind[0] =  (IndBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN;
 
+		loggearInfo("Puntero a bloque indirecto seteado");
+		loggearInfo("Bit seteado");
+
 		//bloque de datos
 		while(valorBit != 0 && indBloque < (ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER + cantBloqueDatos) )
 		{
@@ -244,10 +291,19 @@ void escribir(void* bufferWrite)//(int indArchivo, char* contenido, size_t taman
 
 		tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[0] = (GBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN;
 
+		loggearInfo("Puntero a bloque de datos seteado");
+		loggearInfo("Bit seteado");
+
 		memset(tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[0]->bytes, 0, BLOCK_SIZE);
 
-		tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[1] = NULL;
 		tablaNodos[indArchivo].bloques_ind[1] = NULL;
+
+		int i = 1;
+		while(i < BLOQUES_DATOS)
+		{
+			tablaNodos[indArchivo].bloques_ind[0]->bloquesDatos[i] = NULL;
+			i++;
+		}
 
 	}
 
@@ -302,6 +358,9 @@ void escribir(void* bufferWrite)//(int indArchivo, char* contenido, size_t taman
 					i++;
 				}
 
+				loggearInfo("Puntero a bloque indirecto seteado");
+				loggearInfo("Bit seteado");
+
 				if(bloqInd < (BLOQUES_INDIRECTOS - 1) )
 					tablaNodos[indArchivo].bloques_ind[bloqInd + 1] = NULL;
 			}
@@ -319,11 +378,13 @@ void escribir(void* bufferWrite)//(int indArchivo, char* contenido, size_t taman
 					}
 					bitarray_set_bit(bitmap, indBloque);
 
-					//tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos] = (GBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN + bloqDatos;
 					tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos] = (GBlock*)tablaNodos + indBloque - ESTRUCTURAS_ADMIN;
+
+					loggearInfo("Puntero a bloque de datos seteado");
+					loggearInfo("Bit seteado");
+
 					memset(tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes, 0, BLOCK_SIZE);
-					if(bloqDatos < (BLOQUES_DATOS - 1) )
-						tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos + 1] = NULL;
+
 				}
 				memcpy(tablaNodos[indArchivo].bloques_ind[bloqInd]->bloquesDatos[bloqDatos]->bytes + offset, contenido+cantidadEscrita, cantAEscribir);
 
@@ -340,6 +401,12 @@ void escribir(void* bufferWrite)//(int indArchivo, char* contenido, size_t taman
 		}
 	}
 
+	char* aux = malloc(50);
+	sprintf(aux, "%d bytes escritos", cantidadEscrita);
+	loggearInfo(aux);
+	free(aux);
+
+	tablaNodos[indArchivo].fecha_modif = time(NULL);
 	tablaNodos[indArchivo].file_size = tablaNodos[indArchivo].file_size + cantidadEscrita;//tamanio;
 
 	msync(disco - 1 - BITMAP_SIZE_IN_BLOCKS, tamDisco, MS_SYNC);
@@ -499,11 +566,12 @@ int estaVacio(char* nombre)
 	return 1;
 }
 
-//"elimina" un objeto de la tabla
 void eliminarObjeto(char* nombre)
 {
 	int indObjeto = indiceObjeto(nombre);
+	int tam = tablaNodos[indObjeto].file_size;
 
+	int indiceBloque = 0;
 
 	int cont = 0;
 	int contDatos = 0;
@@ -519,42 +587,39 @@ void eliminarObjeto(char* nombre)
 				if(tablaNodos[indObjeto].bloques_ind[cont]->bloquesDatos[contDatos]->bytes[0] != 0)
 				{
 					memset(tablaNodos[indObjeto].bloques_ind[cont]->bloquesDatos[contDatos]->bytes, 0, BLOCK_SIZE);
+					indiceBloque = tablaNodos[indObjeto].bloques_ind[cont]->bloquesDatos[contDatos] - (GBlock*)tablaNodos + ESTRUCTURAS_ADMIN;//como explicar esta asquerosidad
+					bitarray_clean_bit(bitmap, indiceBloque);
+					loggearInfo("Bit limpiado");
+
+					tablaNodos[indObjeto].bloques_ind[cont]->bloquesDatos[contDatos] = NULL;
 				}
 				contDatos++;
 			}
-			(tablaNodos[indObjeto].bloques_ind[cont]->bloquesDatos[contDatos]) = NULL;
+
+			indiceBloque = tablaNodos[indObjeto].bloques_ind[cont] - (IndBlock*)tablaNodos + ESTRUCTURAS_ADMIN;
+			bitarray_clean_bit(bitmap, indiceBloque);
+			loggearInfo("Bit limpiado");
+
+			tablaNodos[indObjeto].bloques_ind[cont] = NULL;
 			cont++;
 		}
-		(tablaNodos[indObjeto].bloques_ind[cont]) = NULL;
+
 		memset(tablaNodos[indObjeto].bloques_ind, 0 , BLOQUES_INDIRECTOS);
 	}
-
-	//recorre el bitmap y pone en 0 los bloques que estan vacios
-	/*GBlock* bloqueActual;
-	IndBlock* bloqueIndActual;
-	for(int indiceBloque = ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER; indiceBloque < (ESTRUCTURAS_ADMIN + MAX_FILE_NUMBER + cantBloqueDatos); indiceBloque++)
-	{
-		int valorBit = bitarray_test_bit(bitmap, indiceBloque);
-		bloqueActual = (GBlock*)(tablaNodos + indiceBloque - ESTRUCTURAS_ADMIN);
-		if( valorBit == 1)
-		{
-			if( bloqueActual->bytes[0] == 0 )
-				bitarray_clean_bit(bitmap, indiceBloque);
-			else
-			{
-				bloqueIndActual = (IndBlock*)(tablaNodos + indiceBloque - ESTRUCTURAS_ADMIN);
-				if(bloqueIndActual->bloquesDatos == NULL)
-					bitarray_clean_bit(bitmap, indiceBloque);
-			}
-		}
-
-	}*/
 
 	tablaNodos[indObjeto].estado = 0;
 	memset(tablaNodos[indObjeto].nombre, 0, MAX_FILENAME_LENGTH);
 	tablaNodos[indObjeto].file_size = 0;
 	tablaNodos[indObjeto].padre = 0;
 	bitarray_clean_bit(bitmap, ESTRUCTURAS_ADMIN + indObjeto);
+
+	char* aux = malloc(50);
+	sprintf(aux, "%d bytes eliminados", tam);
+	loggearInfo(aux);
+	free(aux);
+
+	loggearInfo("Elemento eliminado");
+	loggearInfo("Bit limpiado");
 
 }
 
@@ -598,6 +663,13 @@ void agregarObjeto(char* nombre, char* padre, int estado)
 	}
 	else
 		nodoNuevo->padre = 0;
+
+	if(estado == DIRECTORIO)
+		loggearInfo("Directorio creado");
+	else
+		loggearInfo("Archivo creado");
+
+	loggearInfo("Bit seteado");
 
 }
 
@@ -801,6 +873,21 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 			int cantALeer;
 			int cantidadLeida = 0;
 
+			if(tablaNodos[indArch].file_size == 0)
+			{
+				int tamAEnviar = 0;
+
+				char* cont = strdup("");
+				enviarInt(socketRespuesta, tamAEnviar);
+				enviar(socketRespuesta, cont, tamAEnviar);
+
+				free(nombreRead);
+				free(buffer);
+
+				break;
+			}
+
+
 			int suma = size + offset;
 
 			if(suma > tablaNodos[indArch].file_size)
@@ -829,19 +916,10 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 					}
 
 					offset = offset % BLOCK_SIZE;
-/*
-					if(suma < tablaNodos[indArch].file_size)
-						cantALeer = BLOCK_SIZE - offset;
-					else
 
-						if( (suma - tablaNodos[indArch].file_size) < BLOCK_SIZE)
-							cantALeer = BLOCK_SIZE - (suma - tablaNodos[indArch].file_size);
-						else
-							cantALeer = BLOCK_SIZE - ( (suma - tablaNodos[indArch].file_size) % BLOCK_SIZE );
-					}*/
 				}
-				//else
-					cantALeer = BLOCK_SIZE - offset;
+
+				cantALeer = BLOCK_SIZE - offset;
 
 
 				while(cantidadLeida < size && bloqInd < BLOQUES_INDIRECTOS)
@@ -850,7 +928,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 					while( cantidadLeida < size && bloqDatos < BLOQUES_DATOS)
 					{
 						if(suma > tablaNodos[indArch].file_size && (tablaNodos[indArch].file_size - offset - BLOCK_SIZE) < 0)
-						{//>=
+						{
 							if( (suma - tablaNodos[indArch].file_size) < BLOCK_SIZE)
 								cantALeer = BLOCK_SIZE - (suma - tablaNodos[indArch].file_size);
 							else
@@ -1023,6 +1101,13 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 			renombrar(oldpath, newpath);
 
 			enviarInt(socketRespuesta, 0);
+
+			char* nombreViejo = nombreObjeto(oldpath);
+
+			if(esDirectorio(nombreViejo) == 1)
+				loggearInfo("Directorio renombrado");
+			else
+				loggearInfo("Archivo renombrado");
 
 			free(oldpath);
 			free(newpath);
@@ -1269,8 +1354,8 @@ int main( int argc, char *argv[] )
 
 	tamBitmap = tamDisco/BLOCK_SIZE/8; //tamanio del bitmap
 
-	void* punteroBitmap = (void*) disco + 1;
-	bitmap = bitarray_create_with_mode( punteroBitmap, tamBitmap, LSB_FIRST);//(char*) disco + BLOCK_SIZE
+	void* punteroBitmap = (char*) disco + BLOCK_SIZE;//(void*) disco + 1;
+	bitmap = bitarray_create_with_mode(punteroBitmap, tamBitmap, MSB_FIRST);//(char*) disco + BLOCK_SIZE
 
 
 	/*			tabla de nodos			*/

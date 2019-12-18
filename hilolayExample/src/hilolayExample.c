@@ -1,55 +1,48 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <hilolay/hilolay.h>
-#include <time.h>
-#include <math.h>
+#include <unistd.h>
 
 #define CANT_NOTAS 420
 
-struct hilolay_sem_t *solo_hiper_mega_piola;
-struct hilolay_sem_t *afinado;
+struct hilolay_sem_t* solo_hiper_mega_piola;
+struct hilolay_sem_t* afinado;
+int fin = 0;
 
-void *tocar_solo(void* num)
+void *preparar_solo()
 {
-	int cont = 0;
+	int i;
+	for(i = 0;i<20;i++){
+		sleep(1);
+		hilolay_yield();
+	}
 
-
-
-	for(int i = 0; i<CANT_NOTAS/4;i++)
+	for(i = 0; i < CANT_NOTAS; i++)
 	{
-		//hilolay_wait(afinado);
-		///
 		hilolay_wait(solo_hiper_mega_piola);
-		cont++;
-		printf("%d: PARAPAPAM! Nota %d\n", num, cont);
+		hilolay_signal(afinado);
 		hilolay_signal(solo_hiper_mega_piola);
 	}
-	printf("\nPude tocar %d notas bien\n", cont);
+	printf("\nPude afinar %d veces en el tiempo que tuve\n", i);
 	return 0;
 }
 
 int main(void)
 {
-	struct hilolay_t guitarrista[4];
+	struct hilolay_t afinador;
 
 	hilolay_init();
 
 	solo_hiper_mega_piola = hilolay_sem_open("solo_hiper_mega_piola");
 	afinado = hilolay_sem_open("afinado");
 
-	hilolay_create(&guitarrista[0], NULL, &tocar_solo, (void*)0);
-	hilolay_create(&guitarrista[1], NULL, &tocar_solo, (void*)1);
-	hilolay_create(&guitarrista[2], NULL, &tocar_solo, (void*)2);
-	hilolay_create(&guitarrista[3], NULL, &tocar_solo, (void*)3);
+	hilolay_create(&afinador, NULL, &preparar_solo, NULL);
 
-	hilolay_join(&guitarrista[0]);
-	hilolay_join(&guitarrista[1]);
-	hilolay_join(&guitarrista[2]);
-	hilolay_join(&guitarrista[3]);
+	hilolay_join(&afinador);
 
 	hilolay_sem_close(solo_hiper_mega_piola);
 	hilolay_sem_close(afinado);
 
-	return hilolay_return(0);
-}
 
+return hilolay_return(0);
+}
