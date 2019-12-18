@@ -48,13 +48,13 @@ estres_compartido:
 	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/Shared_Library/biblioteca ./$(BUILD)/estres_compartido
 
 estres_privado:
-	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./$(BUILD) ./$(BUILD)/estres_privado
+	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/Shared_Library/biblioteca ./$(BUILD)/estres_privado
 
 recursiva:
-	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./$(BUILD) ./$(BUILD)/recursiva
+	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/Shared_Library/biblioteca ./$(BUILD)/recursiva
 
 revolucion_compartida:
-	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./$(BUILD) ./$(BUILD)/revolucion_compartida
+	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/Shared_Library/biblioteca ./$(BUILD)/revolucion_compartida
 
 revolucion_privada:
-	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./$(BUILD) ./$(BUILD)/revolucion_privada
+	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):./home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/Shared_Library/biblioteca ./$(BUILD)/revolucion_privada
