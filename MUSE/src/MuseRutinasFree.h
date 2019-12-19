@@ -248,9 +248,13 @@ void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento)
 
 	void liberarPagina(t_pagina* pagina) {
 		if(pagina->nroPagina > nroPagina) {
+			eliminarDeAlgoritmo(pagina);
 			sprintf(aux, "%d ",pagina->nroPagina);
 			strcat(msj, aux);
+			if(pagina->nroPaginaSwap==-1)
 			liberarMarcoBitarray(pagina->nroMarco);
+			else if(pagina->nroPaginaSwap>=0)
+			liberarPaginasSwap(pagina->nroPaginaSwap);//existe el caso donde no este en ningun lado => no se descargo el archivo todavia
 			free(pagina);
 		}
 	}
@@ -266,6 +270,15 @@ void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento)
 
 	loggearInfo(msj);
 
+}
+
+void liberarPagina(t_pagina* pagina) {
+			eliminarDeAlgoritmo(pagina);
+			if(pagina->nroPaginaSwap==-1)
+			liberarMarcoBitarray(pagina->nroMarco);
+			else if(pagina->nroPaginaSwap>=0)
+			liberarPaginasSwap(pagina->nroPaginaSwap);//existe el caso donde no este en ningun lado => no se descargo el archivo todavia
+			free(pagina);
 }
 
 #endif /* MUSERUTINASFREE_H_ */

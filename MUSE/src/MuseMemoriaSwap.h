@@ -16,6 +16,9 @@
  */
 void moverMarcosASwap()
 {
+
+	loggearInfo("Se expulsa una pagina de memoria principal a swap");
+
 	pthread_mutex_lock(&mutex_algoritmo_reemplazo);
 	t_pagina * paginaReemplazo = ejecutarAlgoritmoReemplazo();
 	pthread_mutex_unlock(&mutex_algoritmo_reemplazo);
@@ -29,6 +32,8 @@ void moverMarcosASwap()
  */
 void rutinaReemplazoPaginasSwap(t_pagina** unaPagina)
 {
+	loggearInfo("Se ejecuta la rutina de intercambio de paginas, page fault generado");
+
 	pthread_mutex_lock(&mutex_algoritmo_reemplazo);
 	t_pagina * paginaVictima = ejecutarAlgoritmoReemplazo(); // obtengo la pagina que quiero reemplazar
 	pthread_mutex_unlock(&mutex_algoritmo_reemplazo);
@@ -63,12 +68,12 @@ t_pagina * ejecutarAlgoritmoReemplazo()
 
 		pthread_mutex_lock(&mutex_lista_paginas);
 
-		bool estaEnMemoria(t_pagina * unaPagina)
+		bool estaEnMemoriaLocal(t_pagina * unaPagina)
 		{
 			return (unaPagina->nroPaginaSwap==-1);
 		}
 
-		t_list * lista_analizar = list_filter(listaPaginasClockModificado,(void*)estaEnMemoria);
+		t_list * lista_analizar = list_filter(listaPaginasClockModificado,(void*)estaEnMemoriaLocal);
 
 		while(cantidadIntentos != 3 || !paginaVictima)
 			{
@@ -127,25 +132,9 @@ void reemplazarVictima(t_pagina ** paginaVictima, bool bloqueoMarco)
 
 	(*paginaVictima)->nroPaginaSwap = nroPaginaSwapVictima; // Apunto la pagina swap al nro que obtuve
 
-	if((*paginaVictima)->esCompartida)
-	{
-		pthread_mutex_lock(&mutex_lista_paginas);
-		void modificarPaginaObjetivo(t_pagina * pagina)
-		{
-			if(pagina->esCompartida && pagina->nroPaginaSwap != -1 && pagina->nroMarco == marcoVictima)
-			{
-				(*paginaVictima)->nroPaginaSwap = nroPaginaSwapVictima;
-			}
-		}
-		list_iterate(listaPaginasClockModificado,(void*)modificarPaginaObjetivo);
-		pthread_mutex_unlock(&mutex_lista_paginas);
-	}
-
 	if(!bloqueoMarco)
 	{
-		pthread_mutex_lock(&mutex_algoritmo_reemplazo);
-		bitarray_clean_bit(marcosMemoriaPrincipal,marcoVictima);
-		pthread_mutex_unlock(&mutex_algoritmo_reemplazo);
+		liberarMarcoBitarray(marcoVictima);
 	}
 }
 
@@ -169,27 +158,8 @@ void recuperarPaginaSwap(t_pagina ** paginaActualmenteEnSwap,int marcoObjetivo)
 	(*paginaActualmenteEnSwap)->modificada = 0; // pongo el uso en 1 ya que recien la traigo
 	(*paginaActualmenteEnSwap)->nroPaginaSwap = -1; // Actualizo que no esta mas en archivo swap
 
-	if((*paginaActualmenteEnSwap)->esCompartida)
-	{
-		pthread_mutex_lock(&mutex_lista_paginas);
-		void modificarPaginaObjetivo(t_pagina * pagina)
-		{
-			if(pagina->esCompartida && pagina->nroPaginaSwap == nroPaginaSwap)
-			{
-				pagina->nroMarco = marcoObjetivo;
-				pagina->uso = 1;
-				pagina->modificada = 0;
-				pagina->nroPaginaSwap = -1;
-			}
-		}
-		list_iterate(listaPaginasClockModificado,(void*)modificarPaginaObjetivo);
-		pthread_mutex_unlock(&mutex_lista_paginas);
-	}
 
-	pthread_mutex_lock(&mutex_marcos_swap_libres);
-	bitarray_clean_bit(marcosMemoriaSwap,nroPaginaSwap);
-	pthread_mutex_unlock(&mutex_marcos_swap_libres);
-
+	liberarPaginasSwap(nroPaginaSwap);
 }
 
 void escribirSwap(int nroPagina, void * buffer)
@@ -277,6 +247,18 @@ void* leerDeMemoria(int posicionInicial, int tamanio)
 void escribirEnMemoria(void* contenido, int posicionInicial, int tamanio)
 {
 	memcpy(memoria + posicionInicial, contenido, tamanio);
+}
+
+void eliminarDeAlgoritmo(t_pagina * unaPagina)
+{
+	bool existeEnAlgoritmo(t_pagina * unaPaginaLocal)
+	{
+		return unaPaginaLocal == unaPagina; // validar
+	}
+
+	pthread_mutex_lock(&mutex_algoritmo_reemplazo);
+	list_remove_by_condition(listaPaginasClockModificado,(void*)existeEnAlgoritmo);
+	pthread_mutex_unlock(&mutex_algoritmo_reemplazo);
 }
 
 #endif /* MUSEMEMORIASWAP_H_ */

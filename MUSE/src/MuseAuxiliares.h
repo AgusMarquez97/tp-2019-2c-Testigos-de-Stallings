@@ -89,6 +89,12 @@ void liberarMarcoBitarray(int nroMarco)
 	pthread_mutex_unlock(&mutex_marcos_libres);
 
 }
+void liberarPaginasSwap(int nroPaginaSwap)
+{
+	pthread_mutex_lock(&mutex_marcos_swap_libres);
+	bitarray_clean_bit(marcosMemoriaSwap,nroPaginaSwap);
+	pthread_mutex_unlock(&mutex_marcos_swap_libres);
+}
 
 bool estaLibreMarco(int nroMarco)
 {
@@ -185,6 +191,17 @@ int obtenerOffsetPosterior(t_list * paginas, uint32_t posicionSegmento,int nroPa
 {
 	t_pagina * paginaAux = list_get(paginas,nroPaginaActual); // es necesario sincronizar?
 	return paginaAux->nroMarco*tamPagina + (posicionSegmento)%tamPagina;
+}
+
+bool existeArchivo(char * path)
+{
+	FILE * fd = fopen(path,"r+");
+	if(!fd)
+	{
+		return false;
+	}
+	fclose(fd);
+	return true;
 }
 
 

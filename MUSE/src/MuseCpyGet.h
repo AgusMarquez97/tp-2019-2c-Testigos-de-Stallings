@@ -27,11 +27,24 @@ void * analizarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio)
 		segmento = obtenerSegmento(segmentos, posicionSegmento); // ver de hacer validacion por el nulo
 
 		if(!segmento)
+		{
+			sprintf(msj, "El Proceso %s intento leer mas bytes (%d) de los permitidos en la posicion %d", idProceso,tamanio,posicionSegmento);
+			loggearWarning(msj);
 			return NULL;
+		}
 
 		paginas = segmento->paginas;
 
-		int bytesLeidos = leerUnHeapMetadata(paginas, posicionSegmento - segmento->posicionInicial, &buffer, tamanio);
+		int bytesLeidos;
+
+		if(segmento->esCompartido)
+		{
+			bytesLeidos = analizarGetMemoriaMappeada(idProceso,segmento,posicionSegmento - segmento->posicionInicial,tamanio,&buffer);
+		}
+		else
+		{
+			bytesLeidos = leerUnHeapMetadata(paginas, posicionSegmento - segmento->posicionInicial, &buffer, tamanio);
+		}
 
 		if(bytesLeidos > 0)
 		{
@@ -53,21 +66,21 @@ void * analizarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio)
 		case TAMANIO_SOBREPASADO:
 			sprintf(msj, "El Proceso %s intento leer mas bytes (%d) de los permitidos en la posicion %d", idProceso,tamanio,posicionSegmento);
 			break;
+		default:
+			sprintf(msj, "El Proceso %s genero un error inesperado al intentar leer (%d) bytes en la posicion %d", idProceso,tamanio,posicionSegmento);
 		}
-
 		loggearWarning(msj);
 		return NULL;
 
 
-
 }
-int leerUnHeapMetadata(t_list * paginas,int posicionSegmento, void ** buffer, int tamanio)
+int leerUnHeapMetadata(t_list * paginas,int posicionRelativaSegmento, void ** buffer, int tamanio)
 {
-		int nroPaginaActual = (int) posicionSegmento / tamPagina;
-		int offsetMemoria = obtenerOffsetPosterior(paginas,posicionSegmento,nroPaginaActual); // posicion luego del heap en memoria
+		int nroPaginaActual = (int) posicionRelativaSegmento / tamPagina;
+		int offsetMemoria = obtenerOffsetPosterior(paginas,posicionRelativaSegmento,nroPaginaActual); // posicion luego del heap en memoria
 		int cantidadBytesRestantes = 0;
 
-		t_heap_metadata * unHeap = recuperarHeapMetadata(paginas, posicionSegmento,&cantidadBytesRestantes);
+		t_heap_metadata * unHeap = recuperarHeapMetadata(paginas, posicionRelativaSegmento,&cantidadBytesRestantes);
 
 		if(unHeap->estaLibre)
 		{
@@ -80,13 +93,13 @@ int leerUnHeapMetadata(t_list * paginas,int posicionSegmento, void ** buffer, in
 			return TAMANIO_SOBREPASADO;
 		}
 
-		leerDatosHeap(paginas,nroPaginaActual,offsetMemoria,buffer,tamanio);
+		leerDatosMemoria(paginas,nroPaginaActual,offsetMemoria,buffer,tamanio);
 		free(unHeap);
 		return tamanio; // si llego nunca deberia fallar leerDatosHeap
 }
 
 
-void leerDatosHeap(t_list * paginas,int paginaActual, int posicionMemoria, void ** buffer, int tamanio)
+void leerDatosMemoria(t_list * paginas,int paginaActual, int posicionMemoria, void ** buffer, int tamanio)
 {
 		t_pagina * unaPagina = obtenerPaginaAuxiliar(paginas,paginaActual);
 		t_pagina * paginaAux;
@@ -95,7 +108,7 @@ void leerDatosHeap(t_list * paginas,int paginaActual, int posicionMemoria, void 
 		int bytesLeidos = 0;
 
 		if(tamanio > tamPagina)
-			bytesRestantesPagina = (tamPagina)*(unaPagina->nroMarco+1) - posicionMemoria;
+			bytesRestantesPagina = tamPagina - posicionMemoria%tamPagina;
 		else
 			bytesRestantesPagina = tamanio;
 
@@ -154,7 +167,16 @@ int analizarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, voi
 
 		t_list * paginas = segmento->paginas;
 
-		int bytesEscritos = escribirDatosHeapMetadata(paginas,posicionSegmento - segmento->posicionInicial, &contenido, tamanio);
+		int bytesEscritos;
+
+		if(segmento->esCompartido)
+		{
+			bytesEscritos = analizarCpyMemoriaMappeada(idProceso, segmento, posicionSegmento, tamanio, &contenido);
+		}
+		else
+		{
+			bytesEscritos = escribirDatosHeapMetadata(paginas,posicionSegmento - segmento->posicionInicial, &contenido, tamanio);
+		}
 
 		if(bytesEscritos > 0)
 		{
@@ -184,13 +206,13 @@ int analizarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, voi
 }
 
 
-int escribirDatosHeapMetadata(t_list * paginas, int posicionSegmento, void ** buffer, int tamanio)
+int escribirDatosHeapMetadata(t_list * paginas, int posicionRelativaSegmento, void ** buffer, int tamanio)
 {
-		int nroPaginaActual = (int) posicionSegmento / tamPagina;
-		int offsetMemoria = obtenerOffsetPosterior(paginas,posicionSegmento,nroPaginaActual); // posicion luego del heap en memoria
+		int nroPaginaActual = (int) posicionRelativaSegmento / tamPagina;
+		int offsetMemoria = obtenerOffsetPosterior(paginas,posicionRelativaSegmento,nroPaginaActual); // posicion luego del heap en memoria
 		int cantidadBytesRestantes = 0;
 
-		t_heap_metadata * unHeap = recuperarHeapMetadata(paginas, posicionSegmento,&cantidadBytesRestantes);
+		t_heap_metadata * unHeap = recuperarHeapMetadata(paginas, posicionRelativaSegmento,&cantidadBytesRestantes);
 
 		if(unHeap->estaLibre)
 		{
@@ -230,7 +252,6 @@ void escribirDatosHeap(t_list * paginas,int paginaActual, int posicionPosteriorH
 			rutinaReemplazoPaginasSwap(&paginaAux);
 			posicionPosteriorHeap = paginaAux->nroMarco*tamPagina + posicionPosteriorHeap%tamPagina; // sumo base mas offset
 			paginaAux->modificada = 1;
-			paginaAux=NULL;
 		}
 		memcpy(memoria + posicionPosteriorHeap,*buffer + bytesEscritos,bytesRestantesPagina);
 		pthread_mutex_unlock(&mutex_memoria);
@@ -242,12 +263,6 @@ void escribirDatosHeap(t_list * paginas,int paginaActual, int posicionPosteriorH
 
 		free(unaPagina);
 		paginaActual++;
-
-		if(!estaEnMemoria(paginas,paginaActual))
-		{
-			t_pagina * paginaAux = list_get(paginas,paginaActual);
-			rutinaReemplazoPaginasSwap(&paginaAux);
-		}
 
 		unaPagina = obtenerPaginaAuxiliar(paginas,paginaActual);
 
@@ -280,5 +295,41 @@ t_heap_metadata * recuperarHeapMetadata(t_list * listaPaginas, uint32_t cantidad
 		return heapMetadata;
 }
 
+
+/*
+ * Memoria mappeada......
+ */
+
+int analizarGetMemoriaMappeada(char* idProceso,t_segmento * unSegmento, uint32_t posicionRelativaSegmento, int32_t tamanio, void ** buffer)
+{
+	int tamanioMaximo = unSegmento->tamanio - posicionRelativaSegmento; // como lo sabria??
+
+	if(tamanio>tamanioMaximo)
+		return TAMANIO_SOBREPASADO;
+
+	int nroPaginaActual = (int) posicionRelativaSegmento / tamPagina;
+
+	t_list * listaPaginas = unSegmento->paginas;
+
+	leerDatosMemoria(listaPaginas, nroPaginaActual, posicionRelativaSegmento, buffer, tamanio);
+
+	return tamanio;
+}
+
+int analizarCpyMemoriaMappeada(char* idProceso,t_segmento * unSegmento, uint32_t posicionRelativaSegmento, int32_t tamanio, void ** contenidoACopiar)
+{
+	int tamanioMaximo = unSegmento->tamanio - posicionRelativaSegmento; // como lo sabria??
+
+		if(tamanio>tamanioMaximo)
+			return TAMANIO_SOBREPASADO;
+
+		int nroPaginaActual = (int) posicionRelativaSegmento / tamPagina;
+
+		t_list * listaPaginas = unSegmento->paginas;
+
+		escribirDatosHeap(listaPaginas, nroPaginaActual, posicionRelativaSegmento, contenidoACopiar, tamanio);
+
+		return tamanio;
+}
 
 #endif /* MUSECPYGET_H_ */

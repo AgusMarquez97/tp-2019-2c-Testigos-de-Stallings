@@ -148,22 +148,23 @@ int procesarClose(char* idProceso) {
 			void liberarSegmento(t_segmento* unSegmento) {
 				if(unSegmento)
 				{
-						if(unSegmento->paginas)
+					if(unSegmento->esCompartido)
+					{
+						if(unSegmento->archivo)
 						{
-							void liberarPaginas(t_pagina* unaPagina) {
-								liberarMarcoBitarray(unaPagina->nroMarco);
-								free(unaPagina);
-							}
-
-							list_destroy_and_destroy_elements(unSegmento->paginas, (void*)liberarPaginas);
+							if(unSegmento->tiene_flag_shared)
+								reducirArchivoCompartido(idProceso, unSegmento);
+							else
+								liberarConUnmap(idProceso, unSegmento);
+						free(unSegmento->archivo);
+						unSegmento->archivo=NULL; // por las dudas
 						}
-						if(unSegmento->esCompartido)
-							if(unSegmento->archivo)
+					}else{
+							if(unSegmento->paginas)
 							{
-							reducirArchivoCompartido(unSegmento->archivo);
-							free(unSegmento->archivo);
-							unSegmento->archivo=NULL; // por las dudas
+								list_destroy_and_destroy_elements(unSegmento->paginas, (void*)liberarPaginas);
 							}
+						}
 					free(unSegmento);
 				}
 			}

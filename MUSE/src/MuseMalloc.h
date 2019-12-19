@@ -115,7 +115,6 @@ void agregarPaginas(t_list** listaPaginas, int cantidadMarcos, int nroUltimaPagi
 		pagina->nroPaginaSwap = -1;
 		pagina->uso = 1;
 		pagina->modificada = 0;
-		pagina->esCompartida = esCompartido;
 
 		list_add(*listaPaginas, pagina);
 
