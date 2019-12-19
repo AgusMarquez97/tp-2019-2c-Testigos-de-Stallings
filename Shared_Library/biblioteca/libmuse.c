@@ -93,7 +93,7 @@ void muse_free(uint32_t dir) {
 }
 
 int muse_get(void* dst, uint32_t src, size_t n) {
-	if(src>0 && dst!=NULL)
+	if(src>0 && dst!=NULL&&n>0)
 	{
 		int32_t retorno = -1;
 		char aux[150];
@@ -127,7 +127,7 @@ int muse_get(void* dst, uint32_t src, size_t n) {
 }
 
 int muse_cpy(uint32_t dst, void* src, int n) {
-	if(dst>0 && src!=NULL)
+	if(dst>0 && src!=NULL&&n>0)
 	{
 	char aux[150];
 	int32_t retorno = -1;
