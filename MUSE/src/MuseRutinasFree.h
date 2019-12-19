@@ -10,6 +10,107 @@
 
 #include "MuseMalloc.h"
 
+
+int analizarFree(char* idProceso, uint32_t posicionSegmento)
+{
+	char msj[250];
+	int retorno = -1;
+
+	int bytesLiberados = 0;
+	t_list* segmentos;
+	t_segmento* segmento;
+	t_list* paginas;
+
+	pthread_mutex_lock(&mutex_diccionario);
+	segmentos = dictionary_get(diccionarioProcesos, idProceso);
+	pthread_mutex_unlock(&mutex_diccionario);
+
+	segmento = obtenerSegmento(segmentos, posicionSegmento); // ver de hacer validacion por el nulo
+
+	if(!segmento)
+	{
+		sprintf(msj, "El Proceso %s intento liberar la posicion %d no perteneciente a este", idProceso, posicionSegmento);
+		loggearWarning(msj);
+		return 0;
+	}
+
+	if(segmento->esCompartido)
+	{
+		sprintf(msj, "El Proceso %s intento liberar un Heap Metadata compartido en la posicion %d", idProceso, posicionSegmento);
+		loggearWarning(msj);
+		return 0;
+	}
+	paginas = segmento->paginas;
+
+	if(posicionSegmento<tam_heap_metadata)
+		return 0;
+
+	bytesLiberados = liberarUnHeapMetadata(paginas, posicionSegmento - segmento->posicionInicial);
+
+	if(bytesLiberados > 0) {
+		sprintf(msj, "El Proceso %s libero %d bytes en la posicion %d", idProceso, (int)(bytesLiberados - tam_heap_metadata), posicionSegmento);
+		retorno = 1;
+	}else{
+	strcpy(msj,"");
+	switch(bytesLiberados) {
+		case HM_NO_EXISTENTE:
+			sprintf(msj, "El Proceso %s intento liberar un Heap Metadata no existente en la posicion %d", idProceso, posicionSegmento);
+			break;
+		case HM_YA_LIBERADO:
+			sprintf(msj, "El Proceso %s intento liberar un Heap Metadata que ya estaba libre en la posicion %d", idProceso, posicionSegmento);
+			break;
+	}
+	loggearWarning(msj);
+	return -1;
+	}
+
+	loggearInfo(msj);
+
+	int bytesAgrupados = defragmentarSegmento(segmento);
+
+	if(bytesAgrupados > 0) {
+		int segundosBytesAgrupados = defragmentarSegmento(segmento);
+
+		if(segundosBytesAgrupados > 0) {
+			bytesAgrupados = segundosBytesAgrupados;
+		}
+
+		sprintf(msj, "Para el proceso %s, se agruparon %d bytes libres contiguos", idProceso, bytesAgrupados);
+		loggearInfo(msj);
+	}
+
+	compactarSegmento(idProceso, segmento);
+
+	return retorno;
+
+}
+
+int liberarUnHeapMetadata(t_list * paginas, int offsetSegmento)
+{
+		int nroPaginaActual = obtenerNroPagina(paginas,offsetSegmento);
+		int offsetPrevio = obtenerOffsetPrevio(paginas,offsetSegmento,nroPaginaActual);
+
+		if(existeHM(paginas, offsetPrevio))
+		{
+			t_heap_metadata * unHeap = obtenerHeapMetadata(paginas, offsetPrevio,nroPaginaActual);
+
+			int tamanioPaginaRestante = tamPagina - offsetSegmento%tamPagina;
+
+			if(!unHeap->estaLibre)
+			{
+				unHeap->estaLibre = true;
+				int tmp = escribirUnHeapMetadata(paginas, nroPaginaActual, unHeap, &offsetPrevio, tamanioPaginaRestante);
+				free(unHeap);
+				return tmp;
+			}
+
+			free(unHeap);
+			return HM_YA_LIBERADO;
+
+		}
+		return HM_NO_EXISTENTE;
+}
+
 int defragmentarSegmento(t_segmento* segmento)
 {
 	t_list* listaPaginas = segmento->paginas;
@@ -125,7 +226,8 @@ void compactarSegmento(char* idProceso, t_segmento* segmento) {
 }
 
 
-void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento) {
+void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento)
+{
 
 	char msj[450];
 	char aux[100];

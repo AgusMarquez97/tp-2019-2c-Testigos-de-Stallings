@@ -185,21 +185,11 @@ void recuperarPaginaSwap(t_pagina ** paginaActualmenteEnSwap,int marcoObjetivo)
 		list_iterate(listaPaginasClockModificado,(void*)modificarPaginaObjetivo);
 		pthread_mutex_unlock(&mutex_lista_paginas);
 	}
-}
 
-/*
- * Valida si esta en memoria principal
- */
+	pthread_mutex_lock(&mutex_marcos_swap_libres);
+	bitarray_clean_bit(marcosMemoriaSwap,nroPaginaSwap);
+	pthread_mutex_unlock(&mutex_marcos_swap_libres);
 
-bool estaEnMemoria(t_list * paginas, int nroPagina)
-{
-	t_pagina * aux = obtenerPaginaAuxiliar(paginas,nroPagina);
-
-	bool retorno = (aux->nroPaginaSwap == -1);
-
-	free(aux);
-
-	return retorno;
 }
 
 void escribirSwap(int nroPagina, void * buffer)
@@ -238,6 +228,21 @@ void * leerSwap(int nroPagina)
 	return buffer;
 }
 
+/*
+ * Valida si esta en memoria principal
+ */
+
+bool estaEnMemoria(t_list * paginas, int nroPagina)
+{
+	t_pagina * aux = obtenerPaginaAuxiliar(paginas,nroPagina);
+
+	bool retorno = (aux->nroPaginaSwap == -1);
+
+	free(aux);
+
+	return retorno;
+}
+
 int asignarMarcoLibreSwap()
 {
 	for(int i = 0; i < cantidadMarcosMemoriaVirtual; i++) {
@@ -257,6 +262,21 @@ bool estaLibreMarcoMemoriaSwap(int nroMarco) {
 	pthread_mutex_unlock(&mutex_marcos_swap_libres);
 	return retorno;
 
+}
+
+void* leerDeMemoria(int posicionInicial, int tamanio)
+{
+
+	void* buffer = malloc(tamanio);
+	memcpy(buffer, memoria + posicionInicial, tamanio); // no hacen falta los locks, ya estan puestos antes
+
+	return buffer;
+
+}
+
+void escribirEnMemoria(void* contenido, int posicionInicial, int tamanio)
+{
+	memcpy(memoria + posicionInicial, contenido, tamanio);
 }
 
 #endif /* MUSEMEMORIASWAP_H_ */

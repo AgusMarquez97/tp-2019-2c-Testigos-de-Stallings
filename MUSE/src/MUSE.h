@@ -37,7 +37,8 @@ typedef enum {
 	TAMANIO_SOBREPASADO = - 2, // = SEG FAULT
 	HM_YA_LIBERADO = -3,
 	MEMORIA_COMPLETA = -4,
-	TAMANIO_ARCHIVO_SOBREPASADO = -5
+	TAMANIO_ARCHIVO_SOBREPASADO = -5,
+	PAGINA_NO_VALIDA = -6
 } t_errores;
 
 char ip[46];
@@ -140,7 +141,11 @@ typedef struct {
 	int32_t * nroPaginaSwap;
 } t_archivo_compartido;
 
-// MUSE
+
+/*
+ * Muse
+ */
+
 int main();
 void levantarConfig();
 void levantarMemoria();
@@ -150,53 +155,65 @@ void inicializarSemaforos();
 void levantarServidorMUSE();
 void rutinaServidor(int* socketRespuesta);
 void liberarVariablesGlobales();
+void salirFuncion(int pid);
 
-// MuseOperaciones
-bool existeEnElDiccionario(char* idProceso);
+/*
+ * Muse Operaciones
+ */
 int procesarHandshake(char* idProceso);
 uint32_t procesarMalloc(char* idProceso, int32_t tamanio);
-uint32_t obtenerDireccionMemoria(t_list* listaPaginas,uint32_t posicionSegmento);
+int32_t procesarFree(char* idProceso, uint32_t posicionSegmento);
+int procesarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, void* contenido);
+void* procesarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio);
+uint32_t procesarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag);
+int procesarSync(char* idProceso, uint32_t posicionSegmento, int32_t tamanio);
+int procesarUnmap(char* idProceso, uint32_t posicionSegmento);
+int procesarClose(char* idProceso);
+
+/*
+ * Muse Malloc
+ */
+uint32_t analizarSegmento (char* idProceso, int tamanio, int cantidadFrames, bool esCompartido);
+void crearSegmento(char* idProceso, int tamanio, int cantidadMarcos, t_list* listaSegmentos, int idSegmento, bool esCompartido, int posicionInicial);
+t_segmento* instanciarSegmento(int tamanio, int cantidadFrames, int idSegmento, bool esCompartido, int posicionInicial);
+t_list* crearListaPaginas(int tamanio, int cantidadMarcos,bool esCompartido);
+void agregarPaginas(t_list** listaPaginas, int cantidadMarcos, int nroUltimaPagina, bool esCompartido);
+uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio);
+int estirarSegmento(int baseSegmento,char* idProceso, t_segmento* segmento, int tamanio, int nuevaCantidadFrames, int offset, int sobrante, int paginaActual);
+int asignarMarcoLibre();
+
+/*
+ * Muse Free
+ */
+int analizarFree(char* idProceso, uint32_t posicionSegmento);
+int liberarUnHeapMetadata(t_list * paginas, int offsetSegmento);
 int defragmentarSegmento(t_segmento* segmento);
 void compactarSegmento(char* idProceso, t_segmento* segmento);
-int32_t procesarFree(char* idProceso, uint32_t posicionSegmento);
-void* procesarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio);
-int procesarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, void* contenido);
-uint32_t procesarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag);
-int procesarSync(char* idProceso, uint32_t posicionMemoria, int32_t tamanio);
-int procesarUnmap(char* idProceso, uint32_t posicionMemoria);
-int procesarClose(char* idProceso);
-uint32_t analizarSegmento (char* idProceso, int tamanio, int cantidadFrames, bool esCompartido);
-
-// MuseAuxiliares
-int obtenerCantidadMarcos(int tamanioPagina, int tamanioMemoria);
-t_segmento* obtenerUnSegmento(char * idProceso, uint32_t posicionMemoria);
-t_segmento* obtenerSegmento(t_list* segmentos, uint32_t posicionMemoria);
-t_pagina* obtenerPagina(t_list* paginas, uint32_t posicionSegmento);
-bool paginaCorrespondiente(t_pagina* pagina);
-bool poseeSegmentos(char* idProceso);
-void agregarPaginas(t_list** listaPaginas, int cantidadMarcos, int nroUltimaPagina, bool esCompartido);
-t_list* crearListaPaginas(int tamanio, int cantidadMarcos,bool esCompartido);
-t_segmento* instanciarSegmento(int tamanio, int cantidadFrames, int idSegmento, bool esCompartido, int posicionInicial);
-void crearSegmento(char* idProceso, int tamanio, int cantidadFrames, t_list* listaSegmentos, int idSegmento, bool esCompartido, int posicionInicial);
-uint32_t completarSegmento(char* idProceso, t_segmento* ultimoSegmento, int tamanio);
-int estirarSegmento(int baseSegmento,char* idProceso, t_segmento* segmento, int tamanio, int nuevaCantidadFrames, int offset, int sobrante);
-int cantidadPaginasPedidas(int offset);
-void* leerDeMemoria(int posicionInicial, int tamanio);
-void escribirEnMemoria(void* contenido, int posicionInicial, int tamanio);
-void liberarMarcoBitarray(int nroMarco);
-bool estaLibreMarco(int nroMarco);
-int asignarMarcoLibre();
-int asignarMarcoLibreSwap(); // ver de reemplazarlo por un ṕarametro
-int obtenerPaginaActual(t_list * paginas, int offset);
-uint32_t obtenerDireccionMemoria(t_list* listaPaginas,uint32_t posicionSegmento);
-t_segmento * buscarSegmento(t_list * segmentos, uint32_t posicionSegmento);
-bool encontrarSegmento(t_segmento * unSegmento);
-void liberarPagina(int nroPagina, t_list* paginas);
 void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento);
-t_list * obtenerPaginas(char* idProceso, uint32_t posicionSegmento);
 
-// Memoria compartida
+/*
+ * Muse Cpy/Get
+ */
+void * analizarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio);
+int leerUnHeapMetadata(t_list * paginas,int posicionSegmento, void ** buffer, int tamanio);
+void leerDatosHeap(t_list * paginas,int paginaActual, int posicionMemoria, void ** buffer, int tamanio);
+
+int analizarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, void* contenido);
+int escribirDatosHeapMetadata(t_list * paginas, int posicionSegmento, void ** buffer, int tamanio);
+void escribirDatosHeap(t_list * paginas,int paginaActual, int posicionPosteriorHeap, void ** buffer, int tamanio);
+
+t_heap_metadata * recuperarHeapMetadata(t_list * listaPaginas, uint32_t cantidadBytes, int * cantidadBytesRestantes);
+
+/*
+ * Muse Memoria Compartida
+ */
+uint32_t analizarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag);
+int analizarSync(char* idProceso, uint32_t posicionSegmento, int32_t tamanio);
+int analizarUnmap(char* idProceso, uint32_t posicionSegmento);
+
+void * obtenerDatosArchivo(char * path, int tamanio);
 t_archivo_compartido * agregarArchivoLista(char * unArchivo, t_archivo_compartido * archivoCompartido);
+t_archivo_compartido * obtenerArchivoCompartido(char * path);
 uint32_t agregarPaginasSinMemoria(char * path, char * idProceso,t_archivo_compartido * unArchivoCompartido,int cantidadFramesTeoricos);
 t_list * crearPaginasSinMemoria(t_archivo_compartido * unArchivoCompartido,int cantidadFramesTeoricos);
 t_segmento * crearSegmentoSinMemoria(char * path,t_list * listaPaginas,int idSegmento,uint32_t posicionInicial,int cantidadFramesTeoricos);
@@ -205,34 +222,55 @@ void liberarConUnmap(char * idProceso, t_segmento * unSegmento,bool sinParticipa
 void reducirArchivoCompartido(char * path);
 int obtenerCantidadParticipantes(char * path);
 
-//Memoria Principal y Memoria Swap
+/*
+ * Muse Memoria Swap
+ */
 void moverMarcosASwap();
 void rutinaReemplazoPaginasSwap(t_pagina** unaPagina);
 t_pagina * ejecutarAlgoritmoReemplazo();
 void reemplazarVictima(t_pagina ** paginaVictima, bool bloqueoMarco);
 void recuperarPaginaSwap(t_pagina ** paginaActualmenteEnSwap,int marcoObjetivo);
-bool estaEnMemoria(t_list * paginas, int nroPagina);
 void escribirSwap(int nroPagina, void * buffer);
 void * leerSwap(int nroPagina);
-void bajarASwap(int nroMarco);
-t_pagina * ejecutarAlgoritmoReemplazo();
+bool estaEnMemoria(t_list * paginas, int nroPagina);
+int asignarMarcoLibreSwap();
 bool estaLibreMarcoMemoriaSwap(int nroMarco);
+void* leerDeMemoria(int posicionInicial, int tamanio);
+void escribirEnMemoria(void* contenido, int posicionInicial, int tamanio);
 
-
-//MuseHeapMetadata
-int leerUnHeapMetadata(t_list * paginas, int posicionAnteriorHeap,int posicionPosteriorHeap, void ** buffer, int tamanio);
-int liberarUnHeapMetadata(t_list * paginas, int offset);
-int escribirDatosHeapMetadata(t_list * paginas, int posicionAnteriorHeap,int posicionPosteriorHeap, void ** buffer, int tamanio);
-void leerDatosHeap(t_list * paginas, int posicionPosteriorHeap, void ** buffer, int tamanio);
+/*
+ * Muse Heap Metadata
+ */
 void leerHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* bytesLeidosPagina, int* offset, t_list * paginas, int* nroPagina);
 void leerHeapPartido(t_heap_metadata** heapMetadata, int* offset, int sobrante, int* nroPagina, t_list* paginas, t_pagina** paginaDummy);
+
 int escribirUnHeapMetadata(t_list * listaPaginas,int paginaActual,t_heap_metadata * unHeapMetadata, int * offset, int tamanioPaginaRestante);
-int escribirHeapMetadata(t_list * listaPaginas, int offset, int tamanio, int offsetMaximo);
-void escribirDatosHeap(t_list * paginas, int posicionPosteriorHeap, void ** buffer, int tamanio);
-t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offset);
-uint32_t obtenerPosicionPreviaHeap(t_list * paginas, int offset);
+int escribirHeapMetadata(t_list * listaPaginas,int paginaActual, int offset, int tamanio, int offsetMaximo);
+
+t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offsetPrevioHM, int nroPagina);
 bool existeHM(t_list * paginas, int offsetBuscado);
 
-void salirFuncion(int pid);
+/*
+ * Muse Auxiliares
+ */
+bool existeEnElDiccionario(char* idProceso);
+int obtenerCantidadMarcos(int tamanioPagina, int tamanioMemoria);
+t_segmento* obtenerUnSegmento(char * idProceso, uint32_t posicionMemoria);
+t_segmento* obtenerSegmento(t_list* segmentos, uint32_t posicionMemoria);
+t_pagina* obtenerPagina(t_list* paginas, uint32_t posicionSegmento);
+bool poseeSegmentos(char* idProceso);
+int cantidadPaginasPedidas(int offset);
+void liberarMarcoBitarray(int nroMarco);
+bool estaLibreMarco(int nroMarco);
+bool existeOtraPaginaConElMarco(t_list * listaPaginas,int nroMarco, int paginaActual);
+uint32_t obtenerDireccionMemoria(t_list* listaPaginas,uint32_t posicionSegmento);
+t_segmento * buscarSegmento(t_list * segmentos, uint32_t posicionSegmento);
+t_pagina * obtenerPaginaAuxiliar(t_list * paginas, int nroPagina);
+t_list * obtenerPaginas(char* idProceso, uint32_t posicionSegmento);
+void usarPagina(t_list * paginas, int nroPagina);
+int obtenerNroPagina(t_list * paginas, int offsetSegmento);
+int obtenerOffsetPrevio(t_list * paginas, int offsetSegmento, int nroPaginaActual);
+int obtenerOffsetPosterior(t_list * paginas, uint32_t posicionSegmento,int nroPaginaActual);
+
 
 #endif /* MUSE_H_ */

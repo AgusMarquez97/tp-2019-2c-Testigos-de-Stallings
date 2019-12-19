@@ -3,7 +3,8 @@
 
 #include "MUSE.h"
 
-bool existeEnElDiccionario(char* idProceso) {
+bool existeEnElDiccionario(char* idProceso)
+{
 
 	bool retorno = false;
 
@@ -21,7 +22,8 @@ bool existeEnElDiccionario(char* idProceso) {
 	return retorno;
 }
 
-int obtenerCantidadMarcos(int tamanioPagina, int tamanioMemoria) {
+int obtenerCantidadMarcos(int tamanioPagina, int tamanioMemoria)
+{
 
 	float tam_nec = (float)tamanioMemoria / tamanioPagina;
 	if(tam_nec == (int)tam_nec) {
@@ -42,7 +44,8 @@ t_segmento* obtenerUnSegmento(char * idProceso, uint32_t posicionMemoria)
 }
 
 
-t_segmento* obtenerSegmento(t_list* segmentos, uint32_t posicionMemoria) {
+t_segmento* obtenerSegmento(t_list* segmentos, uint32_t posicionMemoria)
+{
 
 	bool segmentoCorrespondiente(t_segmento* segmento) {
 		return (posicionMemoria >= segmento->posicionInicial
@@ -51,7 +54,8 @@ t_segmento* obtenerSegmento(t_list* segmentos, uint32_t posicionMemoria) {
 	return list_find(segmentos, (void*)segmentoCorrespondiente);
 }
 
-t_pagina* obtenerPagina(t_list* paginas, uint32_t posicionSegmento) {
+t_pagina* obtenerPagina(t_list* paginas, uint32_t posicionSegmento)
+{
 
 	bool paginaCorrespondiente(t_pagina* pagina) {
 		return (posicionSegmento >= pagina->nroPagina*tamPagina
@@ -61,35 +65,24 @@ t_pagina* obtenerPagina(t_list* paginas, uint32_t posicionSegmento) {
 
 }
 
-bool poseeSegmentos(char* idProceso) {
+bool poseeSegmentos(char* idProceso)
+{
 
 	return (dictionary_get(diccionarioProcesos, idProceso) != NULL);
 
 }
 
 
-int cantidadPaginasPedidas(int offset) {
+int cantidadPaginasPedidas(int offset)
+{
 
 	return (int) offset / tamPagina; // redondea al menor numero para abajo
 
 }
 
-void* leerDeMemoria(int posicionInicial, int tamanio) {
 
-	void* buffer = malloc(tamanio);
-	memcpy(buffer, memoria + posicionInicial, tamanio); // no hacen falta los locks, ya estan puestos antes
-
-	return buffer;
-
-}
-
-void escribirEnMemoria(void* contenido, int posicionInicial, int tamanio) {
-
-	memcpy(memoria + posicionInicial, contenido, tamanio);
-
-}
-
-void liberarMarcoBitarray(int nroMarco) {
+void liberarMarcoBitarray(int nroMarco)
+{
 
 	pthread_mutex_lock(&mutex_marcos_libres);
 	bitarray_clean_bit(marcosMemoriaPrincipal, nroMarco);
@@ -97,7 +90,8 @@ void liberarMarcoBitarray(int nroMarco) {
 
 }
 
-bool estaLibreMarco(int nroMarco) {
+bool estaLibreMarco(int nroMarco)
+{
 	pthread_mutex_lock(&mutex_marcos_libres);
 	bool retorno = bitarray_test_bit(marcosMemoriaPrincipal, nroMarco) == 0;
 	pthread_mutex_unlock(&mutex_marcos_libres);
@@ -105,16 +99,16 @@ bool estaLibreMarco(int nroMarco) {
 
 }
 
-
-int obtenerPaginaActual(t_list * paginas, int offset)
+bool existeOtraPaginaConElMarco(t_list * listaPaginas,int nroMarco, int paginaActual)
 {
-	for(int i = 0;i < list_size(paginas);i++)
+	bool tieneElMismoMarco(t_pagina * unaPagina)
 	{
-	t_pagina * unaPagina = list_get(paginas,i);
-	if(unaPagina->nroMarco == (int) offset / tamPagina)
-		return i;
+		return (unaPagina->nroMarco==nroMarco && unaPagina->nroPagina!=paginaActual && unaPagina->nroPaginaSwap==-1);
 	}
-	return 0;
+
+	bool retorno = list_any_satisfy(listaPaginas, (void*)tieneElMismoMarco);
+
+	return retorno;
 }
 
 //retorna la primera posicion LUEGO del HM (o eso deberia hacer)
@@ -174,6 +168,23 @@ void usarPagina(t_list * paginas, int nroPagina)
 {
 	t_pagina * unaPagina = list_get(paginas,nroPagina);
 	unaPagina->uso=1;
+}
+
+int obtenerNroPagina(t_list * paginas, int offsetSegmento)
+{
+	return (int) (offsetSegmento - tam_heap_metadata) / tamPagina;
+}
+
+int obtenerOffsetPrevio(t_list * paginas, int offsetSegmento, int nroPaginaActual)
+{
+	t_pagina * paginaAux = list_get(paginas,nroPaginaActual); // es necesario sincronizar?
+	return paginaAux->nroMarco*tamPagina + (offsetSegmento - tam_heap_metadata)%tamPagina;
+}
+
+int obtenerOffsetPosterior(t_list * paginas, uint32_t posicionSegmento,int nroPaginaActual)
+{
+	t_pagina * paginaAux = list_get(paginas,nroPaginaActual); // es necesario sincronizar?
+	return paginaAux->nroMarco*tamPagina + (posicionSegmento)%tamPagina;
 }
 
 

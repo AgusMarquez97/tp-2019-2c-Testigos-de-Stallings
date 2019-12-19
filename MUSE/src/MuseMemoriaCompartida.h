@@ -8,8 +8,134 @@
 #ifndef MUSEMEMORIACOMPARTIDA_H_
 #define MUSEMEMORIACOMPARTIDA_H_
 
-#include "MuseRutinasFree.h"
+#include "MuseCpyGet.h"
 
+uint32_t analizarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
+{
+		uint32_t posicionRetorno = 0;
+		char msj[450];
+		char aux[35];
+
+		if(flag == MUSE_MAP_SHARED)
+			strcpy(aux,"MUSE MAP SHARED");
+		else
+			strcpy(aux,"MUSE MAP PRIVATE");
+
+		int cantidadFrames = obtenerCantidadMarcos(tamPagina, tamanio + tam_heap_metadata);
+		t_archivo_compartido * unArchivoCompartido = NULL;
+
+
+		if(flag == MUSE_MAP_SHARED)
+		{
+			unArchivoCompartido = obtenerArchivoCompartido(path);
+
+			if(unArchivoCompartido) // Entonces ya existe en memoria! Solo hay que agregarlo en las estructuras administrativas. Si no hay que agregarlo en memoria
+			{
+				agregarArchivoLista(path,unArchivoCompartido);
+				posicionRetorno = agregarPaginasSinMemoria(path,idProceso,unArchivoCompartido,cantidadFrames);
+				sprintf(msj, "El Proceso %s mapeo el archivo compartido %s en la posicion %u. El archivo ya se encontraba en memoria compartida", idProceso, path,posicionRetorno);
+				loggearInfo(msj);
+				return posicionRetorno;
+			}
+		}
+
+		posicionRetorno = analizarSegmento(idProceso, tamanio, cantidadFrames, true);
+
+		void * buffer = obtenerDatosArchivo(path,tamanio);
+
+		if(!buffer)
+		{
+			sprintf(msj, "El Proceso %s intento leer el archivo %s no existente en el FileSystem", idProceso, path);
+			loggearWarning(msj);
+			return 0;
+		}
+
+		t_list * segmentos;
+		t_segmento* segmento;
+
+		pthread_mutex_lock(&mutex_diccionario);
+		segmentos = dictionary_get(diccionarioProcesos,idProceso);
+		pthread_mutex_unlock(&mutex_diccionario);
+
+		segmento = obtenerSegmento(segmentos, posicionRetorno);
+
+		t_list * paginas = segmento->paginas;
+
+		int nroPaginaActual = obtenerNroPagina(paginas,posicionRetorno - segmento->posicionInicial);
+		t_pagina * unaPagina = list_get(paginas,nroPaginaActual);
+
+		uint32_t posicionMemoria = obtenerOffsetPosterior(paginas,posicionRetorno - segmento->posicionInicial,nroPaginaActual);
+
+		escribirDatosHeap(paginas,nroPaginaActual, posicionMemoria, &buffer, tamanio);
+		free(buffer);
+
+		if(flag == MUSE_MAP_SHARED)
+			{
+				unArchivoCompartido = agregarArchivoLista(path,unArchivoCompartido); // me devuelve el nuevo archivo compartido
+
+				unArchivoCompartido->marcosMapeados = malloc(sizeof(int32_t)*cantidadFrames);
+				unArchivoCompartido->nroPaginaSwap = malloc(sizeof(int32_t)*cantidadFrames);
+
+				for(int i = 0; i < cantidadFrames;i++)
+				{
+					unaPagina = list_get(paginas,i);
+					*(unArchivoCompartido->marcosMapeados + i) = unaPagina->nroMarco;
+					*(unArchivoCompartido->nroPaginaSwap + i) = unaPagina->nroPaginaSwap;
+				}
+			}
+
+			segmento->archivo = strdup(path);
+
+			sprintf(msj,"El proceso %s escribio %d bytes en la posicion %d para el archivo %s con el flag %s",idProceso,tamanio,posicionRetorno,path,aux);
+			loggearInfo(msj);
+
+			return posicionRetorno;
+}
+
+int analizarSync(char* idProceso, uint32_t posicionSegmento, int32_t tamanio)
+{
+		int retorno;
+		char msj[450];
+		void * buffer = procesarGet(idProceso, posicionSegmento, tamanio);
+		if(!buffer)
+			return -1;//agregar log
+		t_segmento* unSegmento = obtenerUnSegmento(idProceso, posicionSegmento);
+		retorno = copiarDatosEnArchivo(unSegmento->archivo, tamanio, buffer);
+		free(buffer);
+		if(retorno == -1)
+			return -1;
+		sprintf(msj,"El Proceso %s descargo %d bytes en el archivo %s",idProceso,tamanio,unSegmento->archivo);
+		loggearInfo(msj);
+		return retorno;
+}
+
+int analizarUnmap(char* idProceso, uint32_t posicionSegmento)
+{
+	char msj[350];
+	pthread_mutex_lock(&mutex_diccionario);
+	t_list * segmentos = dictionary_get(diccionarioProcesos, idProceso);
+	pthread_mutex_unlock(&mutex_diccionario);
+
+	t_segmento* unSegmento = obtenerSegmento(segmentos, posicionSegmento);
+
+	if(!unSegmento)
+			return -1;
+
+	int cantidadParticipantes = obtenerCantidadParticipantes(unSegmento->archivo);
+
+	liberarConUnmap(idProceso,unSegmento,cantidadParticipantes==1);
+
+	reducirArchivoCompartido(unSegmento->archivo);
+
+	free(unSegmento->archivo);
+
+	unSegmento->archivo = NULL;
+
+	sprintf(msj,"Unmap ejecutado correctamente para el proceso %s direccion [%d-%d]",idProceso,unSegmento->id_segmento,unSegmento->tamanio);
+	loggearInfo(msj);
+
+	return 0;
+}
 
 void * obtenerDatosArchivo(char * path, int tamanio)
 {
