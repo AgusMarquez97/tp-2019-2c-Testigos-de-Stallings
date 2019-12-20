@@ -127,14 +127,17 @@ int suse_signal(int tid, char *sem_name){
 			enviarSignal(socketCliente, getpid(), tid, sem_name);
 			recibirInt(socketCliente, &estado);
 		}
+		else{
+			loggearInfo("Se rechaza la conexion");
+		}
 		close(socketCliente);
 
 		if(estado == -1) {
-			loggearError("Error al enviar Wait");
+			loggearError("Error al enviar Signal");
 			return 0;
 		}
 
-		loggearInfo("Se realizo la operacion wait");
+		loggearInfo("Se realizo la operacion signal");
 		return 0;
 	return 0;
 }

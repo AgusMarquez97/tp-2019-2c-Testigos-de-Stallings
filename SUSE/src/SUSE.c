@@ -381,8 +381,10 @@ int32_t suse_signal_servidor(char *idProcString,int32_t idHilo,char *semId)
 			return strcmp(sem->idSem, semId)==0; //retorna true si idSem(el id del sem en la lista) es igual a semId (al que te piden)
 		}
 		t_semaforoSuse* semaforo= list_find(semaforos, (void*) semEncontrado);
-		if(semaforo != NULL && (semaforo->valorActual < semaforo->valorMax))//si encontro el semaforo en la lista...
+		if(semaforo != NULL && (semaforo->valorActual <= semaforo->valorMax))//si encontro el semaforo en la lista...
 		{
+			if(semaforo->valorActual == semaforo->valorMax)
+				return 0;
 			semaforo->valorActual++;
 			if(semaforo->valorActual <= 0)//si queda en positivo el semaforo no esta bloqueando ningun hilo
 			{
@@ -421,6 +423,7 @@ int32_t suse_signal_servidor(char *idProcString,int32_t idHilo,char *semId)
 
 			return 0;
 		}
+		loggearWarning("llego raro");
 		return -1;
 }
 

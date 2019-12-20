@@ -13,5 +13,5 @@
 
 #include <biblioteca/libmuse.h>
 #include <biblioteca/libsuse.h>
-
+#include <hilolay/hilolay.h>
 #endif /* LINUSE_H_ */
