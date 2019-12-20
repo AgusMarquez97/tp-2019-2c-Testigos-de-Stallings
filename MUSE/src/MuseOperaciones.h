@@ -142,7 +142,6 @@ int procesarClose(char* idProceso) {
 	t_list* segmentos;
 	pthread_mutex_lock(&mutex_diccionario);
 	segmentos = dictionary_get(diccionarioProcesos, idProceso);
-	pthread_mutex_unlock(&mutex_diccionario);
 	if(segmentos != NULL) {
 		if(!list_is_empty(segmentos)) {
 			void liberarSegmento(t_segmento* unSegmento) {
@@ -162,7 +161,7 @@ int procesarClose(char* idProceso) {
 					}else{
 							if(unSegmento->paginas)
 							{
-								list_destroy_and_destroy_elements(unSegmento->paginas, (void*)liberarPaginas);
+								list_destroy_and_destroy_elements(unSegmento->paginas, (void*)liberarPagina);
 							}
 						}
 					free(unSegmento);
@@ -172,7 +171,7 @@ int procesarClose(char* idProceso) {
 			list_destroy_and_destroy_elements(segmentos, (void*)liberarSegmento);
 		}
 	}
-	pthread_mutex_lock(&mutex_diccionario);
+
 	dictionary_remove(diccionarioProcesos, idProceso);
 	pthread_mutex_unlock(&mutex_diccionario);
 

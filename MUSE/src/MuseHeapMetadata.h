@@ -80,7 +80,6 @@ void leerHeapPartido(t_heap_metadata** heapMetadata, int* offset, int sobrante, 
 		paginaAux = list_get(paginas,*nroPagina);
 		rutinaReemplazoPaginasSwap(&paginaAux); // modifica la pagina!
 		*offset = paginaAux->nroMarco*tamPagina + (*offset)%tamPagina; // sumo base mas offset
-		paginaAux=NULL;
 	}
 	memcpy(buffer, memoria + (*offset), sobrante);
 	pthread_mutex_unlock(&mutex_memoria);
@@ -143,7 +142,6 @@ int escribirUnHeapMetadata(t_list * listaPaginas,int paginaActual,t_heap_metadat
 			paginaAux = list_get(listaPaginas,paginaActual);
 			rutinaReemplazoPaginasSwap(&paginaAux);
 			*offset = paginaAux->nroMarco*tamPagina + (*offset)%tamPagina; // sumo base mas offset
-			paginaAux=NULL;
 		}
 		memcpy(memoria + *offset,buffer,tamanioPaginaRestante);
 		pthread_mutex_unlock(&mutex_memoria);
@@ -291,7 +289,6 @@ t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offsetPrevioHM,
 			paginaAux = list_get(listaPaginas,nroPagina);
 			rutinaReemplazoPaginasSwap(&paginaAux);
 			offsetPrevioHM = paginaAux->nroMarco*tamPagina + offsetPrevioHM%tamPagina; // sumo base mas offset
-			paginaAux=NULL;
 		}
 		memcpy(buffer,memoria + offsetPrevioHM,tamanioPaginaRestante);
 		pthread_mutex_unlock(&mutex_memoria);

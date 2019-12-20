@@ -120,7 +120,6 @@ void leerDatosMemoria(t_list * paginas,int paginaActual, int posicionMemoria, vo
 				paginaAux = list_get(paginas,paginaActual);
 				rutinaReemplazoPaginasSwap(&paginaAux); // modifica la pagina!
 				posicionMemoria = paginaAux->nroMarco*tamPagina + posicionMemoria%tamPagina; // sumo base mas offset
-				paginaAux=NULL;
 			}else{
 				usarPagina(paginas,paginaActual);
 			}
@@ -327,9 +326,13 @@ int analizarCpyMemoriaMappeada(char* idProceso,t_segmento * unSegmento, uint32_t
 
 		t_list * listaPaginas = unSegmento->paginas;
 
-		escribirDatosHeap(listaPaginas, nroPaginaActual, posicionRelativaSegmento, contenidoACopiar, tamanio);
+		t_pagina * unaPagina = list_get(listaPaginas,nroPaginaActual);
+
+		escribirDatosHeap(listaPaginas, nroPaginaActual, unaPagina->nroMarco*tamPagina + posicionRelativaSegmento%tamPagina, contenidoACopiar, tamanio);
 
 		return tamanio;
 }
+
+
 
 #endif /* MUSECPYGET_H_ */

@@ -220,10 +220,12 @@ t_archivo_compartido * obtenerArchivoCompartido(char * path);
 //uint32_t agregarPaginasSinMemoria(char * path, char * idProceso,t_archivo_compartido * unArchivoCompartido,int cantidadFramesTeoricos);
 t_list * crearPaginasSinMemoria(int cantidadFramesTeoricos);
 t_segmento * crearSegmentoSinMemoria(char * path,t_list * listaPaginas,int idSegmento,uint32_t posicionInicial,int cantidadFramesTeoricos,bool tiene_flag_shared);
-int copiarDatosEnArchivo(char * path, int tamanio, void * buffer);
+int copiarDatosEnArchivo(char * path, int tamanio, void * buffer, int offset);
 void liberarConUnmap(char * idProceso, t_segmento * unSegmento);
 void reducirArchivoCompartido(char * idProceso, t_segmento * unSegmento);
 int obtenerCantidadParticipantes(char * path);
+int actualizarArchivo(char * path,t_segmento * unSegmento,int posicionRelativaSegmento ,int tamanio, t_list * listaPaginasModificadas);
+t_list * obtenerPaginasModificadasLocal(t_list * paginas);
 /*
  * Crea un segmento compartido y lo añade a la lista
  */

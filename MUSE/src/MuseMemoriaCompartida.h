@@ -18,11 +18,11 @@ uint32_t analizarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
 
 			char * aux = strdup(obtenerFlag(flag));
 
-			int cantidadFrames = obtenerCantidadMarcos(tamPagina, tamanio);
+			int cantidadPaginas = obtenerCantidadMarcos(tamPagina, tamanio);
 			t_archivo_compartido * unArchivoCompartido = NULL;
 
 
-			t_segmento* segmento = crearSegmentoCompartido(idProceso, path, tamanio, cantidadFrames,flag==MUSE_MAP_SHARED);
+			t_segmento* segmento = crearSegmentoCompartido(idProceso, path, tamanio, cantidadPaginas,flag==MUSE_MAP_SHARED);
 
 			if(flag == MUSE_MAP_SHARED)
 			{
@@ -34,13 +34,13 @@ uint32_t analizarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
 				}
 				else
 				{
-					segmento->paginas = crearPaginasSinMemoria(cantidadFrames);
+					segmento->paginas = crearPaginasSinMemoria(cantidadPaginas);
 				}
 				agregarArchivoLista(path, unArchivoCompartido, segmento->paginas); // si es nulo lo crea, si no, agrega participantes!
 			}
 			else
 			{
-				segmento->paginas = crearPaginasSinMemoria(cantidadFrames);
+				segmento->paginas = crearPaginasSinMemoria(cantidadPaginas);
 			}
 
 			segmento->archivo = strdup(path);
@@ -62,17 +62,22 @@ uint32_t analizarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
 
 int analizarSync(char* idProceso, uint32_t posicionSegmento, int32_t tamanio)
 {
-		int retorno;
+		int retorno = 0;
 		char msj[450];
-		void * buffer = procesarGet(idProceso, posicionSegmento, tamanio);
-		if(!buffer)
-			return -1;//agregar log
+
 		t_segmento* unSegmento = obtenerUnSegmento(idProceso, posicionSegmento);
-		retorno = copiarDatosEnArchivo(unSegmento->archivo, tamanio, buffer);
-		free(buffer);
+
+		t_list * listaPaginasModificadas = obtenerPaginasModificadasLocal(unSegmento->paginas);
+
+		retorno = actualizarArchivo(unSegmento->archivo,unSegmento,(posicionSegmento - unSegmento->posicionInicial) ,tamanio, listaPaginasModificadas);
+
+		list_destroy(listaPaginasModificadas);
+
 		if(retorno == -1)
 			return -1;
-		sprintf(msj,"El Proceso %s descargo %d bytes en el archivo %s",idProceso,tamanio,unSegmento->archivo);
+
+
+		sprintf(msj,"El Proceso %s descargo %d bytes en el archivo %s",idProceso,retorno,unSegmento->archivo);
 		loggearInfo(msj);
 		return retorno;
 }
@@ -214,7 +219,7 @@ t_segmento * crearSegmentoSinMemoria(char * path,t_list * listaPaginas,int idSeg
 	return segmentoNuevo;
 }
 
-int copiarDatosEnArchivo(char * path, int tamanio, void * buffer)
+int copiarDatosEnArchivo(char * path, int tamanio, void * buffer, int offset)
 {
 			FILE * fd = fopen(path,"r+");
 				if(!fd)
@@ -229,7 +234,7 @@ int copiarDatosEnArchivo(char * path, int tamanio, void * buffer)
 
 			void * bufferAuxiliar = mmap(NULL,tamanio,PROT_READ|PROT_WRITE,MAP_SHARED,fd_num,0);
 
-			memcpy(bufferAuxiliar,buffer,tamanio);
+			memcpy(bufferAuxiliar + offset,buffer,tamanio);
 
 			msync(bufferAuxiliar,tamanio,MS_SYNC);
 
@@ -381,6 +386,72 @@ char * obtenerFlag(int flag)
 		return "MUSE MAP SHARED";
 	else
 		return "MUSE MAP PRIVATE";
+}
+
+
+t_list * obtenerPaginasModificadasLocal(t_list * paginas)
+{
+	bool condicion(t_pagina * unaPagina)
+	{
+		return unaPagina->modificada;
+	}
+	return list_filter(paginas,(void*)condicion);
+}
+
+
+int actualizarArchivo(char * path,t_segmento * unSegmento,int posicionRelativaSegmento ,int tamanio, t_list * listaPaginasModificadas)
+{
+	int tamanioMaximo = unSegmento->tamanio - posicionRelativaSegmento; // como lo sabria??
+
+		if(tamanio>tamanioMaximo)
+			return TAMANIO_SOBREPASADO;
+
+	//int bytesActualizados;
+	int nroPaginaActual = (int) posicionRelativaSegmento / tamPagina;
+	int bytesLeidos = 0;
+	int offset = 0;
+	int bytesRestantesPagina;
+
+	if(tamanio > tamPagina)
+		bytesRestantesPagina = tamPagina - posicionRelativaSegmento%tamPagina;
+	else
+		bytesRestantesPagina = tamanio;
+
+	void bajarAMemoria(t_pagina * pagina)
+	{
+		if(bytesLeidos < tamanio)
+		{
+		void * buffer = malloc(tamPagina);
+
+		offset = pagina->nroMarco*tamPagina + posicionRelativaSegmento%tamPagina;
+
+		pthread_mutex_lock(&mutex_memoria);
+		if(!estaEnMemoria(listaPaginasModificadas,pagina->nroPagina))
+		{
+			rutinaReemplazoPaginasSwap(&pagina);
+			offset = pagina->nroMarco*tamPagina + offset%tamPagina; // sumo base mas offset
+		}
+		memcpy(buffer,memoria+offset,bytesRestantesPagina);
+		pthread_mutex_unlock(&mutex_memoria);
+
+		copiarDatosEnArchivo(path, bytesRestantesPagina, buffer, pagina->nroPagina*tamPagina);
+
+		free(buffer);
+
+		bytesLeidos += bytesRestantesPagina;
+
+		if(tamanio - bytesLeidos < tamPagina)
+			bytesRestantesPagina = tamanio - bytesLeidos;
+		else
+			bytesRestantesPagina = tamPagina;
+
+		}
+
+	}
+
+	list_iterate(listaPaginasModificadas,(void*)bajarAMemoria);
+
+	return nroPaginaActual;
 }
 
 /*

@@ -13,6 +13,7 @@
 
 int analizarFree(char* idProceso, uint32_t posicionSegmento)
 {
+
 	char msj[250];
 	int retorno = -1;
 

@@ -32,25 +32,34 @@ void moverMarcosASwap()
  */
 void rutinaReemplazoPaginasSwap(t_pagina** unaPagina)
 {
-	loggearInfo("Se ejecuta la rutina de intercambio de paginas, page fault generado");
+	loggearInfo("Page fault generado");
 
-	pthread_mutex_lock(&mutex_algoritmo_reemplazo);
-	t_pagina * paginaVictima = ejecutarAlgoritmoReemplazo(); // obtengo la pagina que quiero reemplazar
-	pthread_mutex_unlock(&mutex_algoritmo_reemplazo);
+	if((*unaPagina)->nroPaginaSwap == -2)
+	{
+		(*unaPagina)->nroPaginaSwap = -1;
+		(*unaPagina)->nroMarco = asignarMarcoLibre();
+	}
+	else
+	{
 
-	int marcoVictima = paginaVictima->nroMarco;
+		pthread_mutex_lock(&mutex_algoritmo_reemplazo);
+		t_pagina * paginaVictima = ejecutarAlgoritmoReemplazo(); // obtengo la pagina que quiero reemplazar
+		pthread_mutex_unlock(&mutex_algoritmo_reemplazo);
 
-	/*
-	 * Parte del reemplazo de la victima
-	 */
+		int marcoVictima = paginaVictima->nroMarco;
 
-	reemplazarVictima(&paginaVictima,true);
+		/*
+		 * Parte del reemplazo de la victima
+		 */
 
-	/*
-	 * Parte del recupero de la pagina que estaba en swap
-	 */
+		reemplazarVictima(&paginaVictima,true);
 
-	recuperarPaginaSwap(unaPagina,marcoVictima);
+		/*
+		 * Parte del recupero de la pagina que estaba en swap
+		 */
+
+		recuperarPaginaSwap(unaPagina,marcoVictima);
+	}
 }
 
 /*
@@ -206,7 +215,7 @@ bool estaEnMemoria(t_list * paginas, int nroPagina)
 {
 	t_pagina * aux = obtenerPaginaAuxiliar(paginas,nroPagina);
 
-	bool retorno = (aux->nroPaginaSwap == -1);
+	bool retorno = (aux->nroPaginaSwap == -1 || aux->nroPaginaSwap == -2 );
 
 	free(aux);
 
