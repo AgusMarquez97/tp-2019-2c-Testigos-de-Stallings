@@ -19,16 +19,12 @@ sem_t mutRename;
 int tamBitmap;
 int tamanioTotal = 0;
 off_t offsetWrite = 0;
-char* pathEscribiendo;
+char pathEscribiendo[200];
+int discoFD;
 
 //devuelve el path del padre. Se debe verificar antes que el padre exista
 char* pathPadre(char* path)
 {
-
-	//char** pathCortado = malloc( 10 * sizeof(char*) );
-
-	/*for(int i=0;i<=9;i++)
-		pathCortado[i] = malloc( sizeof(char*) );*/
 
 	char* reverso = string_reverse(path);
 	char** pathCortado = string_n_split(reverso, 2, "/");
@@ -41,9 +37,6 @@ char* pathPadre(char* path)
 
 	return pathAEnviar;
 
-	//for(int i=0;i<=9;i++)
-	//	free(pathCortado[i] );
-
 
 }
 
@@ -51,10 +44,6 @@ char* pathPadre(char* path)
 void padreEHijo(char* path, char* nombre, char* padre)
 {
 	int contador = 0;
-	//char** pathCortado = malloc( 10*sizeof(char*) );
-
-	/*for(int i=0;i<=9;i++)
-		pathCortado[i] = malloc( sizeof(char*) );*/
 
 	char** pathCortado = string_split(path, "/");
 
@@ -78,9 +67,6 @@ void padreEHijo(char* path, char* nombre, char* padre)
 		free(pathCortado[contador-1]);
 		free(pathCortado[contador]);
 	}
-
-	//for(;contador<=9;contador++)
-		//free(pathCortado[contador] );
 
 	free(pathCortado);
 }
@@ -295,22 +281,27 @@ void escribir(void* bufferWrite)//(int indArchivo, char* contenido, size_t taman
 	int bloqInd = 0;
 	int bloqDatos = 0;
 	int cantAEscribir;
+	//int haceWait = 0;
 
 	if(offset == 0)
 		offset = tablaNodos[indArchivo].file_size;
 
 
 	//pathEscribiendo array de paths?
-	if(pathEscribiendo != NULL && strcmp(path,pathEscribiendo) == 0)
-		sem_wait(&mutWrite);
-
-	if(pathEscribiendo == NULL)
-		pathEscribiendo = strdup(path);
-	else if(strcmp(path,pathEscribiendo) != 0)
+	if(pathEscribiendo[0] != 0 && strcmp(path,pathEscribiendo) == 0)
 	{
-		strcpy(pathEscribiendo, path);
+		sem_wait(&mutWrite);
+		//haceWait = 1;
 	}
 
+
+	if(pathEscribiendo[0] == 0)
+		strcpy(pathEscribiendo, path);//pathEscribiendo = strdup(path);
+	else if(strcmp(path,pathEscribiendo) != 0)
+	{
+		memset(&pathEscribiendo[0],0,200);//free(pathEscribiendo);
+		strcpy(pathEscribiendo, path);
+	}
 
 	if(tablaNodos[indArchivo].file_size == 0)
 	{
@@ -466,15 +457,16 @@ void escribir(void* bufferWrite)//(int indArchivo, char* contenido, size_t taman
 	free(path);
 	free(bufferWrite);
 
-	free(pathEscribiendo);
-	pathEscribiendo = NULL;
-	sem_post(&mutWrite);
+	//if(haceWait == 1)
+		sem_post(&mutWrite);
+	memset(&pathEscribiendo[0],0,200);
+	//free(pathEscribiendo);
+	//pathEscribiendo = NULL;
 
 }
 
 void setearTiempo(char* path)
 {
-	//char* nombre = nombreObjeto(path);
 	int indice = indiceObjeto(path);
 
 	tablaNodos[indice].fecha_creacion = time(NULL);
@@ -532,10 +524,6 @@ char* nombreObjeto(char* path)
 
 	char* nombre = malloc(MAX_FILENAME_LENGTH);
 	int contador = 0;
-	//char** pathCortado = malloc(10*sizeof(char*));
-
-/*	for(int i=0;i<=9;i++)
-		pathCortado[i] = malloc(sizeof(char*));*/
 
 	char** pathCortado = string_split(path, "/");
 
@@ -544,8 +532,6 @@ char* nombreObjeto(char* path)
 
 	strcpy(nombre,pathCortado[contador-1] );
 
-	//for(int i=0;i<=9;i++)
-		//free(pathCortado[i] );
 	contador--;
 	while(contador >= 0)
 	{
@@ -562,13 +548,11 @@ char* nombreObjeto(char* path)
 int existeObjeto(char* path)
 {
 	char* nombre = nombreObjeto(path);
-	if (nombre[0] == '.')
-		return 0;
-	if(strncmp(nombre, "autorun",7) == 0)
-		return 0;
-	/*for (int indActual = 0; indActual <= MAX_FILE_NUMBER; indActual++)
-		if (tablaNodos[indActual].estado != 0 && strcmp(nombre,tablaNodos[indActual].nombre) == 0)
-			return 1;*/
+	//if (nombre[0] == '.')
+		//return 0;
+	//if(strncmp(nombre, "autorun",7) == 0)
+		//return 0;
+
 	int indice = indiceObjeto(path);
 	if(indice < 0)
 		return 0;
@@ -834,10 +818,6 @@ void readdir(char* path, int socketRespuesta)
 	int contArray=0;
 	char directorio[MAX_FILENAME_LENGTH];
 	char* nombreAEnviar;
-	//char** pathCortado = malloc(10*sizeof(char*));
-
-	/*for(int i=0;i<=9;i++)
-		pathCortado[i] = malloc(sizeof(char*));*/
 
 	char** pathCortado=string_split(path, "/"); // separa el path en strings
 
@@ -889,8 +869,6 @@ void readdir(char* path, int socketRespuesta)
 	strcpy(finalizado,"dou");//hago esto porque sino enviarString llora
 	enviarString(socketRespuesta, finalizado);//"avisa" al cliente que termino
 
-	//for(int i=0;i<=9;i++)
-	//	free(pathCortado[i] );
 	contArray--;
 	while(contArray >= 0)
 	{
@@ -1343,12 +1321,6 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 
 			int indiceArch = indiceObjeto(pathTruncate);
 
-			if(tamanioNuevo == tablaNodos[indiceArch].file_size)
-			{
-				//hacer algo
-			}
-
-
 			if(tamanioNuevo < tablaNodos[indiceArch].file_size)
 			{
 				recortarArchivo(indiceArch, tamanioNuevo);
@@ -1470,7 +1442,7 @@ int main( int argc, char *argv[] )
 	tamDisco = tamArchivo(argv[1]);
 	//size_t tamBitmap = (tamDisco/BLOCK_SIZE/8);
 
-	int discoFD = open(argv[1], O_RDWR,0);
+	discoFD = open(argv[1], O_RDWR,0);
 
 	disco = mmap(NULL, tamDisco, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, discoFD, 0);
 
