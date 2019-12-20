@@ -244,6 +244,7 @@ void liberarTodaLaMemoria() {
 
 	dictionary_iterator(diccionarioProcesos,(void*)liberar);
 	pthread_mutex_unlock(&mutex_diccionario);
+
 	dictionary_destroy(diccionarioProcesos);
 	bitarray_destroy(marcosMemoriaSwap);
 	bitarray_destroy(marcosMemoriaPrincipal);
