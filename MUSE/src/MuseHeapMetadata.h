@@ -32,15 +32,17 @@ void leerHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* byt
 		*bytesLeidosPagina = incremento;
 		bytesIniciales = 0;
 	} else {
+
 		pthread_mutex_lock(&mutex_memoria);
+		paginaAux = list_get(paginas,*nroPagina);
 		if(!estaEnMemoria(paginas,*nroPagina))
 		{
-			paginaAux = list_get(paginas,*nroPagina);
-			rutinaReemplazoPaginasSwap(&paginaAux); // modifica la pagina!
-			*offset = paginaAux->nroMarco*tamPagina + (*offset)%tamPagina; // sumo base mas offset
+			rutinaReemplazoPaginasSwap(&paginaAux);
 		}
+		*offset = paginaAux->nroMarco*tamPagina + (*offset)%tamPagina; // sumo base mas offse
 		memcpy(*heapMetadata, memoria + (*offset), tam_heap_metadata);
 		pthread_mutex_unlock(&mutex_memoria);
+
 		*bytesLeidosPagina += tam_heap_metadata + (*heapMetadata)->offset;
 		incremento = *bytesLeidosPagina - bytesIniciales; // si paso de pagina => se va a recalcular
 	}
@@ -75,12 +77,13 @@ void leerHeapPartido(t_heap_metadata** heapMetadata, int* offset, int sobrante, 
 	t_pagina * paginaAux;
 
 	pthread_mutex_lock(&mutex_memoria);
+
+	paginaAux = list_get(paginas,*nroPagina);
 	if(!estaEnMemoria(paginas,*nroPagina))
 	{
-		paginaAux = list_get(paginas,*nroPagina);
-		rutinaReemplazoPaginasSwap(&paginaAux); // modifica la pagina!
-		*offset = paginaAux->nroMarco*tamPagina + (*offset)%tamPagina; // sumo base mas offset
+		rutinaReemplazoPaginasSwap(&paginaAux);
 	}
+	*offset = paginaAux->nroMarco*tamPagina + (*offset)%tamPagina; // sumo base mas offse
 	memcpy(buffer, memoria + (*offset), sobrante);
 	pthread_mutex_unlock(&mutex_memoria);
 
@@ -92,12 +95,12 @@ void leerHeapPartido(t_heap_metadata** heapMetadata, int* offset, int sobrante, 
 	*offset = (*paginaDummy)->nroMarco * tamPagina;
 
 	pthread_mutex_lock(&mutex_memoria);
+	paginaAux = list_get(paginas,*nroPagina);
 	if(!estaEnMemoria(paginas,*nroPagina))
 	{
-		paginaAux = list_get(paginas,*nroPagina);
-		rutinaReemplazoPaginasSwap(&paginaAux); // modifica la pagina!
-		*offset = paginaAux->nroMarco*tamPagina + (*offset)%tamPagina; // sumo base mas offset
+		rutinaReemplazoPaginasSwap(&paginaAux);
 	}
+	*offset = paginaAux->nroMarco*tamPagina + (*offset)%tamPagina; // sumo base mas offse
 	memcpy(buffer + sobrante, memoria + (*offset), tam_heap_metadata - sobrante);
 	pthread_mutex_unlock(&mutex_memoria);
 
@@ -119,12 +122,12 @@ int escribirUnHeapMetadata(t_list * listaPaginas,int paginaActual,t_heap_metadat
 	if(tamanioPaginaRestante >= tam_heap_metadata)
 	{
 		pthread_mutex_lock(&mutex_memoria);
+		paginaAux = list_get(listaPaginas,paginaActual);
 		if(!estaEnMemoria(listaPaginas,paginaActual))
 		{
-			paginaAux = list_get(listaPaginas,paginaActual);
 			rutinaReemplazoPaginasSwap(&paginaAux);
-			*offset = paginaAux->nroMarco*tamPagina + (*offset)%tamPagina; // sumo base mas offset
 		}
+		*offset = paginaAux->nroMarco*tamPagina + (*offset)%tamPagina; // sumo base mas offset
 		memcpy(memoria + *offset,unHeapMetadata,tam_heap_metadata);
 		pthread_mutex_unlock(&mutex_memoria);
 		*offset += tam_heap_metadata;
@@ -137,12 +140,12 @@ int escribirUnHeapMetadata(t_list * listaPaginas,int paginaActual,t_heap_metadat
 		memcpy(buffer,unHeapMetadata,tam_heap_metadata);
 
 		pthread_mutex_lock(&mutex_memoria);
+		paginaAux = list_get(listaPaginas,paginaActual);
 		if(!estaEnMemoria(listaPaginas,paginaActual))
 		{
-			paginaAux = list_get(listaPaginas,paginaActual);
 			rutinaReemplazoPaginasSwap(&paginaAux);
-			*offset = paginaAux->nroMarco*tamPagina + (*offset)%tamPagina; // sumo base mas offset
 		}
+		*offset = paginaAux->nroMarco*tamPagina + (*offset)%tamPagina; // sumo base mas offset
 		memcpy(memoria + *offset,buffer,tamanioPaginaRestante);
 		pthread_mutex_unlock(&mutex_memoria);
 
@@ -154,12 +157,12 @@ int escribirUnHeapMetadata(t_list * listaPaginas,int paginaActual,t_heap_metadat
 		*offset = pagina->nroMarco*tamPagina; //Obtengo la pagina siguiente
 
 		pthread_mutex_lock(&mutex_memoria);
+		paginaAux = list_get(listaPaginas,paginaActual);
 		if(!estaEnMemoria(listaPaginas,paginaActual))
 		{
-			paginaAux = list_get(listaPaginas,paginaActual);
 			rutinaReemplazoPaginasSwap(&paginaAux);
-			*offset = paginaAux->nroMarco*tamPagina + (*offset)%tamPagina; // sumo base mas offset
 		}
+		*offset = paginaAux->nroMarco*tamPagina + (*offset)%tamPagina; // sumo base mas offset
 		memcpy(memoria + *offset,buffer + offsetBuffer,tam_heap_metadata - offsetBuffer);
 		pthread_mutex_unlock(&mutex_memoria);
 
@@ -268,12 +271,12 @@ t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offsetPrevioHM,
 	{
 
 		pthread_mutex_lock(&mutex_memoria);
+		paginaAux = list_get(listaPaginas,nroPagina);
 		if(!estaEnMemoria(listaPaginas,nroPagina))
 		{
-			paginaAux = list_get(listaPaginas,nroPagina);
 			rutinaReemplazoPaginasSwap(&paginaAux);
-			offsetPrevioHM = paginaAux->nroMarco*tamPagina + offsetPrevioHM%tamPagina; // sumo base mas offset
 		}
+		offsetPrevioHM = paginaAux->nroMarco*tamPagina + (offsetPrevioHM)%tamPagina; // sumo base mas offset
 		memcpy(unHeapMetadata,memoria + offsetPrevioHM,tam_heap_metadata);
 		pthread_mutex_unlock(&mutex_memoria);
 
@@ -284,12 +287,12 @@ t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offsetPrevioHM,
 		int offsetBuffer = 0;
 
 		pthread_mutex_lock(&mutex_memoria);
+		paginaAux = list_get(listaPaginas,nroPagina);
 		if(!estaEnMemoria(listaPaginas,nroPagina))
 		{
-			paginaAux = list_get(listaPaginas,nroPagina);
 			rutinaReemplazoPaginasSwap(&paginaAux);
-			offsetPrevioHM = paginaAux->nroMarco*tamPagina + offsetPrevioHM%tamPagina; // sumo base mas offset
 		}
+		offsetPrevioHM = paginaAux->nroMarco*tamPagina + (offsetPrevioHM)%tamPagina; // sumo base mas offset
 		memcpy(buffer,memoria + offsetPrevioHM,tamanioPaginaRestante);
 		pthread_mutex_unlock(&mutex_memoria);
 
@@ -300,12 +303,12 @@ t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offsetPrevioHM,
 		offsetPrevioHM = pagina->nroMarco*tamPagina; //Obtengo la pagina siguiente
 
 		pthread_mutex_lock(&mutex_memoria);
+		paginaAux = list_get(listaPaginas,nroPagina);
 		if(!estaEnMemoria(listaPaginas,nroPagina))
 		{
-			paginaAux = list_get(listaPaginas,nroPagina);
 			rutinaReemplazoPaginasSwap(&paginaAux);
-			offsetPrevioHM = paginaAux->nroMarco*tamPagina + offsetPrevioHM%tamPagina; // sumo base mas offset
 		}
+		offsetPrevioHM = paginaAux->nroMarco*tamPagina + (offsetPrevioHM)%tamPagina; // sumo base mas offset
 		memcpy(buffer + offsetBuffer,memoria + offsetPrevioHM,tam_heap_metadata - offsetBuffer);
 		pthread_mutex_unlock(&mutex_memoria);
 
