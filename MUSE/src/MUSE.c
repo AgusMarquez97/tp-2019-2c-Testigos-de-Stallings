@@ -1,6 +1,7 @@
 #include "MuseOperaciones.h"
 
 int main(void) {
+
 	//signal(SIGINT,salirFuncion); // si rompe con varios procesos => comentar
 	remove("Linuse.log");
 	iniciarLog("MUSE");
@@ -40,12 +41,13 @@ void levantarMemoria() {
 
 	levantarMarcos(&marcosMemoriaPrincipal, tamMemoria, &cantidadMarcosMemoriaPrincipal);
 	levantarMarcos(&marcosMemoriaSwap, tamSwap, &cantidadMarcosMemoriaVirtual);
+
 }
 
 void levantarMarcos(t_bitarray** unBitArray, int tamanio, int* cantidadMarcos) {
 
 	*cantidadMarcos = obtenerCantidadMarcos(tamPagina, tamanio);
-	char* bitmap = calloc(1, *cantidadMarcos); // Cuando se libera?? => no se libera
+	char* bitmap = calloc(1, *cantidadMarcos);
 	// Array de bits para consultar marcos libres
 	*unBitArray = bitarray_create_with_mode(bitmap, (*cantidadMarcos)/8, LSB_FIRST);
 
@@ -57,15 +59,16 @@ void levantarMarcos(t_bitarray** unBitArray, int tamanio, int* cantidadMarcos) {
 
 void crearMemoriaSwap() {
 
-	remove("Memoria Swap"); // Analizar si la MS debe ser persistida
+	remove("Memoria Swap");
 	FILE* f_MS =  txt_open_for_append("Memoria Swap");
 	int fd_num = fileno(f_MS);
-	ftruncate(fd_num,tamSwap); // lo que habia volo!
+	ftruncate(fd_num,tamSwap);
 	txt_close_file(f_MS);
 
 }
 
 void inicializarSemaforos() {
+
 	pthread_mutex_init(&mutex_marcos_swap_libres, NULL);
 	pthread_mutex_init(&mutex_marcos_libres, NULL);
 	pthread_mutex_init(&mutex_diccionario, NULL);
@@ -74,8 +77,8 @@ void inicializarSemaforos() {
 	pthread_mutex_init(&mutex_algoritmo_reemplazo, NULL);
 	pthread_mutex_init(&mutex_lista_paginas, NULL);
 	pthread_mutex_init(&mutex_segmento, NULL);
-
 	pthread_mutex_init(&mutex_lock_operaciones, NULL);
+
 }
 
 void levantarServidorMUSE() {
@@ -85,16 +88,21 @@ void levantarServidorMUSE() {
 	int socketServidor = levantarServidor(ip,puerto);
 
 	while(1) {
+
 		if((socketRespuesta = (intptr_t)aceptarConexion(socketServidor)) != -1) {
+
 			loggearNuevaConexion(socketRespuesta);
 			int* p_socket = malloc(sizeof(int));
 			*p_socket = socketRespuesta;
+
 			if((hiloAtendedor = makeDetachableThread(rutinaServidor, (void*)p_socket)) != 0) {
-			// REVISAR! (si no va nada por el lado del true, invertir la condición y quitar el else)
+
 			} else {
 				loggearError("Error al crear un nuevo hilo");
 			}
+
 		}
+
 	}
 
 }
@@ -106,12 +114,13 @@ void rutinaServidor(int* p_socket) {
 	int socketRespuesta = *p_socket;
 	char id_proceso[30];
 	free(p_socket);
+
 	t_mensajeMuse* mensajeRecibido = recibirOperacion(socketRespuesta);
 
 	sprintf(id_proceso,"%d", mensajeRecibido->idProceso);
 
 	if(mensajeRecibido == NULL) {
-		loggearInfo("Mensaje no reconocido");
+		loggearWarning("Operación Desconocida");
 	} else {
 		pthread_mutex_lock(&mutex_lock_operaciones);
 		switch(mensajeRecibido->tipoOperacion) {
@@ -119,114 +128,126 @@ void rutinaServidor(int* p_socket) {
 			case HANDSHAKE:
 				valorRetorno = procesarHandshake(id_proceso);
 				enviarInt(socketRespuesta,valorRetorno);
+
 				break;
 			case MALLOC:
-				info = malloc(strlen("Se_recibió_una_operación_ALLOC del proceso 999999999999999 _de_9999999999999999999999_bytes") + 1);
-				sprintf(info, "Se recibió una operación ALLOC del proceso %d de %d bytes",mensajeRecibido->idProceso, mensajeRecibido->tamanio);
+				info = malloc(strlen("[pid|%s]-> ALLOC de 999999999999999 bytes") + 1);
+				sprintf(info, "[pid|%s]-> ALLOC de %d bytes", id_proceso, mensajeRecibido->tamanio);
 				loggearInfo(info);
 				free(info);
+
 				uint32_t retornoMalloc = procesarMalloc(id_proceso, mensajeRecibido->tamanio);
 				enviarUint(socketRespuesta, retornoMalloc);
+
 				break;
 			case FREE:
-				info = malloc(strlen("Se_recibió_una_operación_FREE del proceso 999999999999999_sobre_la_dirección_9999999999999999999999_de_memoria") + 1);
-				sprintf(info, "Se recibió una operación FREE del proceso %d sobre la dirección %u de memoria",mensajeRecibido->idProceso, mensajeRecibido->posicionMemoria);
+				info = malloc(strlen("[pid|%s]-> FREE sobre la dirección 999999999999999") + 1);
+				sprintf(info, "[pid|%s]-> FREE sobre la dirección %u", id_proceso, mensajeRecibido->posicionMemoria);
 				loggearInfo(info);
 				free(info);
 
 				int32_t retornoFree = procesarFree(id_proceso, mensajeRecibido->posicionMemoria);
-
 				enviarInt(socketRespuesta, retornoFree);
+
 				break;
 			case GET:
-				info = malloc(strlen("Se_recibió_una_operación_GET_ del proceso 99999999999 sobre_la_dirección_9999999999999999999999_de_9999999999999999999999_bytes") + 1);
-				sprintf(info, "Se recibió una operación GET del proceso %d sobre la dirección %u de %d bytes",mensajeRecibido->idProceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
+				info = malloc(strlen("[pid|%s]-> GET sobre la dirección 999999999999999 de 999999999999999 bytes") + 1);
+				sprintf(info, "[pid|%s]-> GET sobre la dirección %u de %d bytes", id_proceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
 				loggearInfo(info);
 				free(info);
+
 				void* retornoGet = procesarGet(id_proceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
 				enviarVoid(socketRespuesta, retornoGet, mensajeRecibido->tamanio);
 				if(retornoGet)
-				free(retornoGet);
+					free(retornoGet);
+
 				break;
 			case CPY:
-				info = malloc(strlen("Se_recibió_una_operación_CPY_del proceso 999999999999999999999 sobre_la_dirección_9999999999999999999999_de_9999999999999999999999_bytes") + 1);
-				sprintf(info, "Se recibió una operación CPY del proceso %d sobre la dirección %u de %d bytes",mensajeRecibido->idProceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
+				info = malloc(strlen("[pid|%s]-> CPY sobre la dirección 999999999999999 de 999999999999999 bytes") + 1);
+				sprintf(info, "[pid|%s]-> CPY sobre la dirección %u de %d bytes", id_proceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
 		 		loggearInfo(info);
 				free(info);
 
 				int retornoCpy = procesarCpy(id_proceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio, mensajeRecibido->contenido);
-
 				enviarInt(socketRespuesta, retornoCpy);
 				free(mensajeRecibido->contenido);
+
 				break;
 			case MAP:
-				info = malloc(strlen("Se_recibió_un_MAP del proceso 99999999999 ara el arcara el archivohivoara el archivo_con_el_flag_9999999999999999999999") + 1 + strlen((char*)mensajeRecibido->contenido) +1);
+				info = malloc(strlen("[pid|%s]-> MAP al archivo N con el flag XXXXXXX") + 1 + strlen((char*)mensajeRecibido->contenido) + 1);
 				char aux[35];
 				if(mensajeRecibido->flag == MUSE_MAP_SHARED)
-					strcpy(aux,"MUSE MAP SHARED");
+					strcpy(aux,"SHARED");
 				else
-					strcpy(aux,"MUSE MAP PRIVATE");
+					strcpy(aux,"PRIVATE");
 
-				sprintf(info, "Se recibió un MAP del proceso %d para el archivo %s con el flag %s",mensajeRecibido->idProceso,(char*)mensajeRecibido->contenido,aux);
+				sprintf(info, "[pid|%s]-> MAP al archivo %s con el flag %s", id_proceso, (char*)mensajeRecibido->contenido, aux);
 				loggearInfo(info);
 				free(info);
 
 				uint32_t retornoMap = procesarMap(id_proceso, (char*)mensajeRecibido->contenido, mensajeRecibido->tamanio, mensajeRecibido->flag);
-
 				enviarUint(socketRespuesta, retornoMap);
-
 				free(mensajeRecibido->contenido);
+
 				break;
 			case SYNC:
-				info = malloc(strlen("Se_recibió_un_SYNC_ del proceso 99999999999 sobre_la_dirección_de_memoria_9999999999999999999999") + 1);
-				sprintf(info, "Se recibió un SYNC del proceso %d sobre la dirección de memoria %u",mensajeRecibido->idProceso, mensajeRecibido->posicionMemoria);
+				info = malloc(strlen("[pid|%s]-> SYNC sobre la dirección 999999999999999") + 1);
+				sprintf(info, "[pid|%s]-> SYNC sobre la dirección %u", id_proceso, mensajeRecibido->posicionMemoria);
 				loggearInfo(info);
 				free(info);
 
 				int retornoSync = procesarSync(id_proceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
-
 				enviarInt(socketRespuesta, retornoSync);
+
 				break;
 			case UNMAP:
-				info = malloc(strlen("Se_recibió_un_UNMAP del proceso 99999999999 _sobre_la_dirección_9999999999999999999999") + 1);
-				sprintf(info, "Se recibió un UNMAP del proceso %d sobre la dirección %u",mensajeRecibido->idProceso, mensajeRecibido->posicionMemoria);
+				info = malloc(strlen("[pid|%s]-> UNMAP sobre la dirección 999999999999999") + 1);
+				sprintf(info, "[pid|%s]-> UNMAP sobre la dirección %u", id_proceso, mensajeRecibido->posicionMemoria);
 				loggearInfo(info);
 				free(info);
 
 				int retornoUnmap = procesarUnmap(id_proceso, mensajeRecibido->posicionMemoria);
-
 				enviarInt(socketRespuesta, retornoUnmap);
+
 				break;
 			case CLOSE:
-				info = malloc(strlen("Se_recibió_un_UNMAP del proceso 99999999999 _sobre_la_dirección_9999999999999999999999") + 1);
-				sprintf(info, "Se recibio una operacion CLOSE del proceso %d",mensajeRecibido->idProceso);
+				info = malloc(strlen("[pid|%s]-> CLOSE") + 1);
+				sprintf(info, "[pid|%s]-> CLOSE", id_proceso);
 				loggearInfo(info);
 				free(info);
-				int retornoClose = procesarClose(id_proceso); //funcion que debe liberar la memoria reservada tanto principal como swap y debe eliminar la entrada del diccionario
+
+				int retornoClose = procesarClose(id_proceso);
+				 //funcion que debe liberar la memoria reservada tanto principal como swap y debe eliminar la entrada del diccionario
 				enviarInt(socketRespuesta, retornoClose);
-			break;
-		default:
-			break;
+
+				break;
+			default:
+
+				break;
 		}
+
 		free(mensajeRecibido);
 		pthread_mutex_unlock(&mutex_lock_operaciones);
+
 	}
+
 	close(socketRespuesta);
 
 }
 
-void liberarTodaLaMemoria()
-{
+void liberarTodaLaMemoria() {
+
 	pthread_mutex_lock(&mutex_diccionario);
-	void liberar(char * id, t_list * bla)
-	{
+	void liberar(char * id, t_list * bla) {
 		procesarClose(id);
 	}
+
 	dictionary_iterator(diccionarioProcesos,(void*)liberar);
 	pthread_mutex_unlock(&mutex_diccionario);
 	dictionary_destroy(diccionarioProcesos);
 	bitarray_destroy(marcosMemoriaSwap);
 	bitarray_destroy(marcosMemoriaPrincipal);
+
 }
 
 void salirFuncion(int pid) {
