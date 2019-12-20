@@ -69,7 +69,7 @@ void leerHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* byt
 	}
 
 }
-
+//prueba
 void leerHeapPartido(t_heap_metadata** heapMetadata, int* offset, int sobrante, int* nroPagina, t_list* paginas, t_pagina** paginaDummy)
 {
 
