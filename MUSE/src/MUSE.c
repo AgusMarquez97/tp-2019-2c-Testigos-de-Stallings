@@ -116,8 +116,9 @@ void rutinaServidor(int* p_socket) {
 
 		switch(mensajeRecibido->tipoOperacion) {
 			case HANDSHAKE:
-				valorRetorno = procesarHandshake(id_proceso);
-				enviarInt(socketRespuesta,valorRetorno);
+				valorRetorno = procesarHandshake(mensajeRecibido->idProceso);
+				enviarInt(socketRespuesta, valorRetorno);
+
 				break;
 			case MALLOC:
 				info = malloc(strlen("pid|999999999999999 -> ALLOC de 999999999999999 bytes") + 1);
