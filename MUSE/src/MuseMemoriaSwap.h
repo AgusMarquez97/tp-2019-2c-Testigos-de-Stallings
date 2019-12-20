@@ -32,19 +32,9 @@ void moverMarcosASwap()
  */
 void rutinaReemplazoPaginasSwap(t_pagina** unaPagina)
 {
-	loggearInfo("Page fault generado");
+		loggearInfo("Page fault generado");
 
-	if((*unaPagina)->nroPaginaSwap == -2)
-	{
-		(*unaPagina)->nroPaginaSwap = -1;
-		(*unaPagina)->nroMarco = asignarMarcoLibre();
-	}
-	else
-	{
-
-		pthread_mutex_lock(&mutex_algoritmo_reemplazo);
 		t_pagina * paginaVictima = ejecutarAlgoritmoReemplazo(); // obtengo la pagina que quiero reemplazar
-		pthread_mutex_unlock(&mutex_algoritmo_reemplazo);
 
 		int marcoVictima = paginaVictima->nroMarco;
 
@@ -59,7 +49,7 @@ void rutinaReemplazoPaginasSwap(t_pagina** unaPagina)
 		 */
 
 		recuperarPaginaSwap(unaPagina,marcoVictima);
-	}
+
 }
 
 /*
@@ -167,7 +157,7 @@ void recuperarPaginaSwap(t_pagina ** paginaActualmenteEnSwap,int marcoObjetivo)
 	(*paginaActualmenteEnSwap)->modificada = 0; // pongo el uso en 1 ya que recien la traigo
 	(*paginaActualmenteEnSwap)->nroPaginaSwap = -1; // Actualizo que no esta mas en archivo swap
 
-
+	if(nroPaginaSwap!=-2)
 	liberarPaginasSwap(nroPaginaSwap);
 }
 

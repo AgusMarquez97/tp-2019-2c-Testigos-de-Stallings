@@ -426,11 +426,11 @@ int actualizarArchivo(char * path,t_segmento * unSegmento,int posicionRelativaSe
 		offset = pagina->nroMarco*tamPagina + posicionRelativaSegmento%tamPagina;
 
 		pthread_mutex_lock(&mutex_memoria);
-		if(!estaEnMemoria(listaPaginasModificadas,pagina->nroPagina))
+		if(pagina->nroPaginaSwap!=-1)
 		{
 			rutinaReemplazoPaginasSwap(&pagina);
-			offset = pagina->nroMarco*tamPagina + offset%tamPagina; // sumo base mas offset
 		}
+		offset = pagina->nroMarco*tamPagina + (offset)%tamPagina; // sumo base mas offset
 		memcpy(buffer,memoria+offset,bytesRestantesPagina);
 		pthread_mutex_unlock(&mutex_memoria);
 
