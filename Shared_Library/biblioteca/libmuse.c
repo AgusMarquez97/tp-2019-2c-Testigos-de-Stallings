@@ -144,7 +144,7 @@ int muse_cpy(uint32_t dst, void* src, int n) {
 				} else {
 					sprintf(aux,"Direccion %u genera en segmentation fault para el proceso %d",dst,id_muse);
 					loggearWarning(aux);
-					raise(SIGSEGV);
+					//raise(SIGSEGV);
 				}
 	}
 

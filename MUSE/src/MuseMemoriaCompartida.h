@@ -34,9 +34,9 @@ uint32_t analizarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
 				else
 				{
 					segmento->paginas = crearPaginasSinMemoria(cantidadPaginas);
+					descargarAMemoria(path,segmento->paginas , segmento->posicionInicial, tamanio);
 				}
-				agregarArchivoLista(path, unArchivoCompartido, segmento->paginas); // si es nulo lo crea, si no, agrega participantes!
-				descargarAMemoria(path,segmento->paginas , segmento->posicionInicial, tamanio);
+				agregarArchivoLista(path, unArchivoCompartido, segmento->paginas); // si es nulo lo crea, si no, agrega participantes
 			}
 			else
 			{
