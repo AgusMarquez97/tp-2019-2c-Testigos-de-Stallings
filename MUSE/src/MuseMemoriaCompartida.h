@@ -41,7 +41,7 @@ uint32_t analizarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
 			else
 			{
 				segmento->paginas = crearPaginasSinMemoria(cantidadPaginas);
-				descargarAMemoria(idProceso,segmento->paginas , segmento->posicionInicial, tamanio);
+				descargarAMemoria(path,segmento->paginas , segmento->posicionInicial, tamanio);
 			}
 
 			segmento->archivo = strdup(path);
@@ -70,7 +70,7 @@ int analizarSync(char* idProceso, uint32_t posicionSegmento, int32_t tamanio)
 
 		t_list * listaPaginasModificadas = obtenerPaginasModificadasLocal(unSegmento->paginas);
 
-		retorno = actualizarArchivo(unSegmento->archivo,unSegmento,(posicionSegmento - unSegmento->posicionInicial) ,tamanio, listaPaginasModificadas);
+		retorno = actualizarArchivo(unSegmento->archivo,unSegmento,posicionSegmento ,tamanio, listaPaginasModificadas);
 
 		list_destroy(listaPaginasModificadas);
 
@@ -222,7 +222,7 @@ t_segmento * crearSegmentoSinMemoria(char * path,t_list * listaPaginas,int idSeg
 
 int copiarDatosEnArchivo(char * path, int tamanio, void * buffer, int offset)
 {
-			FILE * fd = fopen(path,"r+");
+			FILE * fd = fopen(path,"a+");
 				if(!fd)
 					return -1;
 
@@ -231,13 +231,13 @@ int copiarDatosEnArchivo(char * path, int tamanio, void * buffer, int offset)
 
 			int fd_num = fileno(fd);
 
-			ftruncate(fd_num,tamanio); // lo que habia volo!
+			int tamanioArchivo = statbuf.st_size;
 
-			void * bufferAuxiliar = mmap(NULL,tamanio,PROT_READ|PROT_WRITE,MAP_SHARED,fd_num,0);
+			void * bufferAuxiliar = mmap(NULL,tamanioArchivo,PROT_READ|PROT_WRITE,MAP_SHARED,fd_num,0);
 
 			memcpy(bufferAuxiliar + offset,buffer,tamanio);
 
-			msync(bufferAuxiliar,tamanio,MS_SYNC);
+			msync(bufferAuxiliar,tamanioArchivo,MS_SYNC);
 
 			munmap(bufferAuxiliar,tamanio);
 
@@ -401,10 +401,19 @@ t_list * obtenerPaginasModificadasLocal(t_list * paginas)
 
 int actualizarArchivo(char * path,t_segmento * unSegmento,int posicionRelativaSegmento ,int tamanio, t_list * listaPaginasModificadas)
 {
-	int tamanioMaximo = unSegmento->tamanio - posicionRelativaSegmento; // como lo sabria??
+
+	int tamanioMaximo = (unSegmento->tamanio + unSegmento->posicionInicial) - posicionRelativaSegmento; // como lo sabria??
 
 		if(tamanio>tamanioMaximo)
 			return TAMANIO_SOBREPASADO;
+
+	FILE * fd = fopen(path,"r+");
+			if(!fd)
+				return ARCHIVO_NO_EXISTENTE;
+		int fd_num = fileno(fd);
+	ftruncate(fd_num,unSegmento->tamanio); // lo que habia volo!
+
+	posicionRelativaSegmento -= unSegmento->posicionInicial;
 
 	//int bytesActualizados;
 	int nroPaginaActual = (int) posicionRelativaSegmento / tamPagina;
@@ -481,7 +490,7 @@ void descargarAMemoria(char * archivo,t_list * listaPaginas, uint32_t posicionRe
 					rutinaReemplazoPaginasSwap(&pagina);
 				}
 				offset = pagina->nroMarco*tamPagina + (offset)%tamPagina; // sumo base mas offset
-				memcpy(buffer + bytesLeidos,memoria+offset,bytesRestantesPagina);
+				memcpy(memoria+offset,buffer + bytesLeidos,bytesRestantesPagina);
 				pthread_mutex_unlock(&mutex_memoria);
 
 				bytesLeidos += bytesRestantesPagina;

@@ -53,7 +53,7 @@ t_segmento* obtenerSegmento(t_list* segmentos, uint32_t posicionMemoria)
 	pthread_mutex_lock(&mutex_segmento);
 	bool segmentoCorrespondiente(t_segmento* segmento) {
 		return (posicionMemoria >= segmento->posicionInicial
-				&& posicionMemoria <= (segmento->posicionInicial + segmento->tamanio));
+				&& posicionMemoria < (segmento->posicionInicial + segmento->tamanio));
 	}
 	unSegmento = list_find(segmentos, (void*)segmentoCorrespondiente);
 	pthread_mutex_unlock(&mutex_segmento);

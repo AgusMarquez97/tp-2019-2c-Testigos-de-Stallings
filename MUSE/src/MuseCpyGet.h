@@ -39,7 +39,7 @@ void * analizarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio)
 
 		if(segmento->esCompartido)
 		{
-			bytesLeidos = analizarGetMemoriaMappeada(idProceso,segmento,posicionSegmento - segmento->posicionInicial,tamanio,&buffer);
+			bytesLeidos = analizarGetMemoriaMappeada(idProceso,segmento,posicionSegmento,tamanio,&buffer);
 		}
 		else
 		{
@@ -300,10 +300,12 @@ t_heap_metadata * recuperarHeapMetadata(t_list * listaPaginas, uint32_t cantidad
 
 int analizarGetMemoriaMappeada(char* idProceso,t_segmento * unSegmento, uint32_t posicionRelativaSegmento, int32_t tamanio, void ** buffer)
 {
-	int tamanioMaximo = unSegmento->tamanio - posicionRelativaSegmento; // como lo sabria??
+	int tamanioMaximo = (unSegmento->tamanio + unSegmento->posicionInicial) - posicionRelativaSegmento; // como lo sabria??
 
 	if(tamanio>tamanioMaximo)
 		return TAMANIO_SOBREPASADO;
+
+	posicionRelativaSegmento -= unSegmento->posicionInicial;
 
 	int nroPaginaActual = (int) posicionRelativaSegmento / tamPagina;
 
@@ -316,10 +318,12 @@ int analizarGetMemoriaMappeada(char* idProceso,t_segmento * unSegmento, uint32_t
 
 int analizarCpyMemoriaMappeada(char* idProceso,t_segmento * unSegmento, uint32_t posicionRelativaSegmento, int32_t tamanio, void ** contenidoACopiar)
 {
-	int tamanioMaximo = unSegmento->tamanio - posicionRelativaSegmento; // como lo sabria??
+		int tamanioMaximo = (unSegmento->tamanio + unSegmento->posicionInicial) - posicionRelativaSegmento; // como lo sabria??
 
 		if(tamanio>tamanioMaximo)
 			return TAMANIO_SOBREPASADO;
+
+		posicionRelativaSegmento -= unSegmento->posicionInicial;
 
 		int nroPaginaActual = (int) posicionRelativaSegmento / tamPagina;
 

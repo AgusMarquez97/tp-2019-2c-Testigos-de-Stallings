@@ -38,7 +38,8 @@ typedef enum {
 	HM_YA_LIBERADO = -3,
 	MEMORIA_COMPLETA = -4,
 	TAMANIO_ARCHIVO_SOBREPASADO = -5,
-	PAGINA_NO_VALIDA = -6
+	PAGINA_NO_VALIDA = -6,
+	ARCHIVO_NO_EXISTENTE = -7
 } t_errores;
 
 char ip[46];
