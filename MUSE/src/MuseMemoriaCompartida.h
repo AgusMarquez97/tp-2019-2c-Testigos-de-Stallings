@@ -57,7 +57,7 @@ uint32_t analizarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
 		{
 			sprintf(msj, "El Proceso %s intento leer el archivo %s no existente en el FileSystem", idProceso, path);
 			loggearWarning(msj);
-			return 0;
+			return 1;
 		}
 }
 

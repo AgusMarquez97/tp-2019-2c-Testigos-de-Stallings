@@ -93,7 +93,7 @@ void muse_free(uint32_t dir) {
 }
 
 int muse_get(void* dst, uint32_t src, size_t n) {
-	if(src>0 && dst!=NULL&&n>0)
+	if(dst!=NULL&&n>0)
 	{
 		int32_t retorno = -1;
 		char aux[150];
@@ -122,12 +122,12 @@ int muse_get(void* dst, uint32_t src, size_t n) {
 
 		return retorno;// enviar la señal de SegFault (?)
 	}
-	raise(SIGSEGV);
+	//raise(SIGSEGV);
 	return -1;
 }
 
 int muse_cpy(uint32_t dst, void* src, int n) {
-	if(dst>0 && src!=NULL&&n>0)
+	if(src!=NULL&&n>0)
 	{
 	char aux[150];
 	int32_t retorno = -1;
@@ -167,7 +167,7 @@ uint32_t muse_map(char* path, size_t length, int flags) {
 			enviarMap(socketCliente, id_muse, length , flags, path);
 			recibirUint(socketCliente, &direccionMemoria); //@return: error [0] / ok [dirección de memoria]
 			close(socketCliente);
-			if(direccionMemoria != 0) {
+			if(direccionMemoria != 1) {
 					sprintf(aux,"%lu bytes del archivo %s mappeado con exito en la direccion %u para el proceso %d",length,path,direccionMemoria,id_muse);
 					loggearInfo(aux);
 				} else {
@@ -182,7 +182,7 @@ uint32_t muse_map(char* path, size_t length, int flags) {
 }
 
 int muse_sync(uint32_t addr, size_t len) {
-	if(addr>0&&len>0)
+	if(len>0)
 	{
 		char aux[200];
 		int32_t retorno = -1;
