@@ -4,7 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#define RUTA_ARCHIVO "archivos/homero.txt"
+#define RUTA_ARCHIVO "/home/utnso/montaje/asd.txt"
 #define MAP_SHARED 2
 
 struct hilolay_sem_t *presion_emitida;
@@ -40,8 +40,11 @@ uint32_t leer_archivo(uint32_t arch, uint32_t leido)
 
 	muse_cpy(arch, &offset, sizeof(uint32_t));
 	hilolay_signal(revolucion_recibida);
-
-	puts(palabra);
+	
+	 if(!palabra)
+        	printf("palabra llega nula");
+	else
+		puts(palabra);
 	free(palabra);
 	return offset;
 }
@@ -86,7 +89,7 @@ int main(void)
 	struct hilolay_t presion;
 
 	hilolay_init();
-	muse_init(getpid(), "127.0.0.1", 5003);
+	muse_init(getpid(), "192.168.3.64", 5003);
 
 	presion_emitida = hilolay_sem_open("presion_emitida");
 	presion_recibida = hilolay_sem_open("presion_recibida");

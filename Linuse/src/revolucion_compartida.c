@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <string.h>
 
-#define RUTA_ARCHIVO "archivos/homero.txt"
+#define RUTA_ARCHIVO "/home/utnso/montaje/asd.txt"
 #define MAP_SHARED 2
 
 struct hilolay_sem_t *presion_emitida;
@@ -15,27 +15,26 @@ struct hilolay_sem_t *revolucion_recibida;
 void grabar_archivo(uint32_t arch, char* palabra)
 {
 	uint32_t offset;
-	//hilolay_wait(revolucion_recibida);
+	hilolay_wait(revolucion_recibida);
 	muse_get(&offset, arch, sizeof(uint32_t));
 	muse_cpy(arch + offset, palabra, strlen(palabra) + 1);
 	offset += strlen(palabra) + 1;
 	muse_cpy(arch, &offset, sizeof(uint32_t));
-	//hilolay_signal(revolucion_emitida);
+	hilolay_signal(revolucion_emitida);
 	sleep(1);
 }
 
 uint32_t leer_archivo(uint32_t arch, uint32_t leido)
 {
-	uint32_t offset = 4096;
+	uint32_t offset;
 	char * palabra = malloc(100);
-	//hilolay_wait(presion_emitida);
-	muse_cpy(arch,&offset,sizeof(uint32_t));
+	hilolay_wait(presion_emitida);
 	muse_get(&offset, arch, sizeof(uint32_t));
 	uint32_t len = offset - leido;
 	muse_get(palabra, arch + leido, len);
 	offset += strlen(palabra) + 1;
 	muse_cpy(arch, &offset, sizeof(uint32_t));
-	//hilolay_signal(presion_recibida);
+	hilolay_signal(presion_recibida);
 	puts(palabra);
 	free(palabra);
 	return offset;
@@ -78,7 +77,7 @@ int main(void)
 	struct hilolay_t revolucion;
 
 	hilolay_init();
-	muse_init(2, "127.0.0.1", 5003);
+	muse_init(2, "192.168.3.64", 5003);
 
 	presion_emitida = hilolay_sem_open("presion_emitida");
 	presion_recibida = hilolay_sem_open("presion_recibida");
