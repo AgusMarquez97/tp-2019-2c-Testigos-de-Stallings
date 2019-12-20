@@ -107,6 +107,8 @@ t_pagina * ejecutarAlgoritmoReemplazo()
 
 		pthread_mutex_unlock(&mutex_lista_paginas);
 
+		list_destroy(lista_analizar);
+
 	return paginaVictima;
 }
 
@@ -170,7 +172,7 @@ void escribirSwap(int nroPagina, void * buffer)
 
 	memcpy(bufferAuxiliar + nroPagina*tamPagina,buffer,tamPagina);
 
-	msync(bufferAuxiliar,tamPagina,MS_SYNC);
+	//msync(bufferAuxiliar,tamPagina,MS_SYNC);
 
 	munmap(bufferAuxiliar,tamSwap);
 
