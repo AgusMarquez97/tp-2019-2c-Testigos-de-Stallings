@@ -74,6 +74,8 @@ void inicializarSemaforos() {
 	pthread_mutex_init(&mutex_algoritmo_reemplazo, NULL);
 	pthread_mutex_init(&mutex_lista_paginas, NULL);
 	pthread_mutex_init(&mutex_segmento, NULL);
+
+	pthread_mutex_init(&mutex_lock_operaciones, NULL);
 }
 
 void levantarServidorMUSE() {
@@ -111,7 +113,9 @@ void rutinaServidor(int* p_socket) {
 	if(mensajeRecibido == NULL) {
 		loggearInfo("Mensaje no reconocido");
 	} else {
+		pthread_mutex_lock(&mutex_lock_operaciones);
 		switch(mensajeRecibido->tipoOperacion) {
+
 			case HANDSHAKE:
 				valorRetorno = procesarHandshake(id_proceso);
 				enviarInt(socketRespuesta,valorRetorno);
@@ -205,6 +209,7 @@ void rutinaServidor(int* p_socket) {
 			break;
 		}
 		free(mensajeRecibido);
+		pthread_mutex_unlock(&mutex_lock_operaciones);
 	}
 	close(socketRespuesta);
 

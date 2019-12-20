@@ -15,7 +15,6 @@ uint32_t analizarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
 		char msj[450];
 		if(existeArchivo(path))
 		{
-
 			char * aux = strdup(obtenerFlag(flag));
 
 			int cantidadPaginas = obtenerCantidadMarcos(tamPagina, tamanio);
@@ -37,10 +36,12 @@ uint32_t analizarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
 					segmento->paginas = crearPaginasSinMemoria(cantidadPaginas);
 				}
 				agregarArchivoLista(path, unArchivoCompartido, segmento->paginas); // si es nulo lo crea, si no, agrega participantes!
+				descargarAMemoria(path,segmento->paginas , segmento->posicionInicial, tamanio);
 			}
 			else
 			{
 				segmento->paginas = crearPaginasSinMemoria(cantidadPaginas);
+				descargarAMemoria(idProceso,segmento->paginas , segmento->posicionInicial, tamanio);
 			}
 
 			segmento->archivo = strdup(path);
@@ -190,8 +191,8 @@ t_list * crearPaginasSinMemoria(int cantidadFramesTeoricos)
 		t_pagina * unaPagina = malloc(sizeof(*unaPagina));
 
 		unaPagina->nroPagina = i;
-		unaPagina->nroMarco = -1;
-		unaPagina->nroPaginaSwap = -2;
+		unaPagina->nroMarco = asignarMarcoLibre();
+		unaPagina->nroPaginaSwap = -1;
 		unaPagina->uso = 1;
 		unaPagina->modificada = 0;
 
@@ -245,7 +246,6 @@ int copiarDatosEnArchivo(char * path, int tamanio, void * buffer, int offset)
 			return 0;
 
 }
-
 
 void liberarConUnmap(char * idProceso, t_segmento * unSegmento)
 {
@@ -422,8 +422,10 @@ int actualizarArchivo(char * path,t_segmento * unSegmento,int posicionRelativaSe
 		if(bytesLeidos < tamanio)
 		{
 		void * buffer = malloc(tamPagina);
-
-		offset = pagina->nroMarco*tamPagina + posicionRelativaSegmento%tamPagina;
+		if(bytesLeidos == 0)
+			offset = pagina->nroMarco*tamPagina + posicionRelativaSegmento%tamPagina;
+		else
+			offset = pagina->nroMarco*tamPagina;
 
 		pthread_mutex_lock(&mutex_memoria);
 		if(pagina->nroPaginaSwap!=-1)
@@ -452,6 +454,48 @@ int actualizarArchivo(char * path,t_segmento * unSegmento,int posicionRelativaSe
 	list_iterate(listaPaginasModificadas,(void*)bajarAMemoria);
 
 	return nroPaginaActual;
+}
+
+void descargarAMemoria(char * archivo,t_list * listaPaginas, uint32_t posicionRelativaSegmento, int tamanio)
+{
+		int bytesLeidos = 0;
+		int offset = 0;
+		int bytesRestantesPagina;
+		void * buffer = obtenerDatosArchivo(archivo, tamanio);
+
+		if(tamanio > tamPagina)
+				bytesRestantesPagina = tamPagina - posicionRelativaSegmento%tamPagina;
+			else
+				bytesRestantesPagina = tamanio;
+
+		void bajarAMemoria(t_pagina * pagina)
+			{
+				if(bytesLeidos == 0)
+					offset = pagina->nroMarco*tamPagina + posicionRelativaSegmento%tamPagina;
+				else
+					offset = pagina->nroMarco*tamPagina;
+
+				pthread_mutex_lock(&mutex_memoria);
+				if(pagina->nroPaginaSwap!=-1)
+				{
+					rutinaReemplazoPaginasSwap(&pagina);
+				}
+				offset = pagina->nroMarco*tamPagina + (offset)%tamPagina; // sumo base mas offset
+				memcpy(buffer + bytesLeidos,memoria+offset,bytesRestantesPagina);
+				pthread_mutex_unlock(&mutex_memoria);
+
+				bytesLeidos += bytesRestantesPagina;
+
+
+				if(tamanio - bytesLeidos < tamPagina)
+					bytesRestantesPagina = tamanio - bytesLeidos;
+				else
+					bytesRestantesPagina = tamPagina;
+			}
+
+		list_iterate(listaPaginas,(void*)bajarAMemoria);
+
+		free(buffer);
 }
 
 /*

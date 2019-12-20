@@ -62,6 +62,8 @@ pthread_mutex_t mutex_algoritmo_reemplazo;
 pthread_mutex_t mutex_lista_paginas;
 pthread_mutex_t mutex_segmento;
 
+pthread_mutex_t mutex_lock_operaciones;
+
 /*
  * Estructura de la memoria principal:
  * 1° Tamanio de la memoria principal
@@ -218,6 +220,7 @@ int analizarSync(char* idProceso, uint32_t posicionSegmento, int32_t tamanio);
 int analizarUnmap(char* idProceso, uint32_t posicionSegmento);
 
 void * obtenerDatosArchivo(char * path, int tamanio);
+int obtenerDatosDeArchivo(char * path, int tamanio, void * buffer, int offset);
 t_archivo_compartido * agregarArchivoLista(char * unArchivo, t_archivo_compartido * archivoCompartido, t_list * listaPaginas);
 t_archivo_compartido * obtenerArchivoCompartido(char * path);
 //uint32_t agregarPaginasSinMemoria(char * path, char * idProceso,t_archivo_compartido * unArchivoCompartido,int cantidadFramesTeoricos);
@@ -229,6 +232,9 @@ void reducirArchivoCompartido(char * idProceso, t_segmento * unSegmento);
 int obtenerCantidadParticipantes(char * path);
 int actualizarArchivo(char * path,t_segmento * unSegmento,int posicionRelativaSegmento ,int tamanio, t_list * listaPaginasModificadas);
 t_list * obtenerPaginasModificadasLocal(t_list * paginas);
+void descargarAMemoria(char * archivo,t_list * listaPaginas, uint32_t posicionRelativaSegmento, int tamanio);
+
+
 /*
  * Crea un segmento compartido y lo añade a la lista
  */

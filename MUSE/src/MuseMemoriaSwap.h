@@ -64,9 +64,7 @@ t_pagina * ejecutarAlgoritmoReemplazo()
 		int contadorPaginas = 0;
 		t_pagina * paginaVictima = NULL;
 
-
 		pthread_mutex_lock(&mutex_lista_paginas);
-
 		bool estaEnMemoriaLocal(t_pagina * unaPagina)
 		{
 			return (unaPagina->nroPaginaSwap==-1);
@@ -104,7 +102,6 @@ t_pagina * ejecutarAlgoritmoReemplazo()
 				contadorPaginas=0;
 				cantidadIntentos++;
 			}
-
 		pthread_mutex_unlock(&mutex_lista_paginas);
 
 		list_destroy(lista_analizar);
@@ -159,7 +156,6 @@ void recuperarPaginaSwap(t_pagina ** paginaActualmenteEnSwap,int marcoObjetivo)
 	(*paginaActualmenteEnSwap)->modificada = 0; // pongo el uso en 1 ya que recien la traigo
 	(*paginaActualmenteEnSwap)->nroPaginaSwap = -1; // Actualizo que no esta mas en archivo swap
 
-	if(nroPaginaSwap!=-2)
 	liberarPaginasSwap(nroPaginaSwap);
 }
 
