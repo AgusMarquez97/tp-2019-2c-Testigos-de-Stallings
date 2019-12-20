@@ -73,6 +73,7 @@ void inicializarSemaforos() {
 	pthread_mutex_init(&mutex_lista_archivos, NULL);
 	pthread_mutex_init(&mutex_algoritmo_reemplazo, NULL);
 	pthread_mutex_init(&mutex_lista_paginas, NULL);
+	pthread_mutex_init(&mutex_segmento, NULL);
 }
 
 void levantarServidorMUSE() {

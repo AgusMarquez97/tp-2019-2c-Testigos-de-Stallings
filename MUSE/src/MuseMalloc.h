@@ -36,13 +36,14 @@ uint32_t analizarSegmento (char* idProceso, int tamanio, int cantidadFrames, boo
 
 		pthread_mutex_lock(&mutex_diccionario);
 		listaSegmentos = dictionary_get(diccionarioProcesos, idProceso);
-		pthread_mutex_unlock(&mutex_diccionario);
+		pthread_mutex_lock(&mutex_segmento);
 
-		// mutex para las paginas del segmento
 		ultimoSegmento = list_get(listaSegmentos, list_size(listaSegmentos) - 1);
-
 		ultimaPosicionSegmento = ultimoSegmento->posicionInicial + ultimoSegmento->tamanio;
 		nroSegmento = ultimoSegmento->id_segmento + 1;
+
+		pthread_mutex_unlock(&mutex_segmento);
+		pthread_mutex_unlock(&mutex_diccionario);
 
 		if(ultimoSegmento->esCompartido || esCompartido)
 		{
@@ -116,7 +117,10 @@ void agregarPaginas(t_list** listaPaginas, int cantidadMarcos, int nroUltimaPagi
 		pagina->uso = 1;
 		pagina->modificada = 0;
 
+		pthread_mutex_lock(&mutex_segmento);
 		list_add(*listaPaginas, pagina);
+		pthread_mutex_unlock(&mutex_segmento);
+
 
 		pthread_mutex_lock(&mutex_algoritmo_reemplazo);
 		list_add(listaPaginasClockModificado,pagina);
@@ -127,9 +131,11 @@ void agregarPaginas(t_list** listaPaginas, int cantidadMarcos, int nroUltimaPagi
 
 uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 
+	pthread_mutex_lock(&mutex_segmento);
 	int cantPaginas = list_size(segmento->paginas);
 	int tamMaximo = tamPagina * cantPaginas;
 	t_pagina* unaPagina = list_get(segmento->paginas, 0);
+	pthread_mutex_unlock(&mutex_segmento);
 
 	int offset = unaPagina->nroMarco * tamPagina;
 	int bytesLeidos = 0;
@@ -191,10 +197,16 @@ int estirarSegmento(int baseSegmento,char* idProceso, t_segmento* segmento, int 
 {
 
 	// seguramente aca necesite un mutex => nadie puede acceder a sus paginas temporalmente
+
+	pthread_mutex_lock(&mutex_segmento);
 	t_list* listaPaginas = segmento->paginas;
 	int nroUltimaPagina = list_size(listaPaginas);
+	pthread_mutex_unlock(&mutex_segmento);
 	agregarPaginas(&listaPaginas, nuevaCantidadFrames, nroUltimaPagina,false);
+	pthread_mutex_lock(&mutex_segmento);
 	segmento->tamanio = list_size(listaPaginas) * tamPagina; // ver si es necesario un mutex por cada operacion con el segmento
+	pthread_mutex_unlock(&mutex_segmento);
+
 	// hasta aca
 
 	escribirHeapMetadata(listaPaginas,paginaActual,offset,tamanio,false); // Escribir el heap nuevo en memoria. Considera heap partido

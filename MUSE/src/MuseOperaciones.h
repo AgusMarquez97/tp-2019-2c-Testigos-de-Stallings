@@ -144,6 +144,7 @@ int procesarClose(char* idProceso) {
 	segmentos = dictionary_get(diccionarioProcesos, idProceso);
 	if(segmentos != NULL) {
 		if(!list_is_empty(segmentos)) {
+			pthread_mutex_lock(&mutex_segmento);
 			void liberarSegmento(t_segmento* unSegmento) {
 				if(unSegmento)
 				{
@@ -167,7 +168,7 @@ int procesarClose(char* idProceso) {
 					free(unSegmento);
 				}
 			}
-
+			pthread_mutex_unlock(&mutex_segmento);
 			list_destroy_and_destroy_elements(segmentos, (void*)liberarSegmento);
 		}
 	}

@@ -28,6 +28,7 @@ int analizarFree(char* idProceso, uint32_t posicionSegmento)
 
 	segmento = obtenerSegmento(segmentos, posicionSegmento); // ver de hacer validacion por el nulo
 
+	pthread_mutex_lock(&mutex_segmento);
 	if(!segmento)
 	{
 		sprintf(msj, "El Proceso %s intento liberar la posicion %d no perteneciente a este", idProceso, posicionSegmento);
@@ -41,7 +42,9 @@ int analizarFree(char* idProceso, uint32_t posicionSegmento)
 		loggearWarning(msj);
 		return 0;
 	}
+
 	paginas = segmento->paginas;
+	pthread_mutex_unlock(&mutex_segmento);
 
 	if(posicionSegmento<tam_heap_metadata)
 		return 0;
@@ -114,7 +117,9 @@ int liberarUnHeapMetadata(t_list * paginas, int offsetSegmento)
 
 int defragmentarSegmento(t_segmento* segmento)
 {
+	pthread_mutex_lock(&mutex_segmento);
 	t_list* listaPaginas = segmento->paginas;
+	pthread_mutex_unlock(&mutex_segmento);
 
 	t_pagina* paginaAuxiliar = obtenerPaginaAuxiliar(listaPaginas, 0);
 
@@ -122,8 +127,11 @@ int defragmentarSegmento(t_segmento* segmento)
 
 	free(paginaAuxiliar);
 
+	pthread_mutex_lock(&mutex_segmento);
 	int cantPaginas = list_size(listaPaginas);
 	int tamMaximo = tamPagina * cantPaginas;
+	pthread_mutex_unlock(&mutex_segmento);
+
 	int bytesLeidos = 0;
 	t_heap_metadata* heapMetadata = malloc(tam_heap_metadata);
 
@@ -137,7 +145,6 @@ int defragmentarSegmento(t_segmento* segmento)
 	int paginaUltimoHeapMetadata = 0;
 
 	int offsetAnterior = 0;
-
 	while(tamMaximo - bytesLeidos > tam_heap_metadata)
 	{
 		offsetAnterior = offset;
@@ -184,7 +191,9 @@ int defragmentarSegmento(t_segmento* segmento)
 
 void compactarSegmento(char* idProceso, t_segmento* segmento) {
 
+	pthread_mutex_lock(&mutex_segmento);
 	t_list* listaPaginas = segmento->paginas;
+	pthread_mutex_unlock(&mutex_segmento);
 
 	t_pagina* paginaAuxiliar = obtenerPaginaAuxiliar(listaPaginas, 0);
 
@@ -195,15 +204,18 @@ void compactarSegmento(char* idProceso, t_segmento* segmento) {
 	t_heap_metadata* heapMetadata = malloc(tam_heap_metadata);
 	int bytesLeidos = 0;
 	int bytesLeidosPagina = 0;
+
+	pthread_mutex_lock(&mutex_segmento);
 	t_list* paginas = segmento->paginas;
 	int cantPaginas = list_size(paginas);
+	pthread_mutex_unlock(&mutex_segmento);
+
 	int tamMaximo = tamPagina * cantPaginas;
 	int nroPagina = 0;
 
 	int posUltimoHeapMetadata = 0;
 	int paginaUltimoHeapMetadata = 0;
 	int tamanioPaginaRestante = 0;
-
 	while(tamMaximo - bytesLeidos > tam_heap_metadata) {
 		posUltimoHeapMetadata = offset;
 		paginaUltimoHeapMetadata = nroPagina;
@@ -232,7 +244,7 @@ void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento)
 
 	char msj[450];
 	char aux[100];
-
+	pthread_mutex_lock(&mutex_segmento);
 	t_list * paginas = segmento->paginas;
 
 	if((nroPagina + 1) == list_size(paginas)) {
@@ -267,7 +279,10 @@ void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento)
 
 	list_destroy(lista_aux);
 
+	pthread_mutex_unlock(&mutex_segmento);
+
 	strcat(msj, "]");
+
 
 	loggearInfo(msj);
 

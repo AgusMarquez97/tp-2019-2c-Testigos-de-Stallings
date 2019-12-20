@@ -57,7 +57,10 @@ pthread_mutex_t mutex_diccionario;
 pthread_mutex_t mutex_lista_archivos;
 
 pthread_mutex_t mutex_algoritmo_reemplazo;
+
+
 pthread_mutex_t mutex_lista_paginas;
+pthread_mutex_t mutex_segmento;
 
 /*
  * Estructura de la memoria principal:

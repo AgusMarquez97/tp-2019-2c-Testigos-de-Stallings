@@ -331,7 +331,10 @@ t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offsetPrevioHM,
 // offset previo al HM !!
 bool existeHM(t_list * paginas, int offsetBuscado)
 {
+	pthread_mutex_lock(&mutex_segmento);
 	int cantPaginas = list_size(paginas);
+	pthread_mutex_unlock(&mutex_segmento);
+
 	int tamMaximo = tamPagina * cantPaginas;
 	t_pagina* unaPagina = obtenerPaginaAuxiliar(paginas, 0);
 

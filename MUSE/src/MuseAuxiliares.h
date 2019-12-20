@@ -35,40 +35,53 @@ int obtenerCantidadMarcos(int tamanioPagina, int tamanioMemoria)
 
 t_segmento* obtenerUnSegmento(char * idProceso, uint32_t posicionMemoria)
 {
+	t_segmento * unSegmento = NULL;
 
 	pthread_mutex_lock(&mutex_diccionario);
 	t_list * segmentos = dictionary_get(diccionarioProcesos, idProceso);
 	pthread_mutex_unlock(&mutex_diccionario);
+	unSegmento = obtenerSegmento(segmentos,posicionMemoria);
 
-	return obtenerSegmento(segmentos,posicionMemoria);
+
+	return unSegmento;
 }
 
 
 t_segmento* obtenerSegmento(t_list* segmentos, uint32_t posicionMemoria)
 {
-
+	t_segmento * unSegmento = NULL;
+	pthread_mutex_lock(&mutex_segmento);
 	bool segmentoCorrespondiente(t_segmento* segmento) {
 		return (posicionMemoria >= segmento->posicionInicial
 				&& posicionMemoria <= (segmento->posicionInicial + segmento->tamanio));
 	}
-	return list_find(segmentos, (void*)segmentoCorrespondiente);
+	unSegmento = list_find(segmentos, (void*)segmentoCorrespondiente);
+	pthread_mutex_unlock(&mutex_segmento);
+	return unSegmento;
 }
 
 t_pagina* obtenerPagina(t_list* paginas, uint32_t posicionSegmento)
 {
-
+	t_pagina * paginaBuscada = NULL;
 	bool paginaCorrespondiente(t_pagina* pagina) {
 		return (posicionSegmento >= pagina->nroPagina*tamPagina
 				&& posicionSegmento <= (pagina->nroPagina + 1) * tamPagina);
 	}
-	return list_find(paginas, (void*)paginaCorrespondiente);
+	pthread_mutex_lock(&mutex_segmento);
+	paginaBuscada = list_find(paginas, (void*)paginaCorrespondiente);
+	pthread_mutex_unlock(&mutex_segmento);
+
+	return paginaBuscada;
 
 }
 
 bool poseeSegmentos(char* idProceso)
 {
-
-	return (dictionary_get(diccionarioProcesos, idProceso) != NULL);
+	bool retorno = false;
+	pthread_mutex_lock(&mutex_diccionario);
+	retorno = (dictionary_get(diccionarioProcesos, idProceso) != NULL);
+	pthread_mutex_unlock(&mutex_diccionario);
+	return retorno;
 
 }
 
@@ -111,9 +124,9 @@ bool existeOtraPaginaConElMarco(t_list * listaPaginas,int nroMarco, int paginaAc
 	{
 		return (unaPagina->nroMarco==nroMarco && unaPagina->nroPagina!=paginaActual && unaPagina->nroPaginaSwap==-1);
 	}
-
+	pthread_mutex_lock(&mutex_segmento);
 	bool retorno = list_any_satisfy(listaPaginas, (void*)tieneElMismoMarco);
-
+	pthread_mutex_unlock(&mutex_segmento);
 	return retorno;
 }
 
@@ -133,19 +146,24 @@ uint32_t obtenerDireccionMemoria(t_list* listaPaginas,uint32_t posicionSegmento)
 
 t_segmento * buscarSegmento(t_list * segmentos, uint32_t posicionSegmento)
 {
+	t_segmento * unSegmento = NULL;
 	bool encontrarSegmento(t_segmento * unSegmento)
 	{
 		return (unSegmento->posicionInicial >= posicionSegmento && unSegmento->posicionInicial*unSegmento->tamanio <= posicionSegmento);
 	}
-	return list_find(segmentos,(void*)encontrarSegmento);
+	pthread_mutex_lock(&mutex_segmento);
+	unSegmento = list_find(segmentos,(void*)encontrarSegmento);
+	pthread_mutex_unlock(&mutex_segmento);
+
+	return unSegmento;
 }
 
 t_pagina * obtenerPaginaAuxiliar(t_list * paginas, int nroPagina)
 {
 	t_pagina * paginaAuxiliar = malloc(sizeof(*paginaAuxiliar));
-
+	pthread_mutex_lock(&mutex_segmento);
 	t_pagina * paginaReal = list_get(paginas,nroPagina);
-
+	pthread_mutex_unlock(&mutex_segmento);
 	memcpy(paginaAuxiliar,paginaReal,sizeof(t_pagina));
 
 	return paginaAuxiliar;
@@ -160,9 +178,10 @@ t_list * obtenerPaginas(char* idProceso, uint32_t posicionSegmento)
 
 	pthread_mutex_lock(&mutex_diccionario);
 	segmentos = dictionary_get(diccionarioProcesos,idProceso);
-	pthread_mutex_unlock(&mutex_diccionario);
-
+	pthread_mutex_lock(&mutex_segmento);
 	segmento = obtenerSegmento(segmentos, posicionSegmento); // ver de hacer validacion por el nulo
+	pthread_mutex_unlock(&mutex_segmento);
+	pthread_mutex_unlock(&mutex_diccionario);
 
 	if(segmento)
 		return segmento->paginas;
@@ -172,7 +191,9 @@ t_list * obtenerPaginas(char* idProceso, uint32_t posicionSegmento)
 
 void usarPagina(t_list * paginas, int nroPagina)
 {
+	pthread_mutex_lock(&mutex_segmento);
 	t_pagina * unaPagina = list_get(paginas,nroPagina);
+	pthread_mutex_unlock(&mutex_segmento);
 	unaPagina->uso=1;
 }
 
@@ -183,13 +204,17 @@ int obtenerNroPagina(t_list * paginas, int offsetSegmento)
 
 int obtenerOffsetPrevio(t_list * paginas, int offsetSegmento, int nroPaginaActual)
 {
+	pthread_mutex_lock(&mutex_segmento);
 	t_pagina * paginaAux = list_get(paginas,nroPaginaActual); // es necesario sincronizar?
+	pthread_mutex_unlock(&mutex_segmento);
 	return paginaAux->nroMarco*tamPagina + (offsetSegmento - tam_heap_metadata)%tamPagina;
 }
 
 int obtenerOffsetPosterior(t_list * paginas, uint32_t posicionSegmento,int nroPaginaActual)
 {
+	pthread_mutex_lock(&mutex_segmento);
 	t_pagina * paginaAux = list_get(paginas,nroPaginaActual); // es necesario sincronizar?
+	pthread_mutex_unlock(&mutex_segmento);
 	return paginaAux->nroMarco*tamPagina + (posicionSegmento)%tamPagina;
 }
 
