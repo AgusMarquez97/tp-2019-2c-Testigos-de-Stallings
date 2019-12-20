@@ -1,18 +1,9 @@
-/*
- * MuseRutinasFree.h
- *
- *  Created on: Dec 17, 2019
- *      Author: agus
- */
-
 #ifndef MUSERUTINASFREE_H_
 #define MUSERUTINASFREE_H_
 
 #include "MuseMalloc.h"
 
-
-int analizarFree(char* idProceso, uint32_t posicionSegmento)
-{
+int analizarFree(char* idProceso, uint32_t posicionSegmento) {
 
 	char msj[250];
 	int retorno = -1;
@@ -29,16 +20,14 @@ int analizarFree(char* idProceso, uint32_t posicionSegmento)
 	segmento = obtenerSegmento(segmentos, posicionSegmento); // ver de hacer validacion por el nulo
 
 	pthread_mutex_lock(&mutex_segmento);
-	if(!segmento)
-	{
-		sprintf(msj, "El Proceso %s intento liberar la posicion %d no perteneciente a este", idProceso, posicionSegmento);
+	if(!segmento) {
+		sprintf(msj, "[pid|%s]-> Intentó liberar un segmento en la posición %d y no le pertenece", idProceso, posicionSegmento);
 		loggearWarning(msj);
 		return 0;
 	}
 
-	if(segmento->esCompartido)
-	{
-		sprintf(msj, "El Proceso %s intento liberar un Heap Metadata compartido en la posicion %d", idProceso, posicionSegmento);
+	if(segmento->esCompartido) {
+		sprintf(msj, "[pid|%s]-> Intentó liberar un segmento en la posición %d y es compartida", idProceso, posicionSegmento);
 		loggearWarning(msj);
 		return 0;
 	}
@@ -46,26 +35,27 @@ int analizarFree(char* idProceso, uint32_t posicionSegmento)
 	paginas = segmento->paginas;
 	pthread_mutex_unlock(&mutex_segmento);
 
-	if(posicionSegmento<tam_heap_metadata)
+	if(posicionSegmento < tam_heap_metadata)
 		return 0;
 
 	bytesLiberados = liberarUnHeapMetadata(paginas, posicionSegmento - segmento->posicionInicial);
 
 	if(bytesLiberados > 0) {
-		sprintf(msj, "El Proceso %s libero %d bytes en la posicion %d", idProceso, (int)(bytesLiberados - tam_heap_metadata), posicionSegmento);
+		sprintf(msj, "[pid|%s]-> Liberó %d bytes en la posición %d", idProceso, (int)(bytesLiberados - tam_heap_metadata), posicionSegmento);
 		retorno = 1;
-	}else{
-	strcpy(msj,"");
-	switch(bytesLiberados) {
-		case HM_NO_EXISTENTE:
-			sprintf(msj, "El Proceso %s intento liberar un Heap Metadata no existente en la posicion %d", idProceso, posicionSegmento);
+	} else {
+		strcpy(msj, "");
+		switch(bytesLiberados) {
+			case HM_NO_EXISTENTE:
+				sprintf(msj, "[pid|%s]-> Intentó liberar un HeapMetadata en la posición %d y éste no existe", idProceso, posicionSegmento);
 			break;
 		case HM_YA_LIBERADO:
-			sprintf(msj, "El Proceso %s intento liberar un Heap Metadata que ya estaba libre en la posicion %d", idProceso, posicionSegmento);
+				sprintf(msj, "[pid|%s]-> Intentó liberar un HeapMetadata en la posición %d y éste ya está libre", idProceso, posicionSegmento);
 			break;
-	}
-	loggearWarning(msj);
-	return -1;
+		}
+
+		loggearWarning(msj);
+		return -1;
 	}
 
 	loggearInfo(msj);
@@ -75,11 +65,10 @@ int analizarFree(char* idProceso, uint32_t posicionSegmento)
 	if(bytesAgrupados > 0) {
 		int segundosBytesAgrupados = defragmentarSegmento(segmento);
 
-		if(segundosBytesAgrupados > 0) {
+		if(segundosBytesAgrupados > 0)
 			bytesAgrupados = segundosBytesAgrupados;
-		}
 
-		sprintf(msj, "Para el proceso %s, se agruparon %d bytes libres contiguos", idProceso, bytesAgrupados);
+		sprintf(msj, "[pid|%s]-> Se agruparon %d bytes libres contiguos", idProceso, bytesAgrupados);
 		loggearInfo(msj);
 	}
 
@@ -89,34 +78,34 @@ int analizarFree(char* idProceso, uint32_t posicionSegmento)
 
 }
 
-int liberarUnHeapMetadata(t_list * paginas, int offsetSegmento)
-{
-		int nroPaginaActual = obtenerNroPagina(paginas,offsetSegmento);
-		int offsetPrevio = obtenerOffsetPrevio(paginas,offsetSegmento,nroPaginaActual);
+int liberarUnHeapMetadata(t_list * paginas, int offsetSegmento) {
 
-		if(existeHM(paginas, offsetPrevio))
-		{
-			t_heap_metadata * unHeap = obtenerHeapMetadata(paginas, offsetPrevio,nroPaginaActual);
+	int nroPaginaActual = obtenerNroPagina(paginas,offsetSegmento);
+	int offsetPrevio = obtenerOffsetPrevio(paginas,offsetSegmento,nroPaginaActual);
 
-			int tamanioPaginaRestante = tamPagina - offsetSegmento%tamPagina;
+	if(existeHM(paginas, offsetPrevio)) {
+		t_heap_metadata * unHeap = obtenerHeapMetadata(paginas, offsetPrevio,nroPaginaActual);
 
-			if(!unHeap->estaLibre)
-			{
-				unHeap->estaLibre = true;
-				int tmp = escribirUnHeapMetadata(paginas, nroPaginaActual, unHeap, &offsetPrevio, tamanioPaginaRestante);
-				free(unHeap);
-				return tmp;
-			}
+		int tamanioPaginaRestante = tamPagina - offsetSegmento%tamPagina;
 
+		if(!unHeap->estaLibre) {
+			unHeap->estaLibre = true;
+			int tmp = escribirUnHeapMetadata(paginas, nroPaginaActual, unHeap, &offsetPrevio, tamanioPaginaRestante);
 			free(unHeap);
-			return HM_YA_LIBERADO;
-
+			return tmp;
 		}
-		return HM_NO_EXISTENTE;
+
+		free(unHeap);
+
+		return HM_YA_LIBERADO;
+
+	}
+
+	return HM_NO_EXISTENTE;
 }
 
-int defragmentarSegmento(t_segmento* segmento)
-{
+int defragmentarSegmento(t_segmento* segmento) {
+
 	pthread_mutex_lock(&mutex_segmento);
 	t_list* listaPaginas = segmento->paginas;
 	pthread_mutex_unlock(&mutex_segmento);
@@ -216,6 +205,7 @@ void compactarSegmento(char* idProceso, t_segmento* segmento) {
 	int posUltimoHeapMetadata = 0;
 	int paginaUltimoHeapMetadata = 0;
 	int tamanioPaginaRestante = 0;
+
 	while(tamMaximo - bytesLeidos > tam_heap_metadata) {
 		posUltimoHeapMetadata = offset;
 		paginaUltimoHeapMetadata = nroPagina;
@@ -225,9 +215,8 @@ void compactarSegmento(char* idProceso, t_segmento* segmento) {
 	if(heapMetadata->estaLibre && nroPagina > paginaUltimoHeapMetadata) {
 		tamanioPaginaRestante = tamPagina - posUltimoHeapMetadata%tamPagina;
 
-		if(tamanioPaginaRestante>tam_heap_metadata)
-		{
-		heapMetadata->offset = tamanioPaginaRestante - tam_heap_metadata; // ver de restar uno
+		if(tamanioPaginaRestante > tam_heap_metadata) {
+		heapMetadata->offset = tamanioPaginaRestante - tam_heap_metadata;
 		escribirUnHeapMetadata(paginas, paginaUltimoHeapMetadata, heapMetadata, &posUltimoHeapMetadata, tamanioPaginaRestante);
 		}
 
@@ -239,18 +228,17 @@ void compactarSegmento(char* idProceso, t_segmento* segmento) {
 }
 
 
-void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento)
-{
+void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento) {
 
 	char msj[450];
 	char aux[100];
 	pthread_mutex_lock(&mutex_segmento);
-	t_list * paginas = segmento->paginas;
+	t_list* paginas = segmento->paginas;
 
 	if((nroPagina + 1) == list_size(paginas)) {
-		sprintf(msj, "Para el proceso %s, se ha liberado la página ", idProceso);
+		sprintf(msj, "[pid|%s]-> Se ha liberado la página ", idProceso);
 	} else {
-		sprintf(msj, "Para el proceso %s, se han liberado las páginas [ ", idProceso);
+		sprintf(msj, "[pid|%s]-> Se han liberado las páginas [ ", idProceso);
 	}
 
 	bool buscarPagina(t_pagina* pagina) {
@@ -259,22 +247,29 @@ void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento)
 
 	t_list* lista_aux = list_filter(paginas, (void*)buscarPagina);
 
-	void liberarPagina(t_pagina* pagina) {
+	void liberarPaginaLocal(t_pagina* pagina) {
+
 		if(pagina->nroPagina > nroPagina) {
+
 			eliminarDeAlgoritmo(pagina);
+
 			sprintf(aux, "%d ",pagina->nroPagina);
 			strcat(msj, aux);
-			if(pagina->nroPaginaSwap==-1)
-			liberarMarcoBitarray(pagina->nroMarco);
-			else if(pagina->nroPaginaSwap>=0)
-			liberarPaginasSwap(pagina->nroPaginaSwap);//existe el caso donde no este en ningun lado => no se descargo el archivo todavia
+
+			if(pagina->nroPaginaSwap == -1)
+				liberarMarcoBitarray(pagina->nroMarco);
+			else if(pagina->nroPaginaSwap >= 0)
+				liberarPaginasSwap(pagina->nroPaginaSwap);
+				//existe el caso donde no este en ningun lado => no se descargo el archivo todavia
+
 			free(pagina);
+
 		}
 	}
 
-	list_destroy_and_destroy_elements(paginas, (void*)liberarPagina);
+	list_destroy_and_destroy_elements(paginas, (void*)liberarPaginaLocal);
 
-	segmento->paginas = list_duplicate(lista_aux); //OJO! POSIBLE ML
+	segmento->paginas = list_duplicate(lista_aux);
 	segmento->tamanio = tamPagina*list_size(segmento->paginas);
 
 	list_destroy(lista_aux);
@@ -283,18 +278,22 @@ void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento)
 
 	strcat(msj, "]");
 
-
 	loggearInfo(msj);
 
 }
 
 void liberarPagina(t_pagina* pagina) {
-			eliminarDeAlgoritmo(pagina);
-			if(pagina->nroPaginaSwap==-1)
-			liberarMarcoBitarray(pagina->nroMarco);
-			else if(pagina->nroPaginaSwap>=0)
-			liberarPaginasSwap(pagina->nroPaginaSwap);//existe el caso donde no este en ningun lado => no se descargo el archivo todavia
-			free(pagina);
+
+	eliminarDeAlgoritmo(pagina);
+
+	if(pagina->nroPaginaSwap == -1)
+		liberarMarcoBitarray(pagina->nroMarco);
+	else if(pagina->nroPaginaSwap >= 0)
+		liberarPaginasSwap(pagina->nroPaginaSwap);
+		//existe el caso donde no este en ningun lado => no se descargo el archivo todavia
+
+	free(pagina);
+
 }
 
 #endif /* MUSERUTINASFREE_H_ */
