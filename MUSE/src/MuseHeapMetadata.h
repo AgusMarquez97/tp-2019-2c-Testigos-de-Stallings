@@ -24,7 +24,7 @@ void leerHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* byt
 	t_pagina* paginaDummy = malloc(sizeof(*paginaDummy));
 	int sobrantePaginaInicial = tamPagina - (*bytesLeidosPagina);
 	int nroMarco = 0;
-	t_pagina * paginaAux;
+	t_pagina * paginaAux = NULL;
 
 	if(sobrantePaginaInicial<tam_heap_metadata) { // esta partido el proximo heap
 		leerHeapPartido(heapMetadata, offset, sobrantePaginaInicial, nroPagina, paginas, &paginaDummy);
@@ -74,10 +74,9 @@ void leerHeapPartido(t_heap_metadata** heapMetadata, int* offset, int sobrante, 
 {
 
 	void* buffer = malloc(tam_heap_metadata);
-	t_pagina * paginaAux;
+	t_pagina * paginaAux = NULL;
 
 	pthread_mutex_lock(&mutex_memoria);
-
 	paginaAux = list_get(paginas,*nroPagina);
 	if(!estaEnMemoria(paginas,*nroPagina))
 	{
@@ -118,7 +117,7 @@ void leerHeapPartido(t_heap_metadata** heapMetadata, int* offset, int sobrante, 
 //Escribe un solo heap
 int escribirUnHeapMetadata(t_list * listaPaginas,int paginaActual,t_heap_metadata * unHeapMetadata, int * offset, int tamanioPaginaRestante)
 {
-	t_pagina * paginaAux;
+	t_pagina * paginaAux = NULL;
 	if(tamanioPaginaRestante >= tam_heap_metadata)
 	{
 		pthread_mutex_lock(&mutex_memoria);
@@ -264,7 +263,7 @@ t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offsetPrevioHM,
 	t_heap_metadata * unHeapMetadata = malloc(tam_heap_metadata);
 
 	t_pagina * pagina = obtenerPaginaAuxiliar(listaPaginas, nroPagina);
-	t_pagina * paginaAux;
+	t_pagina * paginaAux = NULL;
 	int tamanioPaginaRestante = (tamPagina)*(pagina->nroMarco+1) - offsetPrevioHM;
 
 	if(tamanioPaginaRestante >= tam_heap_metadata)
@@ -299,7 +298,9 @@ t_heap_metadata * obtenerHeapMetadata(t_list * listaPaginas, int offsetPrevioHM,
 		offsetBuffer+=tamanioPaginaRestante;
 		free(pagina);
 
-		pagina = obtenerPaginaAuxiliar(listaPaginas,nroPagina+1);
+		nroPagina++;
+
+		pagina = obtenerPaginaAuxiliar(listaPaginas,nroPagina);
 		offsetPrevioHM = pagina->nroMarco*tamPagina; //Obtengo la pagina siguiente
 
 		pthread_mutex_lock(&mutex_memoria);
