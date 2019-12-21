@@ -1,4 +1,3 @@
-
 #include <sys/mman.h>
 #include <string.h>
 #include <errno.h>
@@ -43,7 +42,7 @@ char* pathPadre(char* path)
 //a partir de un path devuelve en nombre y padre los nombres correspondientes
 void padreEHijo(char* path, char* nombre, char* padre)
 {
-	int contador = 0;
+	int contador = 0;//hola/asd/aaa
 
 	char** pathCortado = string_split(path, "/");
 
@@ -256,6 +255,7 @@ void recortarArchivo(int indiceArch, int tamanioNuevo)
 
 void escribir(void* bufferWrite)//(int indArchivo, char* contenido, size_t tamanio, off_t offset)
 {
+
 	//char* nombre = malloc(MAX_FILENAME_LENGTH);
 	char* path = malloc(200);
 	//int tamNom;
@@ -281,19 +281,16 @@ void escribir(void* bufferWrite)//(int indArchivo, char* contenido, size_t taman
 	int bloqInd = 0;
 	int bloqDatos = 0;
 	int cantAEscribir;
-	//int haceWait = 0;
+	int haceWait = 0;
 
-	if(offset == 0)
-		offset = tablaNodos[indArchivo].file_size;
-
-
-	//pathEscribiendo array de paths?
 	if(pathEscribiendo[0] != 0 && strcmp(path,pathEscribiendo) == 0)
 	{
 		sem_wait(&mutWrite);
-		//haceWait = 1;
+		haceWait ++;
 	}
 
+	if(offset == 0)
+		offset = tablaNodos[indArchivo].file_size;
 
 	if(pathEscribiendo[0] == 0)
 		strcpy(pathEscribiendo, path);//pathEscribiendo = strdup(path);
@@ -457,11 +454,16 @@ void escribir(void* bufferWrite)//(int indArchivo, char* contenido, size_t taman
 	free(path);
 	free(bufferWrite);
 
-	//if(haceWait == 1)
-		sem_post(&mutWrite);
+
 	memset(&pathEscribiendo[0],0,200);
 	//free(pathEscribiendo);
 	//pathEscribiendo = NULL;
+	if(haceWait > 0)
+	{
+		sem_post(&mutWrite);
+		haceWait--;
+	}
+
 
 }
 
@@ -778,12 +780,9 @@ void crearObjeto(char* path, int estado)
 
 	/*int contador = 0;
 	char** pathCortado = malloc(10*sizeof(char*));
-
 	for(int i=0;i<=9;i++)
 		pathCortado[i] = malloc(sizeof(char*));
-
 	pathCortado = string_n_split(path, 10, "/");
-
 	if(pathCortado[1]==NULL) //estamos en punto de montaje
 	{
 		strcpy(nombre,pathCortado[0]);
@@ -943,6 +942,8 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 		}
 		case READ:
 		{
+
+			//sem_wait(&mutRename);
 			int tamNombre;
 			size_t size;
 			off_t offset;
@@ -1062,6 +1063,7 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 			free(pathRead);
 			free(buffer);
 			//free(contAEnviar);
+			//sem_post(&mutRename);
 
 			break;
 		}
@@ -1100,19 +1102,13 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 		/*	char* nombre = malloc(MAX_FILENAME_LENGTH);
 			int tamNom;
 			size_t tamContenido;
-
 			off_t offset;
-
-
 			memcpy(&tamNom, bufferWrite, sizeof(int) );
 			memcpy(nombre, bufferWrite + sizeof(int), tamNom);
 			memcpy(&tamContenido, bufferWrite + sizeof(int) + tamNom, sizeof(size_t) );
-
 			char* contenido = malloc(tamContenido);
 			memcpy(contenido, bufferWrite + sizeof(int) + tamNom + sizeof(size_t), tamContenido);
 			memcpy(&offset, bufferWrite + sizeof(int) + tamNom + sizeof(size_t) + tamContenido, sizeof(off_t) );
-
-
 			indArch = indiceObjeto(nombre);*/
 		//	if (indArch == -1)//ver
 		//			break;
@@ -1157,36 +1153,28 @@ void rutinaServidor(t_mensajeFuse* mensajeRecibido, int socketRespuesta)
 /*
 			if (esDirectorio(nombreViejo) == 1)
 			{
-
 				//si queres renombrar un directorio, el nuevo no tiene que existir o debe estar vacio
 				if( (existeObjeto(nombreNuevo) == 1) && (estaVacio(nombreNuevo) == 0) )
 				{
 					enviarInt(socketRespuesta, ENOTEMPTY);//o EEXIST
 					break;
 				}
-
-
 				if ( (strcmp(oldpath,"/") == 0) || (strcmp(newpath,"/") == 0) )//si es el punto de montaje tira error
 				{
 					enviarInt(socketRespuesta, EBUSY);
 					break;
 				}
-
 				if( (existeObjeto(nombreNuevo) == 1 ) && (esDirectorio(nombreNuevo) == 0) )//newpath existe pero no es directorio
 				{
 					enviarInt(socketRespuesta, ENOTDIR);
 					break;
 				}
-
-
 			}
-
 			if( (esDirectorio(nombreNuevo) == 1) && (esDirectorio(nombreViejo) == 0) )//new es directorio pero old no
 			{
 				enviarInt(socketRespuesta, EISDIR);
 				break;
 			}
-
 			if( existeObjeto(nombreViejo) == 0 )
 			{
 				enviarInt(socketRespuesta, ENOENT);
@@ -1369,7 +1357,6 @@ void levantarServidorFUSE()
 	}
 
 	/*socketRespuesta = (intptr_t) aceptarConexion(socketServidor);
-
 	loggearNuevaConexion(socketRespuesta);*/
 
 	close(socketRespuesta);
@@ -1477,7 +1464,3 @@ int main( int argc, char *argv[] )
 	return EXIT_SUCCESS;
 
 }
-
-
-
-
