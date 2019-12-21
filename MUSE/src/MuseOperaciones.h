@@ -5,10 +5,10 @@
 
 int procesarHandshake(char* idProceso) {
 
-	char msj[120];
+	char msj[200];
 
 	if(existeEnElDiccionario(idProceso)) {
-		sprintf(msj, "Fallo al realizar el handshake, init duplicado del proceso %s", idProceso);
+		sprintf(msj, "[pid|%s]-> Proceso duplicado", idProceso);
 		loggearError(msj);
 		return -1;
 	}
@@ -18,7 +18,7 @@ int procesarHandshake(char* idProceso) {
 	pthread_mutex_unlock(&mutex_diccionario);
 
 
-	sprintf(msj, "Handshake exitoso. Proceso %s agregado al diccionario de procesos correctamente", idProceso);
+	sprintf(msj, "[pid|%s]-> Agregado al diccionario de procesos", idProceso);
 	loggearInfo(msj);
 
 	return 0;
@@ -34,14 +34,16 @@ uint32_t procesarMalloc(char* idProceso, int32_t tamanio) {
 	if(existeEnElDiccionario(idProceso)) {
 		cantidadFrames = obtenerCantidadMarcos(tamPagina, tamanio + tam_heap_metadata);
 		posicionRetorno = analizarSegmento(idProceso, tamanio, cantidadFrames,false);
-		if(posicionRetorno == 0)
-			sprintf(msj,"Error en el malloc del proceso %s: memoria llena",idProceso);
-		else
-			sprintf(msj,"Malloc para el proceso %s retorna la posicion %u",idProceso,posicionRetorno);
 
-		loggearInfo(msj);
+		if(posicionRetorno == 0) {
+			sprintf(msj,"[pid|%s]-> Memoria llena", idProceso);
+			loggearError(msj);
+		} else {
+			sprintf(msj,"[pid|%s]-> Malloc en la posición %u", idProceso, posicionRetorno);
+			loggearInfo(msj);
+		}
 	} else	{
-		sprintf(msj, "El proceso %s no realizo el init correspondiente", idProceso);
+		sprintf(msj, "[pid|%s]-> No realizo el init correspondiente", idProceso);
 		loggearWarning(msj);
 	}
 
@@ -51,13 +53,13 @@ uint32_t procesarMalloc(char* idProceso, int32_t tamanio) {
 
 int32_t procesarFree(char* idProceso, uint32_t posicionSegmento) {
 
-	char msj[150];
+	char msj[200];
 
 	if(poseeSegmentos(idProceso)) {
 		return analizarFree(idProceso,posicionSegmento);
 	}
 
-	sprintf(msj, "El Proceso %s no ha realizado el init correspondiente", idProceso);
+	sprintf(msj, "[pid|%s]-> No realizo el init correspondiente", idProceso);
 	loggearWarning(msj);
 
 	return -1;
@@ -66,13 +68,13 @@ int32_t procesarFree(char* idProceso, uint32_t posicionSegmento) {
 
 void* procesarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio) {
 
-	char msj[150];
+	char msj[200];
 
-	if(poseeSegmentos(idProceso))
-	{
+	if(poseeSegmentos(idProceso)) {
 		return analizarGet(idProceso, posicionSegmento,tamanio);
 	}
-	sprintf(msj, "El Proceso %s no ah realizado el init correspondiente", idProceso);
+
+	sprintf(msj, "[pid|%s]-> No realizo el init correspondiente", idProceso);
 	loggearWarning(msj);
 
 	return NULL;
@@ -81,25 +83,28 @@ void* procesarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio) {
 
 int procesarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, void* contenido) {
 
-	char msj[150];
+	char msj[200];
 
-	if(poseeSegmentos(idProceso))
-		{
+	if(poseeSegmentos(idProceso)) {
 		return analizarCpy(idProceso, posicionSegmento, tamanio, contenido);
-		}
-		sprintf(msj, "El Proceso %s no ah realizado el init correspondiente", idProceso);
-		loggearWarning(msj);
-		return -1;
+	}
+
+	sprintf(msj, "[pid|%s]-> No realizo el init correspondiente", idProceso);
+	loggearWarning(msj);
+
+	return -1;
+
 }
 
 uint32_t procesarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag) {
 
-	char msj[120];
-	if(existeEnElDiccionario(idProceso))
-	{
-	return analizarMap(idProceso, path, tamanio, flag);
+	char msj[200];
+
+	if(existeEnElDiccionario(idProceso)) {
+		return analizarMap(idProceso, path, tamanio, flag);
 	}
-	sprintf(msj, "El Proceso %s no ah realizado el init correspondiente", idProceso);
+
+	sprintf(msj, "[pid|%s]-> No realizo el init correspondiente", idProceso);
 	loggearWarning(msj);
 
 	return 0;
@@ -107,14 +112,14 @@ uint32_t procesarMap(char* idProceso, char* path, int32_t tamanio, int32_t flag)
 }
 
 int procesarSync(char* idProceso, uint32_t posicionSegmento, int32_t tamanio) {
-	char msj[120];
 
-	if(existeEnElDiccionario(idProceso))
-	{
-	return analizarSync(idProceso, posicionSegmento, tamanio);
+	char msj[200];
+
+	if(existeEnElDiccionario(idProceso)) {
+		return analizarSync(idProceso, posicionSegmento, tamanio);
 	}
 
-	sprintf(msj, "El Proceso %s no ah realizado el init correspondiente", idProceso); // ver de pasar la validacion al lado del cliente
+	sprintf(msj, "[pid|%s]-> No realizo el init correspondiente", idProceso);
 	loggearWarning(msj);
 
 	return -1;
@@ -124,47 +129,46 @@ int procesarSync(char* idProceso, uint32_t posicionSegmento, int32_t tamanio) {
 
 int procesarUnmap(char* idProceso, uint32_t posicionSegmento) {
 
-	char msj[120];
+	char msj[200];
 
-	if(existeEnElDiccionario(idProceso))
-	{
-	return analizarUnmap(idProceso, posicionSegmento);
+	if(existeEnElDiccionario(idProceso)) {
+		return analizarUnmap(idProceso, posicionSegmento);
 	}
 
-	sprintf(msj, "El Proceso %s no ah realizado el init correspondiente", idProceso); // ver de pasar la validacion al lado del cliente
+	sprintf(msj, "[pid|%s]-> No realizo el init correspondiente", idProceso);
 	loggearWarning(msj);
+
 	return 0;
+
 }
 
 int procesarClose(char* idProceso) {
 
- 	char msj[120];
+ 	char msj[200];
 	t_list* segmentos;
+
 	pthread_mutex_lock(&mutex_diccionario);
 	segmentos = dictionary_get(diccionarioProcesos, idProceso);
 	if(segmentos != NULL) {
 		if(!list_is_empty(segmentos)) {
 			pthread_mutex_lock(&mutex_segmento);
 			void liberarSegmento(t_segmento* unSegmento) {
-				if(unSegmento)
-				{
-					if(unSegmento->esCompartido)
-					{
-						if(unSegmento->archivo)
-						{
+				if(unSegmento) {
+					if(unSegmento->esCompartido) {
+						if(unSegmento->archivo) {
 							if(unSegmento->tiene_flag_shared)
 								reducirArchivoCompartido(idProceso, unSegmento);
 							else
 								liberarConUnmap(idProceso, unSegmento);
-						free(unSegmento->archivo);
-						unSegmento->archivo=NULL; // por las dudas
+
+							free(unSegmento->archivo);
+							unSegmento->archivo=NULL; // por las dudas
 						}
-					}else{
-							if(unSegmento->paginas)
-							{
-								list_destroy_and_destroy_elements(unSegmento->paginas, (void*)liberarPagina);
-							}
+					} else {
+						if(unSegmento->paginas) {
+							list_destroy_and_destroy_elements(unSegmento->paginas, (void*)liberarPagina);
 						}
+					}
 					free(unSegmento);
 				}
 			}
@@ -176,7 +180,7 @@ int procesarClose(char* idProceso) {
 	dictionary_remove(diccionarioProcesos, idProceso);
 	pthread_mutex_unlock(&mutex_diccionario);
 
-	sprintf(msj, "Proceso %s eliminado del diccionario de procesos", idProceso);
+	sprintf(msj, "[pid|%s]-> Eliminado del diccionario de procesos", idProceso);
 	loggearInfo(msj);
 
 	return 0;
