@@ -85,7 +85,7 @@ typedef struct __attribute__((packed)) {
 	bool estaLibre;
 } t_heap_metadata;
 
-
+int tieneNulos();
 /*
 * diccionario => nombre_archivo
 * 									key

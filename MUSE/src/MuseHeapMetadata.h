@@ -25,6 +25,15 @@ void leerHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* byt
 	int sobrantePaginaInicial = tamPagina - (*bytesLeidosPagina);
 	int nroMarco = 0;
 	t_pagina * paginaAux = NULL;
+	t_pagina * ex;
+
+	if(sobrantePaginaInicial == 0)
+	{
+		(*nroPagina)++;
+		sobrantePaginaInicial = tamPagina;
+		ex = obtenerPaginaAuxiliar(paginas, (*nroPagina));
+		*offset = ex->nroMarco * tamPagina;
+	}
 
 	if(sobrantePaginaInicial<tam_heap_metadata) { // esta partido el proximo heap
 		leerHeapPartido(heapMetadata, offset, sobrantePaginaInicial, nroPagina, paginas, &paginaDummy);

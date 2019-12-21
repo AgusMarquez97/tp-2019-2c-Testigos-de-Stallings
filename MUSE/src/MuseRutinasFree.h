@@ -268,6 +268,8 @@ void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento) {
 
 			free(pagina);
 
+			pagina=NULL;
+
 		}
 	}
 

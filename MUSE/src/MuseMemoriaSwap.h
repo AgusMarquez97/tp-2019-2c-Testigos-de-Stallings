@@ -23,7 +23,19 @@ void moverMarcosASwap()
 	t_pagina * paginaReemplazo = ejecutarAlgoritmoReemplazo();
 	pthread_mutex_unlock(&mutex_algoritmo_reemplazo);
 
+	if(!paginaReemplazo)
+		loggearWarning("problemas no hay pagina disp");
+
 	reemplazarVictima(&paginaReemplazo, false);
+}
+
+int tieneNulos()
+{
+	if(listaPaginasClockModificado)
+	{
+		return list_size(listaPaginasClockModificado);
+	}
+	return -1;
 }
 
 /*
@@ -33,8 +45,15 @@ void moverMarcosASwap()
 void rutinaReemplazoPaginasSwap(t_pagina** unaPagina)
 {
 		loggearInfo("Page fault generado");
+		char aux[50];
 
 		t_pagina * paginaVictima = ejecutarAlgoritmoReemplazo(); // obtengo la pagina que quiero reemplazar
+
+		if(!paginaVictima)
+		{
+			sprintf(aux,"tiene algun tipo de nulo %d",tieneNulos());
+			loggearWarning(aux);
+		}
 
 		int marcoVictima = paginaVictima->nroMarco;
 
@@ -67,16 +86,21 @@ t_pagina * ejecutarAlgoritmoReemplazo()
 		pthread_mutex_lock(&mutex_lista_paginas);
 		bool estaEnMemoriaLocal(t_pagina * unaPagina)
 		{
-			return (unaPagina->nroPaginaSwap==-1);
+			if(unaPagina)
+				return (unaPagina->nroPaginaSwap==-1);
+			return false;
 		}
 
 		t_list * lista_analizar = list_filter(listaPaginasClockModificado,(void*)estaEnMemoriaLocal);
+
+		if(!lista_analizar)
+			loggearWarning("no hay paginas??");
 
 		while(cantidadIntentos != 3 && !paginaVictima)
 			{
 				while(contadorPaginas<list_size(lista_analizar))
 				{
-					if(ptrAlgoritmoPaginaSiguiente<=list_size(lista_analizar))
+					if(ptrAlgoritmoPaginaSiguiente>=list_size(lista_analizar))
 									ptrAlgoritmoPaginaSiguiente=0;// da la vuelta
 					t_pagina * paginaAnalizada = list_get(lista_analizar,ptrAlgoritmoPaginaSiguiente);
 
@@ -104,6 +128,7 @@ t_pagina * ejecutarAlgoritmoReemplazo()
 		pthread_mutex_unlock(&mutex_lista_paginas);
 
 		list_destroy(lista_analizar);
+
 
 	return paginaVictima;
 }
