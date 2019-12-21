@@ -36,7 +36,7 @@ void* analizarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio) {
 	}
 
 	if(bytesLeidos > 0) {
-		sprintf(msj, "[pid|%s]-> Ha leido %d bytes de la posicion %d", idProceso, bytesLeidos, posicionSegmento);
+		sprintf(msj, "[pid|%s]-> Lectura sobre la dirección %d de %d bytes", idProceso, posicionSegmento, bytesLeidos);
 		loggearInfo(msj);
 		return buffer;
 	}
@@ -149,7 +149,7 @@ int analizarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, voi
 
 	if(!segmento) {
 		sprintf(msj, "[pid|%s]-> Intentó escribir fuera del segmento en la direccion %d", idProceso, posicionSegmento);
-		loggearInfo(msj);
+		loggearWarning(msj);
 
 		return -1;
 	}
@@ -165,7 +165,7 @@ int analizarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, voi
 	}
 
 	if(bytesEscritos > 0) {
-		sprintf(msj, "[pid|%s]-> Escribió %d bytes en la posicion %d", idProceso, bytesEscritos, posicionSegmento);
+		sprintf(msj, "[pid|%s]-> Escritura sobre la dirección %d de %d bytes", idProceso, posicionSegmento, bytesEscritos);
 		loggearInfo(msj);
 
 		return 0;
@@ -283,11 +283,6 @@ t_heap_metadata* recuperarHeapMetadata(t_list* listaPaginas, uint32_t cantidadBy
 	return heapMetadata;
 
 }
-
-
-/*
- * Memoria mappeada......
- */
 
 int analizarGetMemoriaMappeada(char* idProceso, t_segmento* unSegmento, uint32_t posicionRelativaSegmento, int32_t tamanio, void** buffer) {
 
