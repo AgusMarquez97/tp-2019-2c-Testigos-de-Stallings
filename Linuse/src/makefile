@@ -26,7 +26,7 @@ LFLAGS = -L"/home/utnso/workspace/tp-2019-2c-Testigos-de-Stallings/Shared_Librar
 LIBS = -lShared_Library -lrt -lm -lreadline -lpthread -lcommons -lhilolay
 
 # define the C source files
-SRCS = revolucion_compartida.c #aca agregar demas .c 
+SRCS = Linuse.c #aca agregar demas .c 
 
 # define the C object files 
 #
@@ -39,7 +39,7 @@ SRCS = revolucion_compartida.c #aca agregar demas .c
 OBJS = $(SRCS:.c=.o)
 
 # define the executable file 
-MAIN = rev #Nombre final del ejecutable
+MAIN = Linuse #Nombre final del ejecutable
 
 #
 # The following part of the makefile is generic; it can be used to 
