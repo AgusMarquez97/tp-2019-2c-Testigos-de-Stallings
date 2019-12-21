@@ -222,6 +222,7 @@ t_segmento * crearSegmentoSinMemoria(char * path,t_list * listaPaginas,int idSeg
 
 int copiarDatosEnArchivo(char * path, int tamanio, void * buffer, int offset)
 {
+	/*
 			FILE * fd = fopen(path,"a+");
 				if(!fd)
 					return -1;
@@ -244,6 +245,24 @@ int copiarDatosEnArchivo(char * path, int tamanio, void * buffer, int offset)
 			close(fd_num);
 
 			return 0;
+	*/
+
+		FILE* fd = fopen(path, "r+");
+		if(!fd)
+			return -1;
+
+		//struct stat statbuf = {0};
+		//stat(RUTA_ARCHIVO,&statbuf);
+		//int tamanioArchivo = statbuf.st_size;
+
+		fseek(fd, offset, SEEK_SET);
+
+		fwrite(buffer, 1, tamanio, fd);
+
+		fclose(fd);
+
+		return 0;
+
 
 }
 
