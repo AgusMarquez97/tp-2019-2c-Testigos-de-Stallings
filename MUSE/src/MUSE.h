@@ -258,6 +258,7 @@ bool estaLibreMarcoMemoriaSwap(int nroMarco);
 void* leerDeMemoria(int posicionInicial, int tamanio);
 void escribirEnMemoria(void* contenido, int posicionInicial, int tamanio);
 void eliminarDeAlgoritmo(t_pagina * unaPagina);
+void eliminarDeAlgoritmoSinLock(t_pagina * unaPagina);
 
 /*
  * Muse Heap Metadata

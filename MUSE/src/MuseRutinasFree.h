@@ -237,6 +237,7 @@ void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento) {
 	char msj[450];
 	char aux[100];
 	pthread_mutex_lock(&mutex_segmento);
+	pthread_mutex_lock(&mutex_algoritmo_reemplazo);
 	t_list* paginas = segmento->paginas;
 
 	if((nroPagina + 1) == list_size(paginas)) {
@@ -255,7 +256,7 @@ void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento) {
 
 		if(pagina->nroPagina > nroPagina) {
 
-			eliminarDeAlgoritmo(pagina);
+			eliminarDeAlgoritmoSinLock(pagina);
 
 			sprintf(aux, "%d ",pagina->nroPagina);
 			strcat(msj, aux);
@@ -279,7 +280,7 @@ void liberarPaginas(char* idProceso, int nroPagina, t_segmento* segmento) {
 	segmento->tamanio = tamPagina*list_size(segmento->paginas);
 
 	list_destroy(lista_aux);
-
+	pthread_mutex_unlock(&mutex_algoritmo_reemplazo);
 	pthread_mutex_unlock(&mutex_segmento);
 
 	strcat(msj, "]");

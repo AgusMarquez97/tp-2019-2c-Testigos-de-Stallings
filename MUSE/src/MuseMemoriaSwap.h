@@ -282,4 +282,14 @@ void eliminarDeAlgoritmo(t_pagina * unaPagina)
 	pthread_mutex_unlock(&mutex_algoritmo_reemplazo);
 }
 
+void eliminarDeAlgoritmoSinLock(t_pagina * unaPagina)
+{
+	bool existeEnAlgoritmo(t_pagina * unaPaginaLocal)
+	{
+		return unaPaginaLocal == unaPagina; // validar
+	}
+
+	list_remove_by_condition(listaPaginasClockModificado,(void*)existeEnAlgoritmo);
+}
+
 #endif /* MUSEMEMORIASWAP_H_ */

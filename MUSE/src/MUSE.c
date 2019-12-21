@@ -122,7 +122,7 @@ void rutinaServidor(int* p_socket) {
 	if(mensajeRecibido == NULL) {
 		loggearWarning("Operación Desconocida");
 	} else {
-		//pthread_mutex_lock(&mutex_lock_operaciones);
+		pthread_mutex_lock(&mutex_lock_operaciones);
 		switch(mensajeRecibido->tipoOperacion) {
 
 			case HANDSHAKE:
@@ -227,7 +227,7 @@ void rutinaServidor(int* p_socket) {
 		}
 
 		free(mensajeRecibido);
-		//pthread_mutex_unlock(&mutex_lock_operaciones);
+		pthread_mutex_unlock(&mutex_lock_operaciones);
 
 	}
 
