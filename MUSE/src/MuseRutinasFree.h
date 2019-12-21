@@ -86,7 +86,7 @@ int liberarUnHeapMetadata(t_list * paginas, int offsetSegmento) {
 	if(existeHM(paginas, offsetPrevio)) {
 		t_heap_metadata * unHeap = obtenerHeapMetadata(paginas, offsetPrevio,nroPaginaActual);
 
-		int tamanioPaginaRestante = tamPagina - offsetSegmento%tamPagina;
+		int tamanioPaginaRestante = tamPagina - offsetPrevio%tamPagina;
 
 		if(!unHeap->estaLibre) {
 			unHeap->estaLibre = true;
@@ -148,6 +148,10 @@ int defragmentarSegmento(t_segmento* segmento) {
 			{
 				primeraPaginaLibre = paginaUltimoHeapMetadata;
 				primerHeapMetadataLibre = offsetAnterior;
+				if(offsetAnterior%tamPagina == 0) // && tam_heap_metadata>tamPagina
+				{
+					primeraPaginaLibre++;
+				}
 			}
 
 
