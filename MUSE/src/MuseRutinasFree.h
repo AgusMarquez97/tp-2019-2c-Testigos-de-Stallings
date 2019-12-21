@@ -148,7 +148,7 @@ int defragmentarSegmento(t_segmento* segmento) {
 			{
 				primeraPaginaLibre = paginaUltimoHeapMetadata;
 				primerHeapMetadataLibre = offsetAnterior;
-				if(offsetAnterior%tamPagina == 0) // && tam_heap_metadata>tamPagina
+				if(offsetAnterior%tamPagina == 0 && offsetAnterior!=0) // && tam_heap_metadata>tamPagina
 				{
 					primeraPaginaLibre++;
 				}
