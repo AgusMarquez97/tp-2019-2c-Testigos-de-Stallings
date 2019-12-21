@@ -36,7 +36,7 @@ void* analizarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio) {
 	}
 
 	if(bytesLeidos > 0) {
-		sprintf(msj, "[pid|%s]-> Lectura sobre la dirección %d de %d bytes", idProceso, posicionSegmento, bytesLeidos);
+		sprintf(msj, "[pid|%s]-> Lectura sobre la posición %d de %d bytes", idProceso, posicionSegmento, bytesLeidos);
 		loggearInfo(msj);
 		return buffer;
 	}
@@ -165,7 +165,7 @@ int analizarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, voi
 	}
 
 	if(bytesEscritos > 0) {
-		sprintf(msj, "[pid|%s]-> Escritura sobre la dirección %d de %d bytes", idProceso, posicionSegmento, bytesEscritos);
+		sprintf(msj, "[pid|%s]-> Escritura sobre la posición %d de %d bytes", idProceso, posicionSegmento, bytesEscritos);
 		loggearInfo(msj);
 
 		return 0;

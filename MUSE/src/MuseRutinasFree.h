@@ -41,7 +41,7 @@ int analizarFree(char* idProceso, uint32_t posicionSegmento) {
 	bytesLiberados = liberarUnHeapMetadata(paginas, posicionSegmento - segmento->posicionInicial);
 
 	if(bytesLiberados > 0) {
-		sprintf(msj, "[pid|%s]-> Liberó %d bytes en la posición %d", idProceso, (int)(bytesLiberados - tam_heap_metadata), posicionSegmento);
+		sprintf(msj, "[pid|%s]-> Liberó %d bytes de la posición %d", idProceso, (int)(bytesLiberados - tam_heap_metadata), posicionSegmento);
 		retorno = 1;
 	} else {
 		strcpy(msj, "");
