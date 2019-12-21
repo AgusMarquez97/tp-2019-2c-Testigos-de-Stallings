@@ -45,7 +45,7 @@ void* analizarGet(char* idProceso, uint32_t posicionSegmento, int32_t tamanio) {
 
 	switch(bytesLeidos) {
 		case HM_NO_EXISTENTE:
-			sprintf(msj, "[pid|%s]-> Intentó leer de un HeapMetadata que no existe en la posicion %d", idProceso, posicionSegmento);
+			sprintf(msj, "[pid|%s]-> Intentó leer de un HeapMetadata que no existe en la posición %d", idProceso, posicionSegmento);
 			break;
 		case HM_YA_LIBERADO:
 			sprintf(msj, "[pid|%s]-> Intentó leer de un HeapMetadata que esta libre en la posición %d", idProceso, posicionSegmento);
@@ -148,7 +148,7 @@ int analizarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, voi
 	t_segmento* segmento = obtenerSegmento(segmentos, posicionSegmento); // ver de hacer validacion por el nulo
 
 	if(!segmento) {
-		sprintf(msj, "[pid|%s]-> Intentó escribir fuera del segmento en la direccion %d", idProceso, posicionSegmento);
+		sprintf(msj, "[pid|%s]-> Intentó escribir fuera del segmento en la posición %d", idProceso, posicionSegmento);
 		loggearWarning(msj);
 
 		return -1;
@@ -175,7 +175,7 @@ int analizarCpy(char* idProceso, uint32_t posicionSegmento, int32_t tamanio, voi
 
 	switch(bytesEscritos) {
 		case HM_NO_EXISTENTE:
-			sprintf(msj, "[pid|%s]-> Intentó escribir en un HeapMetadata que no existe en la posicion %d", idProceso, posicionSegmento);
+			sprintf(msj, "[pid|%s]-> Intentó escribir en un HeapMetadata que no existe en la posición %d", idProceso, posicionSegmento);
 			break;
 		case HM_YA_LIBERADO:
 			sprintf(msj, "[pid|%s]-> Intentó escribir en un HeapMetadata que está libre en la posición %d", idProceso, posicionSegmento);

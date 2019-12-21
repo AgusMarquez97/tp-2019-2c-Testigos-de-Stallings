@@ -1,36 +1,21 @@
-/*
- * MuseMalloc&Map.h
- *
- *  Created on: Dec 17, 2019
- *      Author: agus
- */
-
 #ifndef MUSEMALLOC_H_
 #define MUSEMALLOC_H_
 
 #include "MuseAuxiliares.h"
 
-/*
- * FUNCIONES MACRO DE OPERACIONES
- */
-
-// MACRO DE MALLOC
-
 uint32_t analizarSegmento (char* idProceso, int tamanio, int cantidadFrames, bool esCompartido) {
-	//Que pasa si en el medio de esta operacion el mismo proceso mediante otro hilo me inserta otro segmento al mismo tiempo = PROBLEMAS
+	//Que pasa si en el medio de esta operacion el mismo proceso mediante otro hilo me inserta
+	//otro segmento al mismo tiempo [!!]
 
 	uint32_t direccionRetorno = 0;
 	t_list* listaSegmentos;
 	int nroSegmento = 0;
 
-	if(!poseeSegmentos(idProceso)) // => Es el primer malloc
-	{
+	if(!poseeSegmentos(idProceso)) {
 		listaSegmentos = list_create();
 		crearSegmento(idProceso, tamanio, cantidadFrames, listaSegmentos, 0, esCompartido, 0);
 		direccionRetorno =  tam_heap_metadata;
-	}
-	else
-	{
+	} else {
 		t_segmento* ultimoSegmento;
 		uint32_t ultimaPosicionSegmento;
 
@@ -45,22 +30,21 @@ uint32_t analizarSegmento (char* idProceso, int tamanio, int cantidadFrames, boo
 		pthread_mutex_unlock(&mutex_segmento);
 		pthread_mutex_unlock(&mutex_diccionario);
 
-		if(ultimoSegmento->esCompartido || esCompartido)
-		{
-			crearSegmento(idProceso, tamanio, cantidadFrames, listaSegmentos,nroSegmento, esCompartido, ultimaPosicionSegmento); // HACER
+		if(ultimoSegmento->esCompartido || esCompartido) {
+			crearSegmento(idProceso, tamanio, cantidadFrames, listaSegmentos, nroSegmento, esCompartido, ultimaPosicionSegmento);
 			direccionRetorno = ultimaPosicionSegmento + tam_heap_metadata;
-		}
-		else
+		} else {
 			direccionRetorno = completarSegmento(idProceso, ultimoSegmento, tamanio);
+		}
 
 	}
+
 	return direccionRetorno;
 
 }
 
 
-void crearSegmento(char* idProceso, int tamanio, int cantidadMarcos, t_list* listaSegmentos, int idSegmento, bool esCompartido, int posicionInicial)
-{
+void crearSegmento(char* idProceso, int tamanio, int cantidadMarcos, t_list* listaSegmentos, int idSegmento, bool esCompartido, int posicionInicial) {
 
 		t_segmento* segmento = instanciarSegmento(tamanio, cantidadMarcos, idSegmento, esCompartido, posicionInicial);
 
@@ -75,9 +59,9 @@ void crearSegmento(char* idProceso, int tamanio, int cantidadMarcos, t_list* lis
 
 t_segmento* instanciarSegmento(int tamanio, int cantidadFrames, int idSegmento, bool esCompartido, int posicionInicial) {
 
-	t_list* listaPaginas = crearListaPaginas(tamanio, cantidadFrames,esCompartido);
+	t_list* listaPaginas = crearListaPaginas(tamanio, cantidadFrames, esCompartido);
 
-	t_segmento * segmento = malloc(sizeof(t_segmento));
+	t_segmento* segmento = malloc(sizeof(t_segmento));
 
 	segmento->id_segmento = idSegmento;
 	segmento->esCompartido = esCompartido;
@@ -90,25 +74,27 @@ t_segmento* instanciarSegmento(int tamanio, int cantidadFrames, int idSegmento, 
 
 }
 
-t_list* crearListaPaginas(int tamanio, int cantidadMarcos,bool esCompartido) {
+t_list* crearListaPaginas(int tamanio, int cantidadMarcos, bool esCompartido) {
 
 	t_list* listaPaginas = list_create();
 
-	agregarPaginas(&listaPaginas,cantidadMarcos,0,esCompartido);
+	agregarPaginas(&listaPaginas, cantidadMarcos, 0, esCompartido);
 
 	int primerMarco = ((t_pagina*)list_get(listaPaginas, 0))->nroMarco; // ver si en el medio
 
-	escribirHeapMetadata(listaPaginas,0, primerMarco*tamPagina, tamanio,false);
+	escribirHeapMetadata(listaPaginas, 0, primerMarco * tamPagina, tamanio, false);
 
 	return listaPaginas;
 
 }
 
-void agregarPaginas(t_list** listaPaginas, int cantidadMarcos, int nroUltimaPagina, bool esCompartido) { // Analizar de agregar log de cada pagina que se pide por proceso
+void agregarPaginas(t_list** listaPaginas, int cantidadMarcos, int nroUltimaPagina, bool esCompartido) {
+	// Analizar de agregar log de cada pagina que se pide por proceso
 
-	t_pagina * pagina;
+	t_pagina* pagina;
 
 	for(int i = 0; i < cantidadMarcos; i++) {
+
 		pagina = malloc(sizeof(*pagina));
 
 		pagina->nroMarco = asignarMarcoLibre(); // Agregar logica del algoritmo de reemplazo de pags
@@ -121,15 +107,15 @@ void agregarPaginas(t_list** listaPaginas, int cantidadMarcos, int nroUltimaPagi
 		list_add(*listaPaginas, pagina);
 		pthread_mutex_unlock(&mutex_segmento);
 
-
 		pthread_mutex_lock(&mutex_algoritmo_reemplazo);
-		list_add(listaPaginasClockModificado,pagina);
+		list_add(listaPaginasClockModificado, pagina);
 		pthread_mutex_unlock(&mutex_algoritmo_reemplazo);
+
 	}
 
 }
 
-uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
+uint32_t completarSegmento(char * idProceso, t_segmento* segmento, int tamanio) {
 
 	pthread_mutex_lock(&mutex_segmento);
 	int cantPaginas = list_size(segmento->paginas);
@@ -152,21 +138,24 @@ uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 
 
 	while(tamMaximo - bytesLeidos > tam_heap_metadata) {
+
 		offsetAnterior = offset;
 		auxBytesLeidos = bytesLeidos;
 		paginaAnterior = contador;
-		leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset,segmento->paginas,&contador);
+		leerHeapMetadata(&heapMetadata, &bytesLeidos, &bytesLeidosPagina, &offset,segmento->paginas, &contador);
 
 		if(heapMetadata->estaLibre && heapMetadata->offset >= (tamanio + tam_heap_metadata)) {
 
 			bool tieneUnoSiguiente = existeHM(segmento->paginas, offset);
 
 			if(tieneUnoSiguiente)
-				escribirHeapMetadata(segmento->paginas,paginaAnterior, offsetAnterior, tamanio,tam_heap_metadata + heapMetadata->offset); // validado
+				escribirHeapMetadata(segmento->paginas, paginaAnterior, offsetAnterior, tamanio, tam_heap_metadata + heapMetadata->offset); // validado
 			else
-				escribirHeapMetadata(segmento->paginas,paginaAnterior, offsetAnterior, tamanio,false); // validado
+				escribirHeapMetadata(segmento->paginas, paginaAnterior, offsetAnterior, tamanio, false);
+
 			free(heapMetadata);
 			return segmento->posicionInicial + auxBytesLeidos + tam_heap_metadata;
+
 		}
 
 	}
@@ -184,7 +173,7 @@ uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 
 	int nuevaCantidadFrames = obtenerCantidadMarcos(tamPagina, tamanio + tam_heap_metadata - sobrante); // Frames necesarios para escribir en memoria
 
-	int retorno = estirarSegmento(baseSegmento,idProceso, segmento, tamanio, nuevaCantidadFrames, offset, sobrante,contador);
+	int retorno = estirarSegmento(baseSegmento, idProceso, segmento, tamanio, nuevaCantidadFrames, offset, sobrante, contador);
 
 	free(heapMetadata); // testear!!
 
@@ -193,29 +182,27 @@ uint32_t completarSegmento(char * idProceso,t_segmento* segmento, int tamanio) {
 }
 
 // offset anterior al heap!
-int estirarSegmento(int baseSegmento,char* idProceso, t_segmento* segmento, int tamanio, int nuevaCantidadFrames, int offset, int sobrante, int paginaActual)
-{
+int estirarSegmento(int baseSegmento, char* idProceso, t_segmento* segmento, int tamanio, int nuevaCantidadFrames, int offset, int sobrante, int paginaActual) {
 
 	// seguramente aca necesite un mutex => nadie puede acceder a sus paginas temporalmente
-
 	pthread_mutex_lock(&mutex_segmento);
 	t_list* listaPaginas = segmento->paginas;
 	int nroUltimaPagina = list_size(listaPaginas);
 	pthread_mutex_unlock(&mutex_segmento);
-	agregarPaginas(&listaPaginas, nuevaCantidadFrames, nroUltimaPagina,false);
+	agregarPaginas(&listaPaginas, nuevaCantidadFrames, nroUltimaPagina, false);
 	pthread_mutex_lock(&mutex_segmento);
 	segmento->tamanio = list_size(listaPaginas) * tamPagina; // ver si es necesario un mutex por cada operacion con el segmento
 	pthread_mutex_unlock(&mutex_segmento);
 
 	// hasta aca
-
-	escribirHeapMetadata(listaPaginas,paginaActual,offset,tamanio,false); // Escribir el heap nuevo en memoria. Considera heap partido
+	escribirHeapMetadata(listaPaginas, paginaActual, offset, tamanio, false); // Escribir el heap nuevo en memoria. Considera heap partido
 
 	return baseSegmento + tam_heap_metadata;
 }
 
 
 int asignarMarcoLibre() {
+
 	for(int i = 0; i < cantidadMarcosMemoriaPrincipal; i++) {
 		if(estaLibreMarco(i)) {
 			pthread_mutex_lock(&mutex_marcos_libres);
