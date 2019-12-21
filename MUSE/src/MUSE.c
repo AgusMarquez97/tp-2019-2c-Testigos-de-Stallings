@@ -112,7 +112,7 @@ void rutinaServidor(int* p_socket) {
 	char* info;
 	int valorRetorno;
 	int socketRespuesta = *p_socket;
-	char id_proceso[30];
+	char id_proceso[300];
 	free(p_socket);
 
 	t_mensajeMuse* mensajeRecibido = recibirOperacion(socketRespuesta);
@@ -131,7 +131,7 @@ void rutinaServidor(int* p_socket) {
 
 				break;
 			case MALLOC:
-				info = malloc(strlen("[pid|%s]-> ALLOC de 999999999999999 bytes") + 1);
+				info = malloc(strlen("[pid|%s]-> ALLOC de 999999999999999 bytes") + 99);
 				sprintf(info, "[pid|%s]-> ALLOC de %d bytes", id_proceso, mensajeRecibido->tamanio);
 				loggearInfo(info);
 				free(info);
@@ -141,7 +141,7 @@ void rutinaServidor(int* p_socket) {
 
 				break;
 			case FREE:
-				info = malloc(strlen("[pid|%s]-> FREE sobre la dirección 999999999999999") + 1);
+				info = malloc(strlen("[pid|%s]-> FREE sobre la dirección 999999999999999") + 99);
 				sprintf(info, "[pid|%s]-> FREE sobre la dirección %u", id_proceso, mensajeRecibido->posicionMemoria);
 				loggearInfo(info);
 				free(info);
@@ -151,7 +151,7 @@ void rutinaServidor(int* p_socket) {
 
 				break;
 			case GET:
-				info = malloc(strlen("[pid|%s]-> GET sobre la dirección 999999999999999 de 999999999999999 bytes") + 1);
+				info = malloc(strlen("[pid|%s]-> GET sobre la dirección 999999999999999 de 999999999999999 bytes") + 99);
 				sprintf(info, "[pid|%s]-> GET sobre la dirección %u de %d bytes", id_proceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
 				loggearInfo(info);
 				free(info);
@@ -163,7 +163,7 @@ void rutinaServidor(int* p_socket) {
 
 				break;
 			case CPY:
-				info = malloc(strlen("[pid|%s]-> CPY sobre la dirección 999999999999999 de 999999999999999 bytes") + 1);
+				info = malloc(strlen("[pid|%s]-> CPY sobre la dirección 999999999999999 de 999999999999999 bytes") + 99);
 				sprintf(info, "[pid|%s]-> CPY sobre la dirección %u de %d bytes", id_proceso, mensajeRecibido->posicionMemoria, mensajeRecibido->tamanio);
 		 		loggearInfo(info);
 				free(info);
@@ -174,7 +174,7 @@ void rutinaServidor(int* p_socket) {
 
 				break;
 			case MAP:
-				info = malloc(strlen("[pid|%s]-> MAP al archivo N con el flag XXXXXXX") + 1 + strlen((char*)mensajeRecibido->contenido) + 1);
+				info = malloc(strlen("[pid|%s]-> MAP al archivo N con el flag XXXXXXX") + 99 + strlen((char*)mensajeRecibido->contenido) + 1);
 				char aux[35];
 				if(mensajeRecibido->flag == MUSE_MAP_SHARED)
 					strcpy(aux,"SHARED");
@@ -191,7 +191,7 @@ void rutinaServidor(int* p_socket) {
 
 				break;
 			case SYNC:
-				info = malloc(strlen("[pid|%s]-> SYNC sobre la dirección 999999999999999") + 1);
+				info = malloc(strlen("[pid|%s]-> SYNC sobre la dirección 999999999999999") + 99);
 				sprintf(info, "[pid|%s]-> SYNC sobre la dirección %u", id_proceso, mensajeRecibido->posicionMemoria);
 				loggearInfo(info);
 				free(info);
@@ -201,7 +201,7 @@ void rutinaServidor(int* p_socket) {
 
 				break;
 			case UNMAP:
-				info = malloc(strlen("[pid|%s]-> UNMAP sobre la dirección 999999999999999") + 1);
+				info = malloc(strlen("[pid|%s]-> UNMAP sobre la dirección 999999999999999") + 99);
 				sprintf(info, "[pid|%s]-> UNMAP sobre la dirección %u", id_proceso, mensajeRecibido->posicionMemoria);
 				loggearInfo(info);
 				free(info);
@@ -211,7 +211,7 @@ void rutinaServidor(int* p_socket) {
 
 				break;
 			case CLOSE:
-				info = malloc(strlen("[pid|%s]-> CLOSE") + 1);
+				info = malloc(strlen("[pid|%s]-> CLOSE") + 99);
 				sprintf(info, "[pid|%s]-> CLOSE", id_proceso);
 				loggearInfo(info);
 				free(info);

@@ -33,6 +33,7 @@ void leerHeapMetadata(t_heap_metadata** heapMetadata, int* bytesLeidos, int* byt
 		sobrantePaginaInicial = tamPagina;
 		ex = obtenerPaginaAuxiliar(paginas, (*nroPagina));
 		*offset = ex->nroMarco * tamPagina;
+		free(ex);
 	}
 
 	if(sobrantePaginaInicial<tam_heap_metadata) { // esta partido el proximo heap

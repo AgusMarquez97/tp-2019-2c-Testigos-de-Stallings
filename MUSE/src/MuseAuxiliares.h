@@ -163,8 +163,8 @@ t_pagina * obtenerPaginaAuxiliar(t_list * paginas, int nroPagina)
 	t_pagina * paginaAuxiliar = malloc(sizeof(*paginaAuxiliar));
 	pthread_mutex_lock(&mutex_segmento);
 	t_pagina * paginaReal = list_get(paginas,nroPagina);
-	pthread_mutex_unlock(&mutex_segmento);
 	memcpy(paginaAuxiliar,paginaReal,sizeof(t_pagina));
+	pthread_mutex_unlock(&mutex_segmento);
 
 	return paginaAuxiliar;
 

@@ -271,6 +271,8 @@ void liberarConUnmap(char * idProceso, t_segmento * unSegmento)
 
 	char msj[450];
 	char aux[100];
+	////pthread_mutex_lock(&mutex_algoritmo_reemplazo);
+	//pthread_mutex_lock(&mutex_segmento);
 
 	if(list_size(unSegmento->paginas)==1) {
 		sprintf(msj, "Para el proceso %s, se ha liberado la página ", idProceso);
@@ -288,6 +290,8 @@ void liberarConUnmap(char * idProceso, t_segmento * unSegmento)
 	strcat(msj, "]");
 
 	unSegmento->paginas=NULL;
+	//pthread_mutex_lock(&mutex_segmento);
+	//pthread_mutex_lock(&mutex_algoritmo_reemplazo);
 
 	loggearInfo(msj);
 }
