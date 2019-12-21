@@ -147,6 +147,8 @@ typedef struct {
 } t_archivo_compartido;
 
 
+void loggearDireccion(char * idProceso, uint32_t posicionSegmento);
+
 /*
  * Muse
  */
