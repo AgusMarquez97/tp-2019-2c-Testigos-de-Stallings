@@ -72,10 +72,12 @@ t_pagina * ejecutarAlgoritmoReemplazo()
 
 		t_list * lista_analizar = list_filter(listaPaginasClockModificado,(void*)estaEnMemoriaLocal);
 
-		while(cantidadIntentos != 3 || !paginaVictima)
+		while(cantidadIntentos != 3 && !paginaVictima)
 			{
 				while(contadorPaginas<list_size(lista_analizar))
 				{
+					if(ptrAlgoritmoPaginaSiguiente<=list_size(lista_analizar))
+									ptrAlgoritmoPaginaSiguiente=0;// da la vuelta
 					t_pagina * paginaAnalizada = list_get(lista_analizar,ptrAlgoritmoPaginaSiguiente);
 
 					if(paginaAnalizada->uso == false && paginaAnalizada->modificada == false)
@@ -95,9 +97,6 @@ t_pagina * ejecutarAlgoritmoReemplazo()
 
 					ptrAlgoritmoPaginaSiguiente++;
 					contadorPaginas++;
-
-					if(ptrAlgoritmoPaginaSiguiente==list_size(lista_analizar))
-						ptrAlgoritmoPaginaSiguiente=0;// da la vuelta
 				}
 				contadorPaginas=0;
 				cantidadIntentos++;
